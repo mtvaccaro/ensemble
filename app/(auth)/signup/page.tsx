@@ -49,7 +49,7 @@ export default function SignUpPage() {
         // Redirect to dashboard or show success message
         router.push('/dashboard')
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)

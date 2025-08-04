@@ -175,7 +175,7 @@ export async function isAuthenticated(): Promise<boolean> {
   try {
     const { data: { session } } = await supabase.auth.getSession()
     return !!session
-  } catch (error) {
+  } catch {
     return false
   }
 }
@@ -199,7 +199,7 @@ export async function getCurrentSession() {
 }
 
 // Listen to auth state changes
-export function onAuthStateChange(callback: (event: string, session: any) => void) {
+export function onAuthStateChange(callback: (event: string, session: Session | null) => void) {
   return supabase.auth.onAuthStateChange(callback)
 }
 
