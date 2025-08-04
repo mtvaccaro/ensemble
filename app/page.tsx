@@ -8,8 +8,8 @@ export default function HomePage() {
               <h1 className="text-xl font-bold text-gray-900">CLIPPER WORKS!</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <a href="/auth/login" className="text-gray-700 hover:text-gray-900">Sign In</a>
-              <a href="/auth/signup" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Get Started</a>
+              <a href="/login" className="text-gray-700 hover:text-gray-900">Sign In</a>
+              <a href="/signup" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Get Started</a>
             </div>
           </div>
         </div>
