@@ -3,9 +3,9 @@ import { createClient } from '@/lib/supabase-server'
 import Parser from 'rss-parser'
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 const parser = new Parser({
@@ -15,8 +15,9 @@ const parser = new Parser({
 })
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { data: podcast, error: podcastError } = await supabase
       .from('podcasts')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (podcastError || !podcast) {
@@ -42,18 +43,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         
         return {
           title: item.title || 'Untitled Episode',
-          description: item.contentSnippet || item.content || item.description || '',
+          description: item.contentSnippet || item['content:encoded'] || '',
           audioUrl,
           duration,
           publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
-          imageUrl: item.itunes?.image || podcast.image_url
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          imageUrl: (item as any).itunes?.image || podcast.image_url
         }
       }).filter(episode => episode.audioUrl)
 
       const { data: existingEpisodes, error: episodesError } = await supabase
         .from('episodes')
         .select('audio_url')
-        .eq('podcast_id', params.id)
+        .eq('podcast_id', id)
 
       if (episodesError) {
         throw episodesError
@@ -64,7 +66,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
       if (newEpisodes.length > 0) {
         const episodesToInsert = newEpisodes.map(episode => ({
-          podcast_id: params.id,
+          podcast_id: id,
           title: episode.title,
           description: episode.description,
           audio_url: episode.audioUrl,
@@ -87,7 +89,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             episode_count: episodes.length,
             last_updated: new Date().toISOString()
           })
-          .eq('id', params.id)
+          .eq('id', id)
 
         if (updateError) {
           console.warn('Failed to update podcast episode count:', updateError)
@@ -97,7 +99,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       const { data: allEpisodes, error: fetchError } = await supabase
         .from('episodes')
         .select('*')
-        .eq('podcast_id', params.id)
+        .eq('podcast_id', id)
         .order('published_at', { ascending: false })
 
       if (fetchError) {

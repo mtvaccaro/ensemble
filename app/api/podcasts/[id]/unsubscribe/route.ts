@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -19,23 +20,31 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { data: podcast, error: findError } = await supabase
       .from('podcasts')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (findError || !podcast) {
       return NextResponse.json({ error: 'Podcast not found' }, { status: 404 })
     }
 
+    // First get episode IDs for this podcast
+    const { data: podcastEpisodes, error: episodesError } = await supabase
+      .from('episodes')
+      .select('id')
+      .eq('podcast_id', id)
+
+    if (episodesError) {
+      throw episodesError
+    }
+
+    const episodeIds = podcastEpisodes?.map(ep => ep.id) || []
+
+    // Then check if user has clips for these episodes
     const { data: userClips, error: clipsError } = await supabase
       .from('clips')
       .select('id')
       .eq('user_id', user.id)
-      .in('episode_id', 
-        supabase
-          .from('episodes')
-          .select('id')
-          .eq('podcast_id', params.id)
-      )
+      .in('episode_id', episodeIds)
 
     if (clipsError) {
       throw clipsError
@@ -50,7 +59,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { error: deleteError } = await supabase
       .from('podcasts')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (deleteError) {
       throw deleteError
