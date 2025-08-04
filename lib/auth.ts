@@ -34,7 +34,8 @@ export async function signUp({ email, password, name }: SignUpData): Promise<{ u
       options: {
         data: {
           name: name || null,
-        }
+        },
+        emailRedirectTo: `${window.location.origin}/dashboard`
       }
     })
 
