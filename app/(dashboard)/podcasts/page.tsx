@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, Podcast as PodcastType } from '@/types'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function PodcastsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<PodcastSearchResult[]>([])

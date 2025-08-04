@@ -4,6 +4,9 @@ import React from 'react'
 import { Scissors, Podcast, Clock, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export default function DashboardPage() {
   const stats = [
     {
