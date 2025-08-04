@@ -39,6 +39,15 @@ export async function signUp({ email, password, name }: SignUpData): Promise<{ u
     })
 
     if (error) {
+      // Check if this is demo mode
+      if (error.message.includes('Demo mode')) {
+        return { 
+          user: null, 
+          error: { 
+            message: 'Demo Mode: To test authentication, please add your Supabase credentials to .env.local. For now, you can explore the podcast features directly at /podcasts' 
+          } 
+        }
+      }
       return { user: null, error: { message: error.message } }
     }
 
@@ -60,6 +69,15 @@ export async function signIn({ email, password }: SignInData): Promise<{ user: U
     })
 
     if (error) {
+      // Check if this is demo mode
+      if (error.message.includes('Demo mode')) {
+        return { 
+          user: null, 
+          error: { 
+            message: 'Demo Mode: To test authentication, please add your Supabase credentials to .env.local. For now, you can explore the podcast features directly at /podcasts' 
+          } 
+        }
+      }
       return { user: null, error: { message: error.message } }
     }
 

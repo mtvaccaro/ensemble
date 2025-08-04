@@ -3,17 +3,37 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+// Check if we're in demo mode (placeholder values)
+const isDemoMode = !supabaseUrl || !supabaseAnonKey || 
+  supabaseUrl.includes('your-project') || 
+  supabaseAnonKey.includes('your-anon-key')
+
+let supabase: any = null // eslint-disable-line @typescript-eslint/no-explicit-any
+
+if (isDemoMode) {
+  console.log('Running in demo mode - authentication will be mocked')
+  // Create a mock Supabase client for demo mode
+  supabase = {
+    auth: {
+      signUp: () => Promise.resolve({ data: { user: null }, error: { message: 'Demo mode - please configure Supabase credentials' } }),
+      signInWithPassword: () => Promise.resolve({ data: { user: null }, error: { message: 'Demo mode - please configure Supabase credentials' } }),
+      signOut: () => Promise.resolve({ error: null }),
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: null } })
+    }
+  }
+} else {
+  supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    }
+  })
 }
 
-export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-})
+export { supabase }
 
 
 // Database types - these will be updated with generated types from Supabase

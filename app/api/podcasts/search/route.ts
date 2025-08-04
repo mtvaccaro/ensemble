@@ -1,41 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
 
-interface PodcastIndexResponse {
-  feeds: Array<{
-    id: number
-    title: string
-    url: string
-    originalUrl: string
-    link: string
-    description: string
-    author: string
-    ownerName: string
-    image: string
-    artwork: string
-    lastUpdateTime: number
-    lastCrawlTime: number
-    lastParseTime: number
-    lastGoodHttpStatusTime: number
-    lastHttpStatus: number
-    contentType: string
-    itunesId?: number
-    language: string
-    explicit: boolean
-    type: number
-    medium: string
-    dead: number
-    chash: string
-    episodeCount: number
-    crawlErrors: number
-    parseErrors: number
-    categories: Record<string, string>
-    locked: number
-    imageUrlHash: number
+interface iTunesSearchResponse {
+  resultCount: number
+  results: Array<{
+    wrapperType: string
+    kind: string
+    collectionId: number
+    trackId: number
+    artistName: string
+    collectionName: string
+    trackName: string
+    collectionCensoredName: string
+    trackCensoredName: string
+    collectionViewUrl: string
+    feedUrl: string
+    trackViewUrl: string
+    artworkUrl30: string
+    artworkUrl60: string
+    artworkUrl100: string
+    collectionPrice: number
+    trackPrice: number
+    collectionHdPrice: number
+    releaseDate: string
+    collectionExplicitness: string
+    trackExplicitness: string
+    trackCount: number
+    trackTimeMillis: number
+    country: string
+    currency: string
+    primaryGenreName: string
+    contentAdvisoryRating: string
+    artworkUrl600: string
+    genreIds: string[]
+    genres: string[]
   }>
-  count: number
-  query: string
-  description: string
 }
 
 export async function GET(request: NextRequest) {
@@ -47,56 +45,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Search query is required' }, { status: 400 })
     }
 
-    const apiKey = process.env.PODCAST_INDEX_API_KEY
-    const apiSecret = process.env.PODCAST_INDEX_API_SECRET
-
-    // If API credentials aren't available, return mock data
-    if (!apiKey || !apiSecret) {
-      console.log('Using mock podcast data - API credentials not configured')
-      return getMockPodcastResults(query)
-    }
-
-    const epochTime = Math.floor(Date.now() / 1000)
-    const data4Hash = apiKey + apiSecret + epochTime
-    const hash = crypto.createHash('sha1').update(data4Hash).digest('hex')
-
-    const url = `https://api.podcastindex.org/api/1.0/search/byterm?q=${encodeURIComponent(query)}&max=20&clean=1`
+    // Use iTunes Search API - no authentication required!
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=podcast&limit=20`
     
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'X-Auth-Date': epochTime.toString(),
-        'X-Auth-Key': apiKey,
-        'Authorization': hash,
         'User-Agent': 'ClipperApp/1.0'
       }
     })
 
     if (!response.ok) {
-      throw new Error(`Podcast Index API error: ${response.status}`)
+      throw new Error(`iTunes Search API error: ${response.status}`)
     }
 
-    const data: PodcastIndexResponse = await response.json()
+    const data: iTunesSearchResponse = await response.json()
     
-    const simplifiedResults = data.feeds.map(feed => ({
-      id: feed.id,
-      title: feed.title,
-      description: feed.description,
-      author: feed.author || feed.ownerName,
-      imageUrl: feed.image || feed.artwork,
-      feedUrl: feed.url,
-      websiteUrl: feed.link,
-      language: feed.language,
-      episodeCount: feed.episodeCount,
-      categories: Object.values(feed.categories || {}),
-      lastUpdated: new Date(feed.lastUpdateTime * 1000).toISOString()
+    const simplifiedResults = data.results.map(result => ({
+      id: result.collectionId,
+      title: result.collectionName || result.trackName,
+      description: `A podcast by ${result.artistName}`, // iTunes doesn't provide descriptions
+      author: result.artistName,
+      imageUrl: result.artworkUrl600 || result.artworkUrl100,
+      feedUrl: result.feedUrl,
+      websiteUrl: result.collectionViewUrl,
+      language: 'en', // iTunes doesn't provide language in search
+      episodeCount: result.trackCount || 0,
+      categories: result.genres || [result.primaryGenreName],
+      lastUpdated: result.releaseDate
     }))
 
     return NextResponse.json({
       podcasts: simplifiedResults,
-      total: data.count,
-      query: data.query
+      total: data.resultCount,
+      query: query
     })
 
   } catch (error) {
@@ -109,6 +92,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Mock data function for when API credentials aren't available
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getMockPodcastResults(query: string) {
   const mockPodcasts = [
     {

@@ -5,9 +5,33 @@ import type { NextRequest } from 'next/server'
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   
+  // Check if environment variables are available
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  
+  // Check if we're in demo mode (placeholder values)
+  const isDemoMode = !supabaseUrl || !supabaseAnonKey || 
+    supabaseUrl.includes('your-project') || 
+    supabaseAnonKey.includes('your-anon-key')
+  
+  if (isDemoMode) {
+    console.warn('Running in demo mode - allowing access to /podcasts without authentication')
+    // Allow access to podcasts page in demo mode
+    if (req.nextUrl.pathname.startsWith('/podcasts')) {
+      return res
+    }
+    // Redirect dashboard attempts to podcasts in demo mode
+    if (req.nextUrl.pathname.startsWith('/dashboard')) {
+      const redirectUrl = req.nextUrl.clone()
+      redirectUrl.pathname = '/podcasts'
+      return NextResponse.redirect(redirectUrl)
+    }
+    return res
+  }
+  
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
@@ -47,5 +71,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/signup']
+  matcher: ['/dashboard/:path*', '/podcasts/:path*', '/login', '/signup']
 } 

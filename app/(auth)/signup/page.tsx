@@ -45,6 +45,12 @@ export default function SignUpPage() {
 
       if (error) {
         setError(error.message)
+        // If in demo mode, allow redirect to podcasts page
+        if (error.message.includes('Demo Mode')) {
+          setTimeout(() => {
+            router.push('/podcasts')
+          }, 3000)
+        }
       } else if (user) {
         // Redirect to dashboard or show success message
         router.push('/dashboard')

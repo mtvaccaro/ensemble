@@ -9,7 +9,7 @@ import { PodcastSearchResult, Podcast as PodcastType } from '@/types'
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-export default function PodcastsPage() {
+export default function DashboardPodcastsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<PodcastSearchResult[]>([])
   const [subscribedPodcasts, setSubscribedPodcasts] = useState<PodcastType[]>([])
@@ -306,7 +306,7 @@ export default function PodcastsPage() {
                           className="ml-4"
                         >
                           <Plus className="h-4 w-4 mr-2" />
-                          {isSubscribing === podcast.id ? 'Adding...' : 'Subscribe'}
+                          {isSubscribing === podcast.id ? 'Adding..' : 'Subscribe'}
                         </Button>
                       </div>
                       <p className="mt-4 text-sm text-gray-600">

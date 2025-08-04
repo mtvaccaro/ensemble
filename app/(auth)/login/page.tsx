@@ -29,6 +29,12 @@ export default function LoginPage() {
 
       if (error) {
         setError(error.message)
+        // If in demo mode, allow redirect to podcasts page
+        if (error.message.includes('Demo Mode')) {
+          setTimeout(() => {
+            router.push('/podcasts')
+          }, 3000)
+        }
       } else if (user) {
         // Redirect to dashboard
         router.push('/dashboard')

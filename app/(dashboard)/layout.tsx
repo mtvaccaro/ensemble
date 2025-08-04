@@ -8,6 +8,7 @@ import Link from 'next/link'
 // Force dynamic rendering for all dashboard pages
 export const dynamic = 'force-dynamic'
 import { useAuth } from '@/lib/auth-context'
+import { AuthProvider } from '@/lib/auth-context'
 import ProtectedRoute from '@/components/auth/protected-route'
 
 interface DashboardLayoutProps {
@@ -16,12 +17,12 @@ interface DashboardLayoutProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: User },
-  { name: 'Podcasts', href: '/podcasts', icon: Podcast },
+  { name: 'Podcasts', href: '/dashboard/podcasts', icon: Podcast },
   { name: 'Clips', href: '/dashboard/clips', icon: Scissors },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+function DashboardContent({ children }: DashboardLayoutProps) {
   const { signOut } = useAuth()
 
   const handleSignOut = async () => {
@@ -77,5 +78,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </div>
     </ProtectedRoute>
+  )
+}
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  return (
+    <AuthProvider>
+      <DashboardContent>{children}</DashboardContent>
+    </AuthProvider>
   )
 } 

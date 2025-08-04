@@ -8,6 +8,7 @@ export default function HomePage() {
               <h1 className="text-xl font-bold text-gray-900">CLIPPER WORKS!</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <a href="/podcasts" className="text-gray-700 hover:text-gray-900">Try Demo</a>
               <a href="/login" className="text-gray-700 hover:text-gray-900">Sign In</a>
               <a href="/signup" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Get Started</a>
             </div>
@@ -23,6 +24,14 @@ export default function HomePage() {
           <p className="mt-6 text-xl text-gray-600 max-w-3xl mx-auto">
             Transform podcasts into viral clips with AI
           </p>
+          <div className="mt-10">
+            <a href="/podcasts" className="bg-green-600 text-white px-6 py-3 rounded-lg text-lg font-medium hover:bg-green-700 mr-4">
+              Try Demo (No Signup Required)
+            </a>
+            <a href="/signup" className="bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-medium hover:bg-blue-700">
+              Get Started
+            </a>
+          </div>
         </div>
       </main>
     </div>
