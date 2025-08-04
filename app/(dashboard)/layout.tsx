@@ -1,8 +1,12 @@
 'use client'
 
 import React from 'react'
+
 import { User, Podcast, Scissors, Settings, LogOut } from 'lucide-react'
 import Link from 'next/link'
+
+// Force dynamic rendering for all dashboard pages
+export const dynamic = 'force-dynamic'
 import { useAuth } from '@/lib/auth-context'
 import ProtectedRoute from '@/components/auth/protected-route'
 
