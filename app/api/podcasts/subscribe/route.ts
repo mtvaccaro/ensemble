@@ -52,11 +52,18 @@ export async function POST(request: NextRequest) {
     } else {
       let episodeCount = 0
       
-      try {
-        const feed = await parser.parseURL(feedUrl)
-        episodeCount = feed.items?.length || 0
-      } catch (rssError) {
-        console.warn('Failed to parse RSS feed for episode count:', rssError)
+      // For demo feeds, use mock episode count
+      if (feedUrl.includes('feeds.example.com')) {
+        episodeCount = Math.floor(Math.random() * 200) + 50 // Random between 50-250
+        console.log('Using mock episode count for demo feed')
+      } else {
+        try {
+          const feed = await parser.parseURL(feedUrl)
+          episodeCount = feed.items?.length || 0
+        } catch (rssError) {
+          console.warn('Failed to parse RSS feed for episode count:', rssError)
+          episodeCount = 0 // Fallback for real feeds that fail to parse
+        }
       }
 
       const { data: newPodcast, error: insertError } = await supabase
