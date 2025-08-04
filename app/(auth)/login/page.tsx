@@ -22,12 +22,16 @@ export default function LoginPage() {
     setError(null)
     
     try {
+      console.log('Attempting login with email:', formData.email)
       const { user, error } = await signIn({
         email: formData.email,
         password: formData.password
       })
 
+      console.log('Login result:', { user: !!user, error: error?.message })
+
       if (error) {
+        console.error('Login error:', error)
         setError(error.message)
         // If in demo mode, allow redirect to podcasts page
         if (error.message.includes('Demo Mode')) {
@@ -36,10 +40,15 @@ export default function LoginPage() {
           }, 3000)
         }
       } else if (user) {
+        console.log('Login successful, redirecting to dashboard')
         // Redirect to dashboard
         router.push('/dashboard')
+      } else {
+        console.log('No user and no error - this should not happen')
+        setError('Login failed - please try again')
       }
-    } catch {
+    } catch (err) {
+      console.error('Unexpected login error:', err)
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)

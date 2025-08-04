@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { signUp } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -52,8 +53,16 @@ export default function SignUpPage() {
           }, 3000)
         }
       } else if (user) {
-        // Redirect to dashboard or show success message
-        router.push('/dashboard')
+        // Check if user needs email confirmation
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session) {
+          // User has active session, redirect to dashboard
+          router.push('/dashboard')
+        } else {
+          // User created but needs email confirmation
+          setError('Account created! Please check your email and click the verification link to complete signup.')
+        }
       }
     } catch {
       setError('An unexpected error occurred')
