@@ -29,6 +29,7 @@ export interface UserProfile {
 export async function signUp({ email, password, name }: SignUpData): Promise<{ user: User | null; error: AuthError | null }> {
   try {
     console.log('Attempting signup with email:', email)
+    alert(`DEBUG: Starting signup for ${email}`)
     console.log('Redirect URL will be:', `${window.location.origin}/auth/callback`)
     
     const { data, error } = await supabase.auth.signUp({
@@ -42,6 +43,8 @@ export async function signUp({ email, password, name }: SignUpData): Promise<{ u
       }
     })
 
+    // More aggressive debugging
+    alert(`DEBUG: Supabase returned - User: ${!!data.user}, Error: ${error?.message || 'none'}, Status: ${error?.status || 'none'}`)
     console.log('Full Supabase response:', { data, error })
     console.log('Signup result:', { 
       user: !!data.user, 
