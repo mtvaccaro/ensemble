@@ -12,59 +12,111 @@ function AuthCallbackContent() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Get the URL hash and search params for auth tokens
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        const accessToken = hashParams.get('access_token')
-        const refreshToken = hashParams.get('refresh_token')
-        const type = hashParams.get('type')
-
-        console.log('Auth callback - type:', type, 'has tokens:', !!accessToken)
-
-        if (type === 'signup' || type === 'email_confirmation') {
-          // Handle email confirmation
-          if (accessToken && refreshToken) {
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken
-            })
-
-            if (error) {
-              console.error('Session set error:', error)
-              setError(`Failed to verify email: ${error.message}`)
+        console.log('Auth callback started')
+        console.log('Current URL:', window.location.href)
+        console.log('Search params:', Object.fromEntries(searchParams.entries()))
+        console.log('Hash:', window.location.hash)
+        
+        // Handle PKCE flow first (query params)
+        const code = searchParams.get('code')
+        const error_param = searchParams.get('error')
+        const error_description = searchParams.get('error_description')
+        
+        if (error_param) {
+          console.error('Auth error from URL:', error_param, error_description)
+          setError(error_description || error_param)
+          return
+        }
+        
+        if (code) {
+          console.log('PKCE code found, exchanging for session...')
+          try {
+            const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
+            
+            if (sessionError) {
+              console.error('Code exchange error:', sessionError)
+              setError(`Failed to complete verification: ${sessionError.message}`)
               return
             }
-
-            if (data.session) {
-              console.log('Email verified successfully, redirecting to dashboard')
+            
+            if (sessionData.session) {
+              console.log('PKCE session established successfully')
               router.push('/dashboard')
               return
             }
+          } catch (exchangeError) {
+            console.error('Code exchange failed:', exchangeError)
+            // Continue to other auth methods
           }
         }
-
-        // Fallback: try to get existing session
+        
+        // Handle hash-based tokens (legacy or specific configs)
+        const hash = window.location.hash.substring(1)
+        if (hash) {
+          console.log('Hash found:', hash)
+          const hashParams = new URLSearchParams(hash)
+          const access_token = hashParams.get('access_token')
+          const refresh_token = hashParams.get('refresh_token')
+          const type = hashParams.get('type')
+          
+          console.log('Hash params:', { access_token: !!access_token, refresh_token: !!refresh_token, type })
+          
+          if (access_token && refresh_token) {
+            console.log('Setting session from hash tokens...')
+            try {
+              const { data, error } = await supabase.auth.setSession({
+                access_token,
+                refresh_token
+              })
+              
+              if (error) {
+                console.error('Set session error:', error)
+                setError(`Failed to verify email: ${error.message}`)
+                return
+              }
+              
+              if (data.session) {
+                console.log('Hash session established successfully')
+                router.push('/dashboard')
+                return
+              }
+            } catch (setSessionError) {
+              console.error('Set session failed:', setSessionError)
+              // Continue to check existing session
+            }
+          }
+        }
+        
+        // Check for existing session (user might already be logged in)
+        console.log('Checking for existing session...')
         const { data, error } = await supabase.auth.getSession()
         
         if (error) {
-          console.error('Auth callback error:', error)
+          console.error('Get session error:', error)
           setError(`Authentication error: ${error.message}`)
           return
         }
 
         if (data.session) {
-          console.log('Existing session found, redirecting to dashboard')
+          console.log('Existing session found')
           router.push('/dashboard')
-        } else {
-          console.log('No session found, redirecting to login')
-          router.push('/login?message=Please sign in to continue')
+          return
         }
+
+        // If nothing worked, redirect to login with a message
+        console.log('No session established, redirecting to login')
+        router.push('/login?message=Please sign in to continue')
+        
       } catch (error) {
         console.error('Unexpected auth callback error:', error)
         setError(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
 
-    handleAuthCallback()
+    // Add a small delay to ensure the page is fully loaded
+    const timeoutId = setTimeout(handleAuthCallback, 100)
+    return () => clearTimeout(timeoutId)
+    
   }, [router, searchParams])
 
   if (error) {
