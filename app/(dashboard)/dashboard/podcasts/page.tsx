@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, Plus, Podcast, Users, Calendar, ExternalLink, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +11,7 @@ import { PodcastSearchResult, Podcast as PodcastType } from '@/types'
 export const dynamic = 'force-dynamic'
 
 export default function DashboardPodcastsPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<PodcastSearchResult[]>([])
   const [subscribedPodcasts, setSubscribedPodcasts] = useState<PodcastType[]>([])
@@ -205,7 +207,11 @@ export default function DashboardPodcastsPage() {
                       className="w-16 h-16 rounded-lg object-cover"
                     />
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-medium text-gray-900 truncate">
+                      <h3 
+                        className="text-lg font-medium text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors hover:underline"
+                        onClick={() => router.push(`/dashboard/podcasts/${podcast.id}`)}
+                        title="Click to view episodes"
+                      >
                         {podcast.title}
                       </h3>
                       <p className="text-sm text-gray-500">{podcast.author}</p>
@@ -232,9 +238,6 @@ export default function DashboardPodcastsPage() {
                       ))}
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">
-                        View Episodes
-                      </Button>
                       <Button
                         onClick={() => handleUnsubscribe(podcast.id)}
                         disabled={isUnsubscribing === podcast.id}

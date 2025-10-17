@@ -47,9 +47,8 @@ export default function PodcastsPage() {
         const data = await response.json()
         setSearchResults(data.podcasts)
         setActiveTab('search')
-        // Check if we're getting demo data
-        const isDemo = data.podcasts.some((p: PodcastSearchResult) => p.feedUrl?.includes('feeds.example.com'))
-        setIsDemoMode(isDemo)
+        // Always enable demo mode since we don't have Supabase configured
+        setIsDemoMode(true)
       }
     } catch (error) {
       console.error('Search failed:', error)
@@ -60,6 +59,30 @@ export default function PodcastsPage() {
 
   const handleSubscribe = async (podcast: PodcastSearchResult) => {
     setIsSubscribing(podcast.id)
+    
+    // Demo mode: Add to local state instead of API call
+    if (isDemoMode) {
+      const mockPodcast: PodcastType = {
+        id: podcast.id.toString(),
+        title: podcast.title,
+        description: podcast.description,
+        feed_url: podcast.feedUrl,
+        image_url: podcast.imageUrl,
+        author: podcast.author,
+        language: podcast.language,
+        categories: podcast.categories,
+        episode_count: podcast.episodeCount,
+        last_updated: podcast.lastUpdated,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      
+      setSubscribedPodcasts(prev => [...prev, mockPodcast])
+      setActiveTab('subscribed')
+      setIsSubscribing(null)
+      return
+    }
+    
     try {
       const response = await fetch('/api/podcasts/subscribe', {
         method: 'POST',
@@ -94,6 +117,14 @@ export default function PodcastsPage() {
     }
 
     setIsUnsubscribing(podcastId)
+    
+    // Demo mode: Remove from local state instead of API call
+    if (isDemoMode) {
+      setSubscribedPodcasts(prev => prev.filter(p => p.id !== podcastId))
+      setIsUnsubscribing(null)
+      return
+    }
+    
     try {
       const response = await fetch(`/api/podcasts/${podcastId}/unsubscribe`, {
         method: 'DELETE'
@@ -154,7 +185,7 @@ export default function PodcastsPage() {
                 placeholder="Search for podcasts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 text-gray-900 placeholder:text-gray-500"
               />
             </div>
             <Button type="submit" disabled={isSearching}>
@@ -176,8 +207,16 @@ export default function PodcastsPage() {
                   </h3>
                   <div className="mt-2 text-sm text-blue-700">
                     <p>
-                      Showing demo podcast results while waiting for Podcast Index API credentials. 
-                      You can still test the subscription and UI functionality!
+                      <strong>Demo mode active!</strong> You can test the full workflow:
+                    </p>
+                    <ol className="mt-2 ml-4 list-decimal">
+                      <li>Search for podcasts (try "tech" or "business")</li>
+                      <li>Click "Subscribe" on any podcast</li>
+                      <li>Switch to "My Podcasts" tab to see your subscriptions</li>
+                      <li>Click the podcast title to see the episode page</li>
+                    </ol>
+                    <p className="mt-2 text-xs text-blue-600">
+                      All data is stored locally - no database required!
                     </p>
                   </div>
                 </div>
@@ -229,7 +268,11 @@ export default function PodcastsPage() {
                           className="w-16 h-16 rounded-lg object-cover"
                         />
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-medium text-gray-900 truncate">
+                          <h3 
+                            className="text-lg font-medium text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors hover:underline"
+                            onClick={() => window.location.href = `/podcasts/${podcast.id}`}
+                            title="Click to view episodes"
+                          >
                             {podcast.title}
                           </h3>
                           <p className="text-sm text-gray-500">{podcast.author}</p>
@@ -256,9 +299,6 @@ export default function PodcastsPage() {
                           ))}
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Button variant="outline" size="sm">
-                            View Episodes
-                          </Button>
                           <Button
                             onClick={() => handleUnsubscribe(podcast.id)}
                             disabled={isUnsubscribing === podcast.id}
