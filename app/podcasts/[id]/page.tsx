@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Play, Pause, Clock, Calendar, Download, Scissors } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { storage } from '@/lib/localStorage'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -77,10 +78,21 @@ export default function DemoPodcastEpisodesPage() {
 
   const mockEpisodes = getEpisodeData()
 
-  // Get podcast data from URL or use mock data
+  // Get podcast data from localStorage first, then fall back to mock data
   const getPodcastData = () => {
-    // In a real app, this would fetch from the database using podcastId
-    // For demo, we'll use the podcastId to determine which mock data to show
+    // Try to load from localStorage first
+    const storedPodcast = storage.getPodcast(podcastId)
+    if (storedPodcast) {
+      return {
+        title: storedPodcast.title,
+        author: storedPodcast.author,
+        description: storedPodcast.description,
+        image_url: storedPodcast.image_url,
+        categories: storedPodcast.categories || []
+      }
+    }
+    
+    // Fall back to mock data for demo purposes
     const mockPodcasts = {
       '1376303362': { // Behind the Money ID
         title: 'Behind the Money',

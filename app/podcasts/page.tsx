@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, Podcast as PodcastType } from '@/types'
+import { storage } from '@/lib/localStorage'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -25,15 +26,9 @@ export default function PodcastsPage() {
   }, [])
 
   const fetchSubscribedPodcasts = async () => {
-    try {
-      const response = await fetch('/api/podcasts')
-      if (response.ok) {
-        const data = await response.json()
-        setSubscribedPodcasts(data.podcasts)
-      }
-    } catch (error) {
-      console.error('Failed to fetch subscribed podcasts:', error)
-    }
+    // Load from localStorage instead of API
+    const podcasts = storage.getSubscribedPodcasts()
+    setSubscribedPodcasts(podcasts)
   }
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -60,55 +55,26 @@ export default function PodcastsPage() {
   const handleSubscribe = async (podcast: PodcastSearchResult) => {
     setIsSubscribing(podcast.id)
     
-    // Demo mode: Add to local state instead of API call
-    if (isDemoMode) {
-      const mockPodcast: PodcastType = {
-        id: podcast.id.toString(),
-        title: podcast.title,
-        description: podcast.description,
-        feed_url: podcast.feedUrl,
-        image_url: podcast.imageUrl,
-        author: podcast.author,
-        language: podcast.language,
-        categories: podcast.categories,
-        episode_count: podcast.episodeCount,
-        last_updated: podcast.lastUpdated,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-      
-      setSubscribedPodcasts(prev => [...prev, mockPodcast])
-      setActiveTab('subscribed')
-      setIsSubscribing(null)
-      return
+    // Save to localStorage
+    const newPodcast: PodcastType = {
+      id: podcast.id.toString(),
+      title: podcast.title,
+      description: podcast.description,
+      feed_url: podcast.feedUrl,
+      image_url: podcast.imageUrl,
+      author: podcast.author,
+      language: podcast.language,
+      categories: podcast.categories,
+      episode_count: podcast.episodeCount,
+      last_updated: podcast.lastUpdated,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
     
-    try {
-      const response = await fetch('/api/podcasts/subscribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          feedUrl: podcast.feedUrl,
-          title: podcast.title,
-          description: podcast.description,
-          author: podcast.author,
-          imageUrl: podcast.imageUrl,
-          language: podcast.language,
-          categories: podcast.categories
-        })
-      })
-
-      if (response.ok) {
-        await fetchSubscribedPodcasts()
-        setActiveTab('subscribed')
-      }
-    } catch (error) {
-      console.error('Subscribe failed:', error)
-    } finally {
-      setIsSubscribing(null)
-    }
+    storage.addPodcast(newPodcast)
+    await fetchSubscribedPodcasts()
+    setActiveTab('subscribed')
+    setIsSubscribing(null)
   }
 
   const handleUnsubscribe = async (podcastId: string) => {
@@ -118,26 +84,10 @@ export default function PodcastsPage() {
 
     setIsUnsubscribing(podcastId)
     
-    // Demo mode: Remove from local state instead of API call
-    if (isDemoMode) {
-      setSubscribedPodcasts(prev => prev.filter(p => p.id !== podcastId))
-      setIsUnsubscribing(null)
-      return
-    }
-    
-    try {
-      const response = await fetch(`/api/podcasts/${podcastId}/unsubscribe`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        await fetchSubscribedPodcasts()
-      }
-    } catch (error) {
-      console.error('Unsubscribe failed:', error)
-    } finally {
-      setIsUnsubscribing(null)
-    }
+    // Remove from localStorage
+    storage.removePodcast(podcastId)
+    await fetchSubscribedPodcasts()
+    setIsUnsubscribing(null)
   }
 
   const truncateText = (text: string, maxLength: number) => {
@@ -207,16 +157,16 @@ export default function PodcastsPage() {
                   </h3>
                   <div className="mt-2 text-sm text-blue-700">
                     <p>
-                      <strong>Demo mode active!</strong> You can test the full workflow:
+                      <strong>localStorage mode!</strong> Your subscriptions persist across sessions:
                     </p>
                     <ol className="mt-2 ml-4 list-decimal">
-                      <li>Search for podcasts (try "tech" or "business")</li>
-                      <li>Click "Subscribe" on any podcast</li>
-                      <li>Switch to "My Podcasts" tab to see your subscriptions</li>
-                      <li>Click the podcast title to see the episode page</li>
+                      <li>Search for podcasts (real iTunes API data)</li>
+                      <li>Click "Subscribe" - saved to your browser</li>
+                      <li>Podcasts stay subscribed even after closing the browser</li>
+                      <li>Click podcast titles to view episodes</li>
                     </ol>
                     <p className="mt-2 text-xs text-blue-600">
-                      All data is stored locally - no database required!
+                      ✨ Data persists in localStorage - no backend needed!
                     </p>
                   </div>
                 </div>
