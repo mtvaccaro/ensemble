@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { signIn } from '@/lib/auth'
+import posthog from 'posthog-js'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -33,6 +34,11 @@ export default function LoginPage() {
       if (error) {
         console.error('Login error:', error)
         setError(error.message)
+        posthog.capture('login_result', { 
+          success: false, 
+          email: formData.email, 
+          error: error.message 
+        })
         // If in demo mode, allow redirect to podcasts page
         if (error.message.includes('Demo Mode')) {
           setTimeout(() => {
@@ -41,15 +47,29 @@ export default function LoginPage() {
         }
       } else if (user) {
         console.log('Login successful, redirecting to dashboard')
+        posthog.capture('login_result', { 
+          success: true, 
+          email: formData.email 
+        })
         // Redirect to dashboard
         router.push('/dashboard')
       } else {
         console.log('No user and no error - this should not happen')
         setError('Login failed - please try again')
+        posthog.capture('login_result', { 
+          success: false, 
+          email: formData.email, 
+          error: 'Unknown login failure' 
+        })
       }
     } catch (err) {
       console.error('Unexpected login error:', err)
       setError('An unexpected error occurred')
+      posthog.capture('login_result', { 
+        success: false, 
+        email: formData.email, 
+        error: (err as Error).message || 'An unexpected error occurred' 
+      })
     } finally {
       setLoading(false)
     }
@@ -123,7 +143,7 @@ export default function LoginPage() {
       <div className="text-center">
         <p className="text-sm text-gray-600">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500" onClick={() => posthog.capture('navigate_to_signup_from_login')}>
             Sign up
           </Link>
         </p>
@@ -131,3 +151,4 @@ export default function LoginPage() {
     </form>
   )
 } 
+      

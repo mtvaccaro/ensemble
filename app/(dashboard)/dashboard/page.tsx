@@ -3,6 +3,7 @@
 import React from 'react'
 import { Scissors, Podcast, Clock, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import posthog from 'posthog-js'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -71,7 +72,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Welcome back! Here&apos;s what&apos;s happening with your clips.</p>
         </div>
-        <Button>
+        <Button onClick={() => posthog.capture('create_new_clip_clicked', { location: 'dashboard_header' })}>
           <Scissors className="mr-2 h-4 w-4" />
           Create New Clip
         </Button>
@@ -130,7 +131,7 @@ export default function DashboardPage() {
                       {clip.created}
                     </div>
                     <div className="flex-shrink-0">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => posthog.capture('view_recent_clip_clicked', { clip_id: clip.id, clip_title: clip.title, podcast_name: clip.podcast })}>
                         View
                       </Button>
                     </div>
@@ -140,7 +141,7 @@ export default function DashboardPage() {
             </ul>
           </div>
           <div className="mt-6">
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={() => posthog.capture('view_all_clips_clicked', { location: 'dashboard_recent_clips' })}>
               View all clips
             </Button>
           </div>
@@ -149,3 +150,4 @@ export default function DashboardPage() {
     </div>
   )
 } 
+      

@@ -1,3 +1,6 @@
+'use client';
+import posthog from 'posthog-js';
+
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -8,9 +11,9 @@ export default function HomePage() {
               <h1 className="text-xl font-bold text-gray-900">CLIPPER WORKS!</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <a href="/podcasts" className="text-gray-700 hover:text-gray-900">Try Demo</a>
-              <a href="/login" className="text-gray-700 hover:text-gray-900">Sign In</a>
-              <a href="/signup" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Get Started</a>
+              <a href="/podcasts" onClick={() => posthog.capture('cta_clicked', { cta_text: 'Try Demo', location: 'navbar', target_url: '/podcasts' })} className="text-gray-700 hover:text-gray-900">Try Demo</a>
+              <a href="/login" onClick={() => posthog.capture('cta_clicked', { cta_text: 'Sign In', location: 'navbar', target_url: '/login' })} className="text-gray-700 hover:text-gray-900">Sign In</a>
+              <a href="/signup" onClick={() => posthog.capture('cta_clicked', { cta_text: 'Get Started', location: 'navbar', target_url: '/signup' })} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Get Started</a>
             </div>
           </div>
         </div>
@@ -25,10 +28,10 @@ export default function HomePage() {
             Transform podcasts into viral clips with AI
           </p>
           <div className="mt-10">
-            <a href="/podcasts" className="bg-green-600 text-white px-6 py-3 rounded-lg text-lg font-medium hover:bg-green-700 mr-4">
+            <a href="/podcasts" onClick={() => posthog.capture('cta_clicked', { cta_text: 'Try Demo (No Signup Required)', location: 'hero', target_url: '/podcasts' })} className="bg-green-600 text-white px-6 py-3 rounded-lg text-lg font-medium hover:bg-green-700 mr-4">
               Try Demo (No Signup Required)
             </a>
-            <a href="/signup" className="bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-medium hover:bg-blue-700">
+            <a href="/signup" onClick={() => posthog.capture('cta_clicked', { cta_text: 'Get Started', location: 'hero', target_url: '/signup' })} className="bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-medium hover:bg-blue-700">
               Get Started
             </a>
           </div>

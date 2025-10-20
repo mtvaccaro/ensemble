@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { Trash2, RefreshCw, Calendar, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import posthog from 'posthog-js'
 
 interface Podcast {
   id: string
@@ -47,6 +48,7 @@ export default function SubscriptionManager({
   }
 
   const handleRefreshAll = async () => {
+    posthog.capture('podcast_subscriptions_refreshed_all', { podcast_count: podcasts.length })
     setIsRefreshing(true)
     try {
       await Promise.all(
@@ -134,7 +136,10 @@ export default function SubscriptionManager({
                       </Button>
                       {onUnsubscribe && (
                         <Button
-                          onClick={() => onUnsubscribe(podcast.id)}
+                          onClick={() => {
+                            posthog.capture('podcast_unsubscribed', { podcast_id: podcast.id, podcast_title: podcast.title })
+                            onUnsubscribe(podcast.id)
+                          }}
                           variant="outline"
                           size="sm"
                           className="text-red-600 hover:text-red-700"

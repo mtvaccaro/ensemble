@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import posthog from 'posthog-js'
 
 function AuthCallbackContent() {
   const router = useRouter()
@@ -24,7 +25,13 @@ function AuthCallbackContent() {
         
         if (error_param) {
           console.error('Auth error from URL:', error_param, error_description)
-          setError(error_description || error_param)
+          const errorMessage = error_description || error_param
+          posthog.capture('auth-callback-completed', { 
+            status: 'failure',
+            reason: 'url_error_parameter',
+            error_message: errorMessage
+          })
+          setError(errorMessage)
           return
         }
         
@@ -35,12 +42,18 @@ function AuthCallbackContent() {
             
             if (sessionError) {
               console.error('Code exchange error:', sessionError)
+              posthog.capture('auth-callback-completed', { 
+                status: 'failure',
+                reason: 'code_exchange_error',
+                error_message: sessionError.message
+              })
               setError(`Failed to complete verification: ${sessionError.message}`)
               return
             }
             
             if (sessionData.session) {
               console.log('PKCE session established successfully')
+              posthog.capture('auth-callback-completed', { status: 'success', method: 'pkce' })
               router.push('/dashboard')
               return
             }
@@ -71,12 +84,18 @@ function AuthCallbackContent() {
               
               if (error) {
                 console.error('Set session error:', error)
+                posthog.capture('auth-callback-completed', { 
+                  status: 'failure',
+                  reason: 'set_session_error',
+                  error_message: error.message
+                })
                 setError(`Failed to verify email: ${error.message}`)
                 return
               }
               
               if (data.session) {
                 console.log('Hash session established successfully')
+                posthog.capture('auth-callback-completed', { status: 'success', method: 'hash' })
                 router.push('/dashboard')
                 return
               }
@@ -93,12 +112,18 @@ function AuthCallbackContent() {
         
         if (error) {
           console.error('Get session error:', error)
+          posthog.capture('auth-callback-completed', { 
+            status: 'failure',
+            reason: 'get_session_error',
+            error_message: error.message
+          })
           setError(`Authentication error: ${error.message}`)
           return
         }
 
         if (data.session) {
           console.log('Existing session found')
+          posthog.capture('auth-callback-completed', { status: 'success', method: 'existing_session' })
           router.push('/dashboard')
           return
         }
@@ -109,7 +134,13 @@ function AuthCallbackContent() {
         
       } catch (error) {
         console.error('Unexpected auth callback error:', error)
-        setError(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        posthog.capture('auth-callback-completed', { 
+          status: 'failure',
+          reason: 'unexpected_error',
+          error_message: errorMessage
+        })
+        setError(`Unexpected error: ${errorMessage}`)
       }
     }
 
@@ -132,7 +163,10 @@ function AuthCallbackContent() {
             </p>
             <div className="mt-4">
               <button
-                onClick={() => router.push('/login')}
+                onClick={() => {
+                  posthog.capture('auth-error-go-to-login-clicked', { error_message: error })
+                  router.push('/login')
+                }}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
               >
                 Go to Login

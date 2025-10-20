@@ -6,6 +6,7 @@ import { Search, Plus, Podcast, Users, Calendar, ExternalLink, Trash2 } from 'lu
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, Podcast as PodcastType } from '@/types'
+import posthog from 'posthog-js'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -51,6 +52,11 @@ export default function DashboardPodcastsPage() {
         // Check if we're getting demo data
         const isDemo = data.podcasts.some((p: PodcastSearchResult) => p.feedUrl?.includes('feeds.example.com'))
         setIsDemoMode(isDemo)
+        posthog.capture('podcast-searched', {
+          search_query: searchQuery,
+          result_count: data.podcasts.length,
+          is_demo_mode: isDemo
+        })
       }
     } catch (error) {
       console.error('Search failed:', error)
@@ -79,6 +85,11 @@ export default function DashboardPodcastsPage() {
       })
 
       if (response.ok) {
+        posthog.capture('podcast-subscribed', {
+          podcast_id: podcast.id,
+          podcast_title: podcast.title,
+          podcast_author: podcast.author
+        })
         await fetchSubscribedPodcasts()
         setActiveTab('subscribed')
       }
@@ -101,6 +112,7 @@ export default function DashboardPodcastsPage() {
       })
 
       if (response.ok) {
+        posthog.capture('podcast-unsubscribed', { podcast_id: podcastId })
         await fetchSubscribedPodcasts()
       }
     } catch (error) {

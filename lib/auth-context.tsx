@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { getUserProfile, UserProfile } from './auth'
+import posthog from 'posthog-js'
 
 interface AuthContextType {
   user: User | null
@@ -38,6 +39,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: string, session: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (event === 'SIGNED_IN' && session?.user) {
+          posthog.identify(session.user.id, {
+            email: session.user.email
+          })
+          posthog.capture('user-signed-in')
+        }
         setUser(session?.user ?? null)
         
         if (session?.user) {
@@ -55,6 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signOut = async () => {
+    posthog.capture('user-signed-out')
+    posthog.reset()
     await supabase.auth.signOut()
     setUser(null)
     setProfile(null)
@@ -80,4 +89,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
-} 
+}

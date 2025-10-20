@@ -33,6 +33,7 @@ coverage/
 # IDE/Editor files
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~

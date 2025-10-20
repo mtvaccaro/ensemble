@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Play, Pause, Clock, Calendar, Download, Scissors } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Episode, Podcast } from '@/types'
+import posthog from 'posthog-js'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -73,6 +74,16 @@ export default function PodcastEpisodesPage() {
       }
       
       // Play new episode
+      const episode = episodes.find(e => e.id === episodeId)
+      if (episode) {
+        posthog.capture('podcast_episode_played', {
+          podcast_id: podcastId,
+          episode_id: episode.id,
+          episode_title: episode.title,
+          duration_seconds: episode.duration
+        })
+      }
+
       const audio = new Audio(audioUrl)
       audio.play()
       setAudioElement(audio)
@@ -259,7 +270,13 @@ export default function PodcastEpisodesPage() {
                       )}
                       {playingEpisode === episode.id ? 'Pause' : 'Play'}
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      posthog.capture('create_clip_button_clicked', {
+                        podcast_id: podcastId,
+                        episode_id: episode.id,
+                        episode_title: episode.title
+                      })
+                    }}>
                       <Scissors className="h-4 w-4 mr-2" />
                       Create Clip
                     </Button>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, Podcast as PodcastType } from '@/types'
 import { storage } from '@/lib/localStorage'
+import posthog from 'posthog-js'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -40,6 +41,10 @@ export default function PodcastsPage() {
       const response = await fetch(`/api/podcasts/search?q=${encodeURIComponent(searchQuery)}`)
       if (response.ok) {
         const data = await response.json()
+        posthog.capture('podcast_searched', {
+          search_query: searchQuery,
+          result_count: data.podcasts.length
+        })
         setSearchResults(data.podcasts)
         setActiveTab('search')
         // Always enable demo mode since we don't have Supabase configured
@@ -54,6 +59,11 @@ export default function PodcastsPage() {
 
   const handleSubscribe = async (podcast: PodcastSearchResult) => {
     setIsSubscribing(podcast.id)
+    posthog.capture('podcast_subscribed', {
+      podcast_id: podcast.id,
+      podcast_title: podcast.title,
+      podcast_author: podcast.author
+    })
     
     // Save to localStorage
     const newPodcast: PodcastType = {
@@ -80,6 +90,15 @@ export default function PodcastsPage() {
   const handleUnsubscribe = async (podcastId: string) => {
     if (!confirm('Are you sure you want to unsubscribe from this podcast?')) {
       return
+    }
+
+    const podcastToUnsubscribe = subscribedPodcasts.find(p => p.id === podcastId)
+    if (podcastToUnsubscribe) {
+      posthog.capture('podcast_unsubscribed', {
+        podcast_id: podcastToUnsubscribe.id,
+        podcast_title: podcastToUnsubscribe.title,
+        podcast_author: podcastToUnsubscribe.author
+      })
     }
 
     setIsUnsubscribing(podcastId)

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { signUp } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import posthog from 'posthog-js'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -26,14 +27,18 @@ export default function SignUpPage() {
 
     // Validate form
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
+      const errorMessage = 'Passwords do not match'
+      setError(errorMessage)
       setLoading(false)
+      posthog.capture('signup-failed', { reason: errorMessage })
       return
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long')
+      const errorMessage = 'Password must be at least 6 characters long'
+      setError(errorMessage)
       setLoading(false)
+      posthog.capture('signup-failed', { reason: errorMessage })
       return
     }
 
@@ -46,6 +51,7 @@ export default function SignUpPage() {
 
       if (error) {
         setError(error.message)
+        posthog.capture('signup-failed', { reason: 'API Error', message: error.message })
         // If in demo mode, allow redirect to podcasts page
         if (error.message.includes('Demo Mode')) {
           setTimeout(() => {
@@ -56,6 +62,8 @@ export default function SignUpPage() {
         // Check if user needs email confirmation
         const { data: { session } } = await supabase.auth.getSession()
         
+        posthog.capture('signup-successful', { needs_confirmation: !session })
+
         if (session) {
           // User has active session, redirect to dashboard
           router.push('/dashboard')
@@ -65,7 +73,9 @@ export default function SignUpPage() {
         }
       }
     } catch {
-      setError('An unexpected error occurred')
+      const errorMessage = 'An unexpected error occurred'
+      setError(errorMessage)
+      posthog.capture('signup-failed', { reason: errorMessage })
     } finally {
       setLoading(false)
     }
@@ -161,3 +171,4 @@ export default function SignUpPage() {
     </form>
   )
 } 
+      
