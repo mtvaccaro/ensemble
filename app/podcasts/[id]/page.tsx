@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Play, Pause, Clock, Calendar, Download, Scissors } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,12 +11,24 @@ import { estimateTranscriptionCost } from '@/lib/transcription-utils'
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
+interface Episode {
+  id: string
+  title: string
+  description: string
+  duration: number
+  publishedAt: string
+  audioUrl: string
+}
+
 export default function DemoPodcastEpisodesPage() {
   const params = useParams()
   const router = useRouter()
   const podcastId = params.id as string
   
   const [playingEpisode, setPlayingEpisode] = useState<string | null>(null)
+  const [realEpisodes, setRealEpisodes] = useState<Episode[]>([])
+  const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false)
+  const [episodeError, setEpisodeError] = useState<string | null>(null)
 
   // Get episode data based on podcast
   const getEpisodeData = () => {
@@ -124,6 +136,89 @@ export default function DemoPodcastEpisodesPage() {
 
   const mockPodcast = getPodcastData()
 
+  // Fetch real episodes from RSS feed
+  useEffect(() => {
+    const fetchRealEpisodes = async () => {
+      const podcast = storage.getPodcast(podcastId)
+      if (!podcast || !podcast.feed_url) {
+        console.log('No podcast found in localStorage or no feed URL')
+        return
+      }
+
+      // Skip example.com feeds (they're fake)
+      if (podcast.feed_url.includes('example.com')) {
+        console.log('Skipping example.com feed - using mock data')
+        return
+      }
+
+      setIsLoadingEpisodes(true)
+      setEpisodeError(null)
+
+      try {
+        // Use a CORS proxy to fetch the RSS feed
+        const proxyUrl = 'https://api.allorigins.win/raw?url='
+        const response = await fetch(proxyUrl + encodeURIComponent(podcast.feed_url))
+        const xmlText = await response.text()
+        
+        // Parse XML
+        const parser = new DOMParser()
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml')
+        
+        // Extract episodes
+        const items = xmlDoc.querySelectorAll('item')
+        const episodes: Episode[] = Array.from(items).slice(0, 10).map((item, index) => {
+          const title = item.querySelector('title')?.textContent || 'Untitled'
+          const description = item.querySelector('description')?.textContent || ''
+          const pubDate = item.querySelector('pubDate')?.textContent || new Date().toISOString()
+          const enclosure = item.querySelector('enclosure')
+          const audioUrl = enclosure?.getAttribute('url') || ''
+          const durationTag = item.querySelector('duration')?.textContent
+          
+          // Parse duration (format: HH:MM:SS or MM:SS or seconds)
+          let duration = 0
+          if (durationTag) {
+            const parts = durationTag.split(':').map(p => parseInt(p))
+            if (parts.length === 3) {
+              duration = parts[0] * 3600 + parts[1] * 60 + parts[2]
+            } else if (parts.length === 2) {
+              duration = parts[0] * 60 + parts[1]
+            } else {
+              duration = parts[0]
+            }
+          } else {
+            duration = 2700 // Default 45 minutes
+          }
+
+          return {
+            id: `${podcastId}-real-${index}`,
+            title,
+            description: description.replace(/<[^>]*>/g, '').substring(0, 300), // Strip HTML
+            duration,
+            publishedAt: new Date(pubDate).toISOString(),
+            audioUrl
+          }
+        }).filter(ep => ep.audioUrl) // Only keep episodes with audio
+
+        console.log(`Fetched ${episodes.length} real episodes from RSS feed`)
+        setRealEpisodes(episodes)
+        
+        // Save to localStorage
+        storage.setEpisodes(podcastId, episodes as any[])
+        
+      } catch (error) {
+        console.error('Error fetching RSS feed:', error)
+        setEpisodeError('Failed to load episodes from RSS feed')
+      } finally {
+        setIsLoadingEpisodes(false)
+      }
+    }
+
+    fetchRealEpisodes()
+  }, [podcastId])
+
+  // Use real episodes if available, otherwise fall back to mock
+  const displayEpisodes = realEpisodes.length > 0 ? realEpisodes : mockEpisodes
+
   const handlePlayPause = (episodeId: string) => {
     if (playingEpisode === episodeId) {
       setPlayingEpisode(null)
@@ -183,27 +278,67 @@ export default function DemoPodcastEpisodesPage() {
             </div>
           </div>
 
-          {/* Demo Mode Notice */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">
-                  Demo Episode Page
-                </h3>
-                <div className="mt-2 text-sm text-blue-700">
-                  <p>
-                    This is a demo episode listing page. In the full app, this would show real episodes 
-                    from the podcast's RSS feed with working audio playback.
-                  </p>
+          {/* Status Notice */}
+          {isLoadingEpisodes && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="animate-spin h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">
+                    Loading Real Episodes...
+                  </h3>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p>Fetching episodes from the podcast's RSS feed.</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
+          
+          {episodeError && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    {episodeError}
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>Showing demo episodes instead. Subscribe to a podcast to see real episodes.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {realEpisodes.length > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-green-800">
+                    Real Episodes Loaded!
+                  </h3>
+                  <div className="mt-2 text-sm text-green-700">
+                    <p>Showing {realEpisodes.length} episodes from the RSS feed. Transcription will work with these!</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Podcast Info */}
           <div className="bg-white rounded-lg shadow border p-6">
@@ -235,7 +370,7 @@ export default function DemoPodcastEpisodesPage() {
 
           {/* Episodes List */}
           <div className="space-y-4">
-            {mockEpisodes.map((episode) => (
+            {displayEpisodes.map((episode) => (
               <div key={episode.id} className="bg-white rounded-lg shadow border p-6">
                 <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
