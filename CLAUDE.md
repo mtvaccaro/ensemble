@@ -1,16 +1,22 @@
 # Clipper Development Progress
 
 ## Project Overview
-Podcast clip generation SaaS tool - Transform podcasts into viral clips with AI transcription and social sharing.
+Podcast clip generation web tool - Transform podcasts into viral clips with AI transcription.
 
-## Current Status: Step 3 of 5 ✅ (COMPLETE)
+## Current Architecture: localStorage Mode (No Backend!)
+
+**We're building an MVP using browser localStorage - NO auth, NO database, NO Supabase required!**
+
+This allows rapid feature development without backend complexity. When ready for production, we'll migrate localStorage calls to API calls.
+
+## Current Status: Step 4 - Transcription ✅ (IN PROGRESS)
 
 ### ✅ Completed (Steps 1-3)
-- **Project Setup**: Next.js 15 + TypeScript + Tailwind + Supabase
-- **Authentication**: Working login/signup with Supabase Auth + RLS policies + Demo Mode
-- **Database**: Schema created (users, podcasts, episodes, clips tables)
-- **Podcast Search & Subscription**: Complete UI + API routes + RSS parsing + Demo Mode
-- **Deployment**: Working demo at localhost with full UI functionality
+- **Project Setup**: Next.js 15 + TypeScript + Tailwind
+- **localStorage Utility**: Full data persistence in browser
+- **Podcast Search & Subscribe**: Complete UI with iTunes API + localStorage
+- **Episode Management**: RSS parsing, playback UI
+- **Deployment**: Working at localhost with full UI functionality
 
 ### 🎯 Step 3 Implementation Details (COMPLETED)
 - ✅ API routes: `/api/podcasts/*` (search, subscribe, unsubscribe)
@@ -38,11 +44,11 @@ Implement episode listing, audio playback, OpenAI Whisper transcription, and epi
 
 ## Tech Stack
 - **Frontend**: Next.js 15, TypeScript, Tailwind CSS
-- **Backend**: Supabase (PostgreSQL + Auth + Storage)  
-- **Podcast Data**: Podcast Index API + RSS parsing
-- **AI**: OpenAI Whisper (transcription), GPT-4 (clip recommendations)  
-- **Deployment**: Vercel
-- **Budget**: ~$40-60/month target
+- **Storage**: Browser localStorage (no backend for MVP!)
+- **Podcast Data**: iTunes API + RSS parsing
+- **AI**: OpenAI Whisper (transcription)
+- **Deployment**: Vercel / localhost
+- **Budget**: Pay-as-you-go (OpenAI Whisper only)
 
 ## Key Architecture Decisions
 - Using Podcast Index API (free) + RSS parsing instead of paid podcast APIs
@@ -54,6 +60,41 @@ Implement episode listing, audio playback, OpenAI Whisper transcription, and epi
 - Clean single directory: `/Users/mattvaccaro/clipper/`
 - No more nested clipper/clipper/ confusion
 
-## Development Workflow
+## Development Workflow & Git Best Practices
+
+### Version Control Rules
+1. **NEVER push directly to `main`**
+2. **ALWAYS create a dev branch** for new features:
+   ```bash
+   git checkout -b feature/feature-name
+   ```
+3. **Work on the branch** until feature is complete and tested
+4. **Open a PR** and review before merging to main
+5. **Keep main stable** - only merge working, tested code
+
+### Feature Branch Naming
+- `feature/transcription` - New features
+- `fix/audio-playback` - Bug fixes
+- `refactor/remove-supabase` - Code refactoring
+- `docs/update-readme` - Documentation
+
+### Workflow Example
+```bash
+# Start new feature
+git checkout main
+git pull origin main
+git checkout -b feature/transcription
+
+# Work on feature, commit often
+git add .
+git commit -m "Add OpenAI Whisper integration"
+
+# Push and open PR when ready
+git push origin feature/transcription
+# Then open PR on GitHub/GitLab
+```
+
+### Development Tools
 - Claude (planning/architecture) + Cursor (implementation)
-- Deploy to Vercel for testing (localhost issues resolved)
+- Test locally at localhost:3000
+- No deployment needed for localStorage mode

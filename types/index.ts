@@ -6,6 +6,16 @@ export interface User {
   created_at: string
 }
 
+// Transcription status enum
+export const TranscriptionStatus = {
+  NOT_STARTED: 'not_started',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+} as const
+
+export type TranscriptionStatusType = typeof TranscriptionStatus[keyof typeof TranscriptionStatus]
+
 export interface Podcast {
   id: string
   title: string
@@ -29,6 +39,8 @@ export interface Episode {
   published_at: string
   image_url?: string
   transcript?: string
+  transcription_status?: TranscriptionStatusType
+  transcription_error?: string
 }
 
 export interface Clip {
