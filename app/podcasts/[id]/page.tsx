@@ -155,49 +155,23 @@ export default function DemoPodcastEpisodesPage() {
       setEpisodeError(null)
 
       try {
-        // Use a CORS proxy to fetch the RSS feed
-        const proxyUrl = 'https://api.allorigins.win/raw?url='
-        const response = await fetch(proxyUrl + encodeURIComponent(podcast.feed_url))
-        const xmlText = await response.text()
+        // Use our server-side API to fetch RSS feed (no CORS issues!)
+        const response = await fetch(`/api/rss?url=${encodeURIComponent(podcast.feed_url)}`)
         
-        // Parse XML
-        const parser = new DOMParser()
-        const xmlDoc = parser.parseFromString(xmlText, 'text/xml')
-        
-        // Extract episodes
-        const items = xmlDoc.querySelectorAll('item')
-        const episodes: Episode[] = Array.from(items).slice(0, 10).map((item, index) => {
-          const title = item.querySelector('title')?.textContent || 'Untitled'
-          const description = item.querySelector('description')?.textContent || ''
-          const pubDate = item.querySelector('pubDate')?.textContent || new Date().toISOString()
-          const enclosure = item.querySelector('enclosure')
-          const audioUrl = enclosure?.getAttribute('url') || ''
-          const durationTag = item.querySelector('duration')?.textContent
-          
-          // Parse duration (format: HH:MM:SS or MM:SS or seconds)
-          let duration = 0
-          if (durationTag) {
-            const parts = durationTag.split(':').map(p => parseInt(p))
-            if (parts.length === 3) {
-              duration = parts[0] * 3600 + parts[1] * 60 + parts[2]
-            } else if (parts.length === 2) {
-              duration = parts[0] * 60 + parts[1]
-            } else {
-              duration = parts[0]
-            }
-          } else {
-            duration = 2700 // Default 45 minutes
-          }
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.details || 'Failed to fetch RSS feed')
+        }
 
-          return {
-            id: `${podcastId}-real-${index}`,
-            title,
-            description: description.replace(/<[^>]*>/g, '').substring(0, 300), // Strip HTML
-            duration,
-            publishedAt: new Date(pubDate).toISOString(),
-            audioUrl
-          }
-        }).filter(ep => ep.audioUrl) // Only keep episodes with audio
+        const data = await response.json()
+        const episodes: Episode[] = data.episodes.map((ep: any, index: number) => ({
+          id: `${podcastId}-real-${index}`,
+          title: ep.title,
+          description: ep.description,
+          duration: ep.duration,
+          publishedAt: ep.publishedAt,
+          audioUrl: ep.audioUrl
+        }))
 
         console.log(`Fetched ${episodes.length} real episodes from RSS feed`)
         setRealEpisodes(episodes)
