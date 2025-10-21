@@ -1,11 +1,21 @@
 // localStorage utilities for persisting data without a backend
 // This allows the app to work fully offline with data persistence
 
-import { Podcast } from '@/types'
+import { Podcast, Episode, TranscriptionStatusType, TranscriptionStatus } from '@/types'
 
 const STORAGE_KEYS = {
   PODCASTS: 'clipper_subscribed_podcasts',
+  EPISODES: 'clipper_episodes',
+  TRANSCRIPTS: 'clipper_transcripts',
   LAST_UPDATED: 'clipper_last_updated'
+}
+
+interface StoredTranscript {
+  episodeId: string
+  transcript: string
+  status: TranscriptionStatusType
+  error?: string
+  updatedAt: string
 }
 
 // Check if we're in a browser environment
@@ -75,7 +85,161 @@ export const storage = {
     if (!isBrowser) return
     
     localStorage.removeItem(STORAGE_KEYS.PODCASTS)
+    localStorage.removeItem(STORAGE_KEYS.EPISODES)
+    localStorage.removeItem(STORAGE_KEYS.TRANSCRIPTS)
     localStorage.removeItem(STORAGE_KEYS.LAST_UPDATED)
+  },
+
+  // === EPISODE STORAGE ===
+
+  // Get all episodes for a podcast
+  getEpisodes: (podcastId: string): Episode[] => {
+    if (!isBrowser) return []
+    
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.EPISODES)
+      const allEpisodes: Record<string, Episode[]> = data ? JSON.parse(data) : {}
+      return allEpisodes[podcastId] || []
+    } catch (error) {
+      console.error('Error reading episodes from localStorage:', error)
+      return []
+    }
+  },
+
+  // Save episodes for a podcast
+  setEpisodes: (podcastId: string, episodes: Episode[]): void => {
+    if (!isBrowser) return
+    
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.EPISODES)
+      const allEpisodes: Record<string, Episode[]> = data ? JSON.parse(data) : {}
+      allEpisodes[podcastId] = episodes
+      localStorage.setItem(STORAGE_KEYS.EPISODES, JSON.stringify(allEpisodes))
+    } catch (error) {
+      console.error('Error writing episodes to localStorage:', error)
+    }
+  },
+
+  // Get a single episode by ID (searches across all podcasts)
+  getEpisode: (episodeId: string): Episode | null => {
+    if (!isBrowser) return null
+    
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.EPISODES)
+      const allEpisodes: Record<string, Episode[]> = data ? JSON.parse(data) : {}
+      
+      for (const episodes of Object.values(allEpisodes)) {
+        const episode = episodes.find(e => e.id === episodeId)
+        if (episode) return episode
+      }
+      return null
+    } catch (error) {
+      console.error('Error finding episode:', error)
+      return null
+    }
+  },
+
+  // Update a single episode (for transcription updates)
+  updateEpisode: (episodeId: string, updates: Partial<Episode>): void => {
+    if (!isBrowser) return
+    
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.EPISODES)
+      const allEpisodes: Record<string, Episode[]> = data ? JSON.parse(data) : {}
+      
+      for (const [podcastId, episodes] of Object.entries(allEpisodes)) {
+        const episodeIndex = episodes.findIndex(e => e.id === episodeId)
+        if (episodeIndex !== -1) {
+          allEpisodes[podcastId][episodeIndex] = {
+            ...allEpisodes[podcastId][episodeIndex],
+            ...updates
+          }
+          localStorage.setItem(STORAGE_KEYS.EPISODES, JSON.stringify(allEpisodes))
+          return
+        }
+      }
+    } catch (error) {
+      console.error('Error updating episode:', error)
+    }
+  },
+
+  // === TRANSCRIPT STORAGE ===
+
+  // Get transcript for an episode
+  getTranscript: (episodeId: string): StoredTranscript | null => {
+    if (!isBrowser) return null
+    
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.TRANSCRIPTS)
+      const transcripts: Record<string, StoredTranscript> = data ? JSON.parse(data) : {}
+      return transcripts[episodeId] || null
+    } catch (error) {
+      console.error('Error reading transcript from localStorage:', error)
+      return null
+    }
+  },
+
+  // Save transcript for an episode
+  setTranscript: (episodeId: string, transcript: string, status: TranscriptionStatusType = TranscriptionStatus.COMPLETED, error?: string): void => {
+    if (!isBrowser) return
+    
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.TRANSCRIPTS)
+      const transcripts: Record<string, StoredTranscript> = data ? JSON.parse(data) : {}
+      
+      transcripts[episodeId] = {
+        episodeId,
+        transcript,
+        status,
+        error,
+        updatedAt: new Date().toISOString()
+      }
+      
+      localStorage.setItem(STORAGE_KEYS.TRANSCRIPTS, JSON.stringify(transcripts))
+      
+      // Also update the episode with transcript data
+      storage.updateEpisode(episodeId, {
+        transcript,
+        transcription_status: status,
+        transcription_error: error
+      })
+    } catch (error) {
+      console.error('Error writing transcript to localStorage:', error)
+    }
+  },
+
+  // Update transcript status (for in-progress/failed states)
+  setTranscriptStatus: (episodeId: string, status: TranscriptionStatusType, error?: string): void => {
+    if (!isBrowser) return
+    
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.TRANSCRIPTS)
+      const transcripts: Record<string, StoredTranscript> = data ? JSON.parse(data) : {}
+      
+      if (transcripts[episodeId]) {
+        transcripts[episodeId].status = status
+        transcripts[episodeId].error = error
+        transcripts[episodeId].updatedAt = new Date().toISOString()
+      } else {
+        transcripts[episodeId] = {
+          episodeId,
+          transcript: '',
+          status,
+          error,
+          updatedAt: new Date().toISOString()
+        }
+      }
+      
+      localStorage.setItem(STORAGE_KEYS.TRANSCRIPTS, JSON.stringify(transcripts))
+      
+      // Also update the episode
+      storage.updateEpisode(episodeId, {
+        transcription_status: status,
+        transcription_error: error
+      })
+    } catch (error) {
+      console.error('Error updating transcript status:', error)
+    }
   }
 }
 
