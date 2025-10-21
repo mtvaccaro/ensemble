@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Play, Pause, Clock, Calendar, Download, Scissors } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { storage } from '@/lib/localStorage'
+import { TranscriptionButton } from '@/components/episodes/transcription-button'
+import { estimateTranscriptionCost } from '@/lib/transcription-utils'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -256,11 +258,16 @@ export default function DemoPodcastEpisodesPage() {
                         <Clock className="h-4 w-4 mr-1" />
                         {formatDuration(episode.duration)}
                       </span>
+                      <span className="text-xs text-gray-400">
+                        Est. cost: ${estimateTranscriptionCost(episode.duration)}
+                      </span>
                     </div>
                     <p className="text-sm text-gray-600 mb-4">
                       {episode.description}
                     </p>
-                    <div className="flex items-center space-x-3">
+                    
+                    {/* Action Buttons */}
+                    <div className="flex items-center space-x-3 mb-4">
                       <Button
                         onClick={() => handlePlayPause(episode.id)}
                         variant={playingEpisode === episode.id ? "outline" : "default"}
@@ -289,6 +296,19 @@ export default function DemoPodcastEpisodesPage() {
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
+                    </div>
+
+                    {/* Transcription Section */}
+                    <div className="border-t pt-4">
+                      <TranscriptionButton
+                        episodeId={`${podcastId}-${episode.id}`}
+                        episodeTitle={episode.title}
+                        audioUrl={episode.audioUrl}
+                        onTranscriptionComplete={(transcript) => {
+                          console.log('Transcription completed for:', episode.title)
+                          console.log('Transcript length:', transcript.length)
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
