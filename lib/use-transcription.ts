@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect } from 'react'
-import { TranscriptionStatus, TranscriptionStatusType } from '@/types'
+import { TranscriptionStatus, TranscriptionStatusType, TranscriptSegment } from '@/types'
 import { storage } from './localStorage'
 
 interface TranscriptionState {
   status: TranscriptionStatusType
   transcript?: string
+  segments?: TranscriptSegment[]
   error?: string
   isLoading: boolean
 }
@@ -12,6 +13,9 @@ interface TranscriptionState {
 interface TranscriptionResponse {
   message?: string
   transcript?: string
+  segments?: TranscriptSegment[]
+  duration?: number
+  language?: string
   status: TranscriptionStatusType
   error?: string
   details?: string
@@ -35,6 +39,7 @@ export function useTranscription(episodeId: string) {
       setState({
         status: stored.status,
         transcript: stored.transcript,
+        segments: stored.segments,
         error: stored.error,
         isLoading: false,
       })
@@ -61,20 +66,28 @@ export function useTranscription(episodeId: string) {
         throw new Error(data.error || data.details || 'Transcription failed')
       }
 
-      // Save transcript to localStorage
+      // Save transcript and segments to localStorage
       if (data.transcript) {
-        storage.setTranscript(episodeId, data.transcript, TranscriptionStatus.COMPLETED)
+        storage.setTranscript(
+          episodeId, 
+          data.transcript, 
+          TranscriptionStatus.COMPLETED,
+          undefined,
+          data.segments
+        )
       }
 
       setState({
         status: data.status,
         transcript: data.transcript,
+        segments: data.segments,
         isLoading: false,
       })
 
       return {
         success: true,
         transcript: data.transcript,
+        segments: data.segments,
         status: data.status,
       }
     } catch (error) {
@@ -106,6 +119,7 @@ export function useTranscription(episodeId: string) {
           ...prev,
           status: stored.status,
           transcript: stored.transcript,
+          segments: stored.segments,
           error: stored.error,
         }))
 
@@ -113,6 +127,7 @@ export function useTranscription(episodeId: string) {
           success: true,
           status: stored.status,
           hasTranscript: !!stored.transcript,
+          segments: stored.segments,
           error: stored.error,
         }
       }

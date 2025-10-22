@@ -16,6 +16,26 @@ export const TranscriptionStatus = {
 
 export type TranscriptionStatusType = typeof TranscriptionStatus[keyof typeof TranscriptionStatus]
 
+export interface TranscriptSegment {
+  id: number
+  seek: number
+  start: number
+  end: number
+  text: string
+  tokens: number[]
+  temperature: number
+  avg_logprob: number
+  compression_ratio: number
+  no_speech_prob: number
+}
+
+export interface TranscriptionData {
+  transcript: string
+  segments: TranscriptSegment[]
+  duration?: number
+  language?: string
+}
+
 export interface Podcast {
   id: string
   title: string
@@ -39,6 +59,7 @@ export interface Episode {
   published_at: string
   image_url?: string
   transcript?: string
+  transcript_segments?: TranscriptSegment[]
   transcription_status?: TranscriptionStatusType
   transcription_error?: string
 }

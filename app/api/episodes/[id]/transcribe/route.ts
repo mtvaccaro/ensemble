@@ -62,19 +62,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         fileName
       })
       
-      // Call OpenAI Whisper API
+      // Call OpenAI Whisper API with verbose_json for segments
       const transcription = await openai.audio.transcriptions.create({
         file: audioFile,
         model: 'whisper-1',
-        language: 'en', // You can make this configurable or auto-detect
-        response_format: 'text',
+        language: 'en',
+        response_format: 'verbose_json',
+        timestamp_granularities: ['segment']
       })
 
-      console.log('Transcription completed successfully, length:', transcription.length)
+      console.log('Transcription completed successfully')
+      console.log('Segments:', transcription.segments?.length || 0)
+      console.log('Full text length:', transcription.text?.length || 0)
 
       return NextResponse.json({
         message: 'Transcription completed successfully',
-        transcript: transcription,
+        transcript: transcription.text,
+        segments: transcription.segments || [],
+        duration: transcription.duration,
+        language: transcription.language,
         status: TranscriptionStatus.COMPLETED,
       })
 

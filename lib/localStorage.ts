@@ -1,7 +1,7 @@
 // localStorage utilities for persisting data without a backend
 // This allows the app to work fully offline with data persistence
 
-import { Podcast, Episode, TranscriptionStatusType, TranscriptionStatus } from '@/types'
+import { Podcast, Episode, TranscriptionStatusType, TranscriptionStatus, TranscriptSegment } from '@/types'
 
 const STORAGE_KEYS = {
   PODCASTS: 'clipper_subscribed_podcasts',
@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
 interface StoredTranscript {
   episodeId: string
   transcript: string
+  segments?: TranscriptSegment[]
   status: TranscriptionStatusType
   error?: string
   updatedAt: string
@@ -180,7 +181,7 @@ export const storage = {
   },
 
   // Save transcript for an episode
-  setTranscript: (episodeId: string, transcript: string, status: TranscriptionStatusType = TranscriptionStatus.COMPLETED, error?: string): void => {
+  setTranscript: (episodeId: string, transcript: string, status: TranscriptionStatusType = TranscriptionStatus.COMPLETED, error?: string, segments?: TranscriptSegment[]): void => {
     if (!isBrowser) return
     
     try {
@@ -190,6 +191,7 @@ export const storage = {
       transcripts[episodeId] = {
         episodeId,
         transcript,
+        segments,
         status,
         error,
         updatedAt: new Date().toISOString()
@@ -200,6 +202,7 @@ export const storage = {
       // Also update the episode with transcript data
       storage.updateEpisode(episodeId, {
         transcript,
+        transcript_segments: segments,
         transcription_status: status,
         transcription_error: error
       })
