@@ -32,7 +32,8 @@ export default function CanvasPage() {
   // Canvas state
   const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([])
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
-  const [draggedItem, setDraggedItem] = useState<CanvasItem | null>(null)
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
+  const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   
   // Canvas view state (pan/zoom)
@@ -205,15 +206,30 @@ export default function CanvasPage() {
   const handleItemMouseDown = (e: React.MouseEvent, item: CanvasItem) => {
     e.stopPropagation()
     
+    // Determine which items will be dragged
+    const itemsToDrag = selectedItemIds.includes(item.id) 
+      ? selectedItemIds 
+      : [item.id]
+    
     // If item is not selected, select only this item
     if (!selectedItemIds.includes(item.id)) {
       setSelectedItemIds([item.id])
     }
     
-    setDraggedItem(item)
+    // Store the starting positions of ALL items that will be dragged
+    const startPositions = new Map<string, { x: number; y: number }>()
+    canvasItems.forEach(canvasItem => {
+      if (itemsToDrag.includes(canvasItem.id)) {
+        startPositions.set(canvasItem.id, {
+          x: canvasItem.position.x,
+          y: canvasItem.position.y
+        })
+      }
+    })
     
-    // Store the offset between mouse and item in canvas coordinates
-    // This is the key: we're storing how far the mouse is from the item's top-left corner
+    setDraggedItemId(item.id)
+    setDragStartPositions(startPositions)
+    
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
     
@@ -224,7 +240,7 @@ export default function CanvasPage() {
     const canvasMouseX = (viewportX - canvasOffset.x) / canvasZoom
     const canvasMouseY = (viewportY - canvasOffset.y) / canvasZoom
     
-    // Store offset from mouse to item's position
+    // Store offset from mouse to item's position (in canvas space)
     setDragOffset({
       x: canvasMouseX - item.position.x,
       y: canvasMouseY - item.position.y
@@ -247,7 +263,7 @@ export default function CanvasPage() {
     }
 
     // Handle item dragging
-    if (!draggedItem) return
+    if (!draggedItemId || dragStartPositions.size === 0) return
 
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -259,37 +275,43 @@ export default function CanvasPage() {
     const canvasMouseX = (viewportX - canvasOffset.x) / canvasZoom
     const canvasMouseY = (viewportY - canvasOffset.y) / canvasZoom
 
-    // Calculate new item position by subtracting the stored offset
+    // Calculate new position for the dragged item
     const newX = canvasMouseX - dragOffset.x
     const newY = canvasMouseY - dragOffset.y
 
-    // Constrain to canvas bounds
-    const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 280, newX))
-    const constrainedY = Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, newY))
+    // Get the dragged item's original position
+    const draggedStartPos = dragStartPositions.get(draggedItemId)
+    if (!draggedStartPos) return
 
-    // Update positions of all selected items
+    // Calculate how much the dragged item has moved from its start position
+    const deltaX = newX - draggedStartPos.x
+    const deltaY = newY - draggedStartPos.y
+
+    // Update positions of all items that were selected when drag started
     setCanvasItems(items =>
       items.map(item => {
-        if (selectedItemIds.includes(item.id)) {
-          // Calculate offset from dragged item
-          const offsetX = item.position.x - draggedItem.position.x
-          const offsetY = item.position.y - draggedItem.position.y
-          
-          return {
-            ...item,
-            position: { 
-              x: Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 280, constrainedX + offsetX)),
-              y: Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, constrainedY + offsetY))
-            }
-          }
+        const startPos = dragStartPositions.get(item.id)
+        if (!startPos) return item // This item wasn't part of the drag
+        
+        // Calculate new position based on the stored start position
+        const newPosX = startPos.x + deltaX
+        const newPosY = startPos.y + deltaY
+        
+        // Constrain to canvas bounds
+        const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 280, newPosX))
+        const constrainedY = Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, newPosY))
+        
+        return {
+          ...item,
+          position: { x: constrainedX, y: constrainedY }
         }
-        return item
       })
     )
   }
 
   const handleMouseUp = () => {
-    setDraggedItem(null)
+    setDraggedItemId(null)
+    setDragStartPositions(new Map())
     setIsPanning(false)
   }
 
