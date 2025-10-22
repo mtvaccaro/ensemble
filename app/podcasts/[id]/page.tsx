@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { storage } from '@/lib/localStorage'
 import { TranscriptionButton } from '@/components/episodes/transcription-button'
 import { estimateTranscriptionCost } from '@/lib/transcription-utils'
+import { Episode as StorageEpisode } from '@/types'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -176,8 +177,17 @@ export default function DemoPodcastEpisodesPage() {
         console.log(`Fetched ${episodes.length} real episodes from RSS feed`)
         setRealEpisodes(episodes)
         
-        // Save to localStorage
-        storage.setEpisodes(podcastId, episodes)
+        // Save to localStorage (map to StorageEpisode type)
+        const storageEpisodes: StorageEpisode[] = episodes.map(ep => ({
+          id: ep.id,
+          podcast_id: podcastId,
+          title: ep.title,
+          description: ep.description,
+          audio_url: ep.audioUrl,
+          duration: ep.duration,
+          published_at: ep.publishedAt
+        }))
+        storage.setEpisodes(podcastId, storageEpisodes)
         
       } catch (error) {
         console.error('Error fetching RSS feed:', error)
