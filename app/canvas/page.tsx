@@ -1,11 +1,12 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, Plus, X, Scissors, Download, Trash2 } from 'lucide-react'
+import { Search, Plus, X, Scissors, Download, Trash2, FileText, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasItem } from '@/types'
+import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasItem, TranscriptionStatus } from '@/types'
 import { storage } from '@/lib/localStorage'
+import { EpisodeDetailModal } from '@/components/canvas/episode-detail-modal'
 import posthog from 'posthog-js'
 
 interface EpisodeResult {
@@ -31,6 +32,10 @@ export default function CanvasPage() {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [draggedItem, setDraggedItem] = useState<CanvasItem | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  
+  // Modal state
+  const [selectedEpisode, setSelectedEpisode] = useState<CanvasEpisode | null>(null)
+  const [isTranscribing, setIsTranscribing] = useState(false)
   
   const canvasRef = useRef<HTMLDivElement>(null)
 
@@ -223,6 +228,92 @@ export default function CanvasPage() {
         count: selectedItemIds.length
       })
     }
+  }
+
+  const handleOpenEpisode = (episode: CanvasEpisode) => {
+    setSelectedEpisode(episode)
+  }
+
+  const handleTranscribe = async (episodeId: string) => {
+    if (!selectedEpisode) return
+    
+    setIsTranscribing(true)
+    
+    try {
+      const response = await fetch(`/api/episodes/${episodeId}/transcribe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          audioUrl: selectedEpisode.audioUrl,
+          episodeTitle: selectedEpisode.title
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Update the episode in canvas with transcript
+        setCanvasItems(items =>
+          items.map(item => {
+            if (item.id === selectedEpisode.id) {
+              return {
+                ...item,
+                transcript: data.transcript,
+                transcript_segments: data.segments
+              } as CanvasEpisode
+            }
+            return item
+          })
+        )
+
+        // Update the modal episode
+        setSelectedEpisode({
+          ...selectedEpisode,
+          transcript: data.transcript,
+          transcript_segments: data.segments
+        })
+
+        posthog.capture('canvas_episode_transcribed', {
+          episode_id: episodeId,
+          segment_count: data.segments?.length || 0
+        })
+      } else {
+        alert('Transcription failed. Please try again.')
+      }
+    } catch (error) {
+      console.error('Transcription error:', error)
+      alert('Transcription failed. Please try again.')
+    } finally {
+      setIsTranscribing(false)
+    }
+  }
+
+  const handleCreateClip = (clipData: Omit<CanvasClip, 'id' | 'createdAt' | 'updatedAt' | 'position'>) => {
+    if (!selectedEpisode) return
+
+    // Position the clip near the source episode
+    const newClip: CanvasClip = {
+      ...clipData,
+      id: `canvas-clip-${Date.now()}-${Math.random()}`,
+      position: {
+        x: selectedEpisode.position.x + 320, // Offset to the right
+        y: selectedEpisode.position.y
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    setCanvasItems([...canvasItems, newClip])
+    posthog.capture('clip_created_on_canvas', {
+      clip_title: clipData.title,
+      clip_duration: clipData.duration,
+      source_episode: selectedEpisode.episodeId
+    })
+
+    // Close the modal
+    setSelectedEpisode(null)
   }
 
   const formatDuration = (seconds: number): string => {
@@ -466,11 +557,74 @@ export default function CanvasPage() {
                         </div>
                         
                         <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
-                          <Button size="sm" variant="outline" className="flex-1 text-xs">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenEpisode(episode)
+                            }}
+                          >
                             <Scissors className="h-3 w-3 mr-1" />
                             Create Clip
                           </Button>
+                          {episode.transcript_segments && (
+                            <div className="absolute top-2 right-2 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
+                              <FileText className="h-3 w-3 inline" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+                
+                if (item.type === 'clip') {
+                  const clip = item as CanvasClip
+                  const isSelected = selectedItemIds.includes(item.id)
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      onMouseDown={(e) => handleItemMouseDown(e, item)}
+                      className={`absolute cursor-move select-none ${
+                        isSelected ? 'ring-2 ring-purple-500 ring-offset-2' : ''
+                      }`}
+                      style={{
+                        left: item.position.x,
+                        top: item.position.y,
+                        width: '280px'
+                      }}
+                    >
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-lg border-2 border-purple-300 p-4 hover:shadow-xl transition-shadow">
+                        <div className="flex items-start gap-2 mb-3">
+                          <div className="bg-purple-600 text-white p-2 rounded">
+                            <Scissors className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-purple-600 mb-1">CLIP</div>
+                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
+                              {clip.title}
+                            </h3>
+                            <p className="text-xs text-gray-600 mt-1">
+                              Duration: {formatDuration(clip.duration)}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white bg-opacity-50 rounded p-2 mb-3">
+                          <p className="text-xs text-gray-700 line-clamp-3">
+                            {clip.transcript}
+                          </p>
+                        </div>
+                        
+                        <div className="flex gap-2">
                           <Button size="sm" variant="outline" className="flex-1 text-xs">
+                            <Play className="h-3 w-3 mr-1" />
+                            Preview
+                          </Button>
+                          <Button size="sm" className="flex-1 text-xs bg-purple-600 hover:bg-purple-700">
                             <Download className="h-3 w-3 mr-1" />
                             Export
                           </Button>
@@ -486,6 +640,17 @@ export default function CanvasPage() {
           )}
         </div>
       </div>
+
+      {/* Episode Detail Modal */}
+      {selectedEpisode && (
+        <EpisodeDetailModal
+          episode={selectedEpisode}
+          onClose={() => setSelectedEpisode(null)}
+          onCreateClip={handleCreateClip}
+          onTranscribe={handleTranscribe}
+          isTranscribing={isTranscribing}
+        />
+      )}
     </div>
   )
 }
