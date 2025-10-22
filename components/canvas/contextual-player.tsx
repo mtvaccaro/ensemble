@@ -136,7 +136,7 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
       audio.addEventListener('timeupdate', handleTimeUpdate)
       return () => audio.removeEventListener('timeupdate', handleTimeUpdate)
     }
-  }, [currentItem, currentItemIndex, playableItems.length, hasMultiple, onPlayingChange, shouldAutoPlay])
+  }, [currentItem, currentItemIndex, playableItems.length, hasMultiple, onPlayingChange])
 
   // Handle explicit play trigger
   useEffect(() => {
