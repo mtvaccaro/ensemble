@@ -6,9 +6,10 @@ import { CanvasItem, CanvasEpisode, CanvasClip } from '@/types'
 
 interface ContextualPlayerProps {
   selectedItems: CanvasItem[]
+  playTrigger?: number
 }
 
-export function ContextualPlayer({ selectedItems }: ContextualPlayerProps) {
+export function ContextualPlayer({ selectedItems, playTrigger }: ContextualPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -25,7 +26,7 @@ export function ContextualPlayer({ selectedItems }: ContextualPlayerProps) {
   const currentItem = playableItems[currentItemIndex]
   const hasMultiple = playableItems.length > 1
 
-  // Update audio source when selection changes
+  // Update audio source when selection changes (but don't auto-play)
   useEffect(() => {
     if (!currentItem) {
       setIsPlaying(false)
@@ -41,26 +42,12 @@ export function ContextualPlayer({ selectedItems }: ContextualPlayerProps) {
       : (currentItem as CanvasClip).audioUrl
 
     audio.src = audioUrl
+    audio.load()
 
-    // For clips, set start time before playing
+    // For clips, set up listener to stop at end time
     if (currentItem.type === 'clip') {
       const clip = currentItem as CanvasClip
       
-      // Wait for metadata to load, then set time and play
-      const handleCanPlay = () => {
-        audio.currentTime = clip.startTime
-        audio.play().then(() => {
-          setIsPlaying(true)
-        }).catch(error => {
-          console.log('Auto-play prevented:', error)
-          setIsPlaying(false)
-        })
-      }
-      
-      audio.addEventListener('canplay', handleCanPlay, { once: true })
-      audio.load()
-      
-      // Set up listener to stop at end time
       const handleTimeUpdate = () => {
         if (audio.currentTime >= clip.endTime) {
           if (hasMultiple && currentItemIndex < playableItems.length - 1) {
@@ -76,9 +63,38 @@ export function ContextualPlayer({ selectedItems }: ContextualPlayerProps) {
 
       audio.addEventListener('timeupdate', handleTimeUpdate)
       return () => audio.removeEventListener('timeupdate', handleTimeUpdate)
+    }
+  }, [currentItem, currentItemIndex, playableItems.length, hasMultiple])
+
+  // Handle explicit play trigger
+  useEffect(() => {
+    if (!playTrigger || !currentItem) return
+
+    const audio = audioRef.current
+    if (!audio) return
+
+    // For clips, set start time then play
+    if (currentItem.type === 'clip') {
+      const clip = currentItem as CanvasClip
+      
+      const handleCanPlay = () => {
+        audio.currentTime = clip.startTime
+        audio.play().then(() => {
+          setIsPlaying(true)
+        }).catch(error => {
+          console.log('Auto-play prevented:', error)
+          setIsPlaying(false)
+        })
+      }
+      
+      if (audio.readyState >= 2) {
+        // Already loaded
+        handleCanPlay()
+      } else {
+        audio.addEventListener('canplay', handleCanPlay, { once: true })
+      }
     } else {
-      // For episodes, just load and play
-      audio.load()
+      // For episodes, just play
       audio.play().then(() => {
         setIsPlaying(true)
       }).catch(error => {
@@ -86,7 +102,7 @@ export function ContextualPlayer({ selectedItems }: ContextualPlayerProps) {
         setIsPlaying(false)
       })
     }
-  }, [currentItem, currentItemIndex, playableItems.length, hasMultiple])
+  }, [playTrigger, currentItem])
 
   // Handle audio metadata loaded
   useEffect(() => {

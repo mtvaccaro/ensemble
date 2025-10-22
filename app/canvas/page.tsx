@@ -52,6 +52,9 @@ export default function CanvasPage() {
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   
+  // Play trigger (to differentiate selection from explicit play action)
+  const [playTrigger, setPlayTrigger] = useState<number>(0)
+  
   const canvasRef = useRef<HTMLDivElement>(null)
   
   // Canvas constraints (keep items within bounds)
@@ -1001,6 +1004,7 @@ export default function CanvasPage() {
                             onClick={(e) => {
                               e.stopPropagation()
                               setSelectedItemIds([item.id])
+                              setPlayTrigger(Date.now()) // Trigger playback
                             }}
                           >
                             <Play className="h-3 w-3 mr-1" />
@@ -1083,6 +1087,7 @@ export default function CanvasPage() {
                             onClick={(e) => {
                               e.stopPropagation()
                               setSelectedItemIds([item.id])
+                              setPlayTrigger(Date.now()) // Trigger playback
                             }}
                           >
                             <Play className="h-3 w-3 mr-1" />
@@ -1159,6 +1164,7 @@ export default function CanvasPage() {
       {/* Contextual Audio Player */}
       <ContextualPlayer
         selectedItems={canvasItems.filter(item => selectedItemIds.includes(item.id))}
+        playTrigger={playTrigger}
       />
     </div>
   )
