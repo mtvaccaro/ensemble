@@ -358,6 +358,7 @@ export default function CanvasPage() {
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     
     // Figma-style controls:
     // Cmd/Ctrl + Scroll = Zoom
@@ -722,7 +723,7 @@ export default function CanvasPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50" style={{ overscrollBehavior: 'none' }}>
       {/* Sidebar - Podcast Search - Collapsible */}
       {!isSidebarCollapsed && (
         <div className="w-[360px] bg-white border-r border-gray-200 flex flex-col overflow-hidden relative">
@@ -869,7 +870,7 @@ export default function CanvasPage() {
       )}
 
       {/* Canvas Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col" style={{ overscrollBehavior: 'none' }}>
         {/* Toolbar */}
         <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -944,7 +945,9 @@ export default function CanvasPage() {
           style={{
             backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
             backgroundSize: `${20 * canvasZoom}px ${20 * canvasZoom}px`,
-            backgroundPosition: `${canvasOffset.x}px ${canvasOffset.y}px`
+            backgroundPosition: `${canvasOffset.x}px ${canvasOffset.y}px`,
+            overscrollBehavior: 'none',
+            touchAction: 'none'
           }}
         >
           {/* Canvas Content Container with Transform */}
