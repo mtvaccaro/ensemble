@@ -9,6 +9,7 @@ import { storage } from '@/lib/localStorage'
 import { RightPanel } from '@/components/canvas/right-panel'
 import { EpisodePanelContent } from '@/components/canvas/episode-panel-content'
 import { ExportPanelContent } from '@/components/canvas/export-panel-content'
+import { ReelPanelContent } from '@/components/canvas/reel-panel-content'
 import { ContextualPlayer } from '@/components/canvas/contextual-player'
 import posthog from 'posthog-js'
 
@@ -747,9 +748,19 @@ export default function CanvasPage() {
 
   // Calculate connector lines from clips to their parent episodes
   const getConnectorLines = () => {
-    const lines: Array<{ clipId: string; episodeId: string; x1: number; y1: number; x2: number; y2: number }> = []
+    const lines: Array<{ 
+      type: 'episode-to-clip' | 'clip-to-reel',
+      sourceId: string;
+      targetId: string;
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      color: string;
+    }> = []
     
     canvasItems.forEach(item => {
+      // Episode to Clip connections
       if (item.type === 'clip') {
         const clip = item as CanvasClip
         // Find parent episode
@@ -767,14 +778,43 @@ export default function CanvasPage() {
           const clipY = clip.position.y // Top of clip card
           
           lines.push({
-            clipId: clip.id,
-            episodeId: parentEpisode.id,
+            type: 'episode-to-clip',
+            sourceId: parentEpisode.id,
+            targetId: clip.id,
             x1: episodeX,
             y1: episodeY,
             x2: clipX,
-            y2: clipY
+            y2: clipY,
+            color: '#9333ea' // purple
           })
         }
+      }
+      
+      // Clip to Reel connections
+      if (item.type === 'reel') {
+        const reel = item as CanvasReel
+        reel.clipIds.forEach(clipId => {
+          const clip = canvasItems.find(c => c.id === clipId) as CanvasClip | undefined
+          if (clip) {
+            // From bottom center of clip to top center of reel
+            const clipX = clip.position.x + 140
+            const clipY = clip.position.y + 200 // Bottom of clip card
+            
+            const reelX = reel.position.x + 140
+            const reelY = reel.position.y // Top of reel card
+            
+            lines.push({
+              type: 'clip-to-reel',
+              sourceId: clip.id,
+              targetId: reel.id,
+              x1: clipX,
+              y1: clipY,
+              x2: reelX,
+              y2: reelY,
+              color: '#ea580c' // orange
+            })
+          }
+        })
       }
     })
     
@@ -1034,35 +1074,36 @@ export default function CanvasPage() {
                 zIndex: 0
               }}
             >
-              {getConnectorLines().map((line) => {
-                const isSelected = selectedItemIds.includes(line.clipId) || selectedItemIds.includes(line.episodeId)
+              {getConnectorLines().map((line, index) => {
+                const isSelected = selectedItemIds.includes(line.sourceId) || selectedItemIds.includes(line.targetId)
+                const lightColor = line.type === 'episode-to-clip' ? '#d8b4fe' : '#fed7aa' // purple or orange light
                 return (
-                  <g key={`connector-${line.clipId}`}>
+                  <g key={`connector-${line.type}-${line.sourceId}-${line.targetId}-${index}`}>
                     {/* Line */}
                     <line
                       x1={line.x1}
                       y1={line.y1}
                       x2={line.x2}
                       y2={line.y2}
-                      stroke={isSelected ? '#9333ea' : '#d8b4fe'}
+                      stroke={isSelected ? line.color : lightColor}
                       strokeWidth={isSelected ? 3 : 2}
                       strokeDasharray="8 4"
                       opacity={isSelected ? 0.8 : 0.5}
                     />
-                    {/* Circle at episode end */}
+                    {/* Circle at source end */}
                     <circle
                       cx={line.x1}
                       cy={line.y1}
                       r={6}
-                      fill={isSelected ? '#9333ea' : '#d8b4fe'}
+                      fill={isSelected ? line.color : lightColor}
                       opacity={isSelected ? 0.8 : 0.5}
                     />
-                    {/* Circle at clip end */}
+                    {/* Circle at target end */}
                     <circle
                       cx={line.x2}
                       cy={line.y2}
                       r={6}
-                      fill={isSelected ? '#9333ea' : '#d8b4fe'}
+                      fill={isSelected ? line.color : lightColor}
                       opacity={isSelected ? 0.8 : 0.5}
                     />
                   </g>
@@ -1472,10 +1513,49 @@ export default function CanvasPage() {
             }
             
             if (selectedItem?.type === 'reel') {
+              const reel = selectedItem as CanvasReel
+              const allClips = canvasItems.filter(item => item.type === 'clip') as CanvasClip[]
+              
               return (
-                <div className="p-4 text-sm text-gray-600">
-                  Reel details (TODO)
-                </div>
+                <ReelPanelContent
+                  reel={reel}
+                  clips={allClips}
+                  onUpdateReel={(updatedReel) => {
+                    setCanvasItems(canvasItems.map(item => 
+                      item.id === updatedReel.id ? updatedReel : item
+                    ))
+                  }}
+                  onRemoveClip={(clipId) => {
+                    // Remove clip from reel's clipIds
+                    const updatedReel = {
+                      ...reel,
+                      clipIds: reel.clipIds.filter(id => id !== clipId),
+                      totalDuration: reel.clipIds
+                        .filter(id => id !== clipId)
+                        .reduce((sum, id) => {
+                          const clip = allClips.find(c => c.id === id)
+                          return sum + (clip?.duration || 0)
+                        }, 0),
+                      updatedAt: new Date().toISOString()
+                    }
+                    
+                    // Delete reel if no clips left
+                    if (updatedReel.clipIds.length === 0) {
+                      if (confirm('Reel is empty. Delete it?')) {
+                        setCanvasItems(canvasItems.filter(item => item.id !== reel.id))
+                        setSelectedItemIds([])
+                      }
+                    } else {
+                      setCanvasItems(canvasItems.map(item => 
+                        item.id === reel.id ? updatedReel : item
+                      ))
+                    }
+                  }}
+                  onPlayClip={(clipId) => {
+                    setSelectedItemIds([clipId])
+                    setPlayTrigger(Date.now())
+                  }}
+                />
               )
             }
             
@@ -1519,6 +1599,7 @@ export default function CanvasPage() {
       {/* Contextual Audio Player */}
       <ContextualPlayer
         selectedItems={canvasItems.filter(item => selectedItemIds.includes(item.id))}
+        allItems={canvasItems}
         playTrigger={playTrigger}
         pauseTrigger={pauseTrigger}
         onPlayingChange={setIsPlaying}

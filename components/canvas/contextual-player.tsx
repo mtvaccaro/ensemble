@@ -2,16 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX } from 'lucide-react'
-import { CanvasItem, CanvasEpisode, CanvasClip } from '@/types'
+import { CanvasItem, CanvasEpisode, CanvasClip, CanvasReel } from '@/types'
 
 interface ContextualPlayerProps {
   selectedItems: CanvasItem[]
+  allItems: CanvasItem[] // All canvas items for looking up clips in reels
   playTrigger?: number
   pauseTrigger?: number
   onPlayingChange?: (isPlaying: boolean) => void
 }
 
-export function ContextualPlayer({ selectedItems, playTrigger, pauseTrigger, onPlayingChange }: ContextualPlayerProps) {
+export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTrigger, onPlayingChange }: ContextualPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -25,9 +26,20 @@ export function ContextualPlayer({ selectedItems, playTrigger, pauseTrigger, onP
   const lastProcessedPauseTrigger = useRef<number>(0)
 
   // Determine what to play
-  const playableItems = selectedItems.filter(
-    item => item.type === 'episode' || item.type === 'clip'
-  )
+  // For reels, expand into their clips in order
+  const playableItems = selectedItems.flatMap(item => {
+    if (item.type === 'reel') {
+      const reel = item as CanvasReel
+      // Find all clips from the reel in order from all canvas items
+      return reel.clipIds.map(clipId => 
+        allItems.find(i => i.id === clipId && i.type === 'clip')
+      ).filter(Boolean) as CanvasClip[]
+    }
+    if (item.type === 'episode' || item.type === 'clip') {
+      return [item]
+    }
+    return []
+  })
 
   const currentItem = playableItems[currentItemIndex]
   const hasMultiple = playableItems.length > 1
