@@ -389,7 +389,7 @@ export default function DemoPodcastEpisodesPage() {
                     <div className="flex items-center space-x-3 mb-4">
                       <Button
                         onClick={() => handlePlayPause(episode.id)}
-                        variant={playingEpisode === episode.id ? "outline" : "default"}
+                        variant={playingEpisode === episode.id ? "outline" : undefined}
                         size="sm"
                       >
                         {playingEpisode === episode.id ? (
