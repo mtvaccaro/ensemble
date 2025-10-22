@@ -329,22 +329,67 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
             )}
           </div>
 
-          {/* Progress bar */}
+          {/* Progress bar - Segmented for multiple clips */}
           <div className="flex-1 flex items-center gap-3">
             <span className="text-xs text-gray-400 w-12 text-right">
               {formatTime(currentTime)}
             </span>
-            <input
-              type="range"
-              min="0"
-              max={duration || 0}
-              value={currentTime}
-              onChange={handleSeek}
-              className="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
-              style={{
-                background: `linear-gradient(to right, #9333ea 0%, #9333ea ${(currentTime / duration) * 100}%, #374151 ${(currentTime / duration) * 100}%, #374151 100%)`
-              }}
-            />
+            
+            {hasMultiple ? (
+              // Segmented progress bar
+              <div className="flex-1 flex gap-0.5 h-2">
+                {playableItems.map((item, index) => {
+                  const itemDuration = item.type === 'clip' 
+                    ? (item as CanvasClip).duration 
+                    : (item as CanvasEpisode).duration
+                  const totalDuration = playableItems.reduce((sum, i) => {
+                    return sum + (i.type === 'clip' ? (i as CanvasClip).duration : (i as CanvasEpisode).duration)
+                  }, 0)
+                  const widthPercent = (itemDuration / totalDuration) * 100
+                  const isActive = index === currentItemIndex
+                  const isPast = index < currentItemIndex
+                  const isFuture = index > currentItemIndex
+                  
+                  // Calculate fill percentage for active segment
+                  const fillPercent = isActive ? (currentTime / duration) * 100 : 0
+                  
+                  return (
+                    <button
+                      key={`segment-${index}`}
+                      onClick={() => {
+                        setCurrentItemIndex(index)
+                        setIsPlaying(false)
+                        onPlayingChange?.(false)
+                      }}
+                      className="relative h-full rounded-sm overflow-hidden transition-all hover:opacity-80"
+                      style={{
+                        width: `${widthPercent}%`,
+                        background: isPast 
+                          ? '#9333ea' // Purple for completed
+                          : isFuture 
+                            ? '#374151' // Gray for upcoming
+                            : `linear-gradient(to right, #9333ea 0%, #9333ea ${fillPercent}%, #374151 ${fillPercent}%, #374151 100%)` // Active segment
+                      }}
+                      title={`Clip ${index + 1}`}
+                    />
+                  )
+                })}
+              </div>
+            ) : (
+              // Single progress bar
+              <input
+                type="range"
+                min="0"
+                max={duration || 0}
+                value={currentTime}
+                onChange={handleSeek}
+                className="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                style={{
+                  background: `linear-gradient(to right, #9333ea 0%, #9333ea ${(currentTime / duration) * 100}%, #374151 ${(currentTime / duration) * 100}%, #374151 100%)`
+                }}
+              />
+            )}
+            
             <span className="text-xs text-gray-400 w-12">
               {formatTime(duration)}
             </span>
