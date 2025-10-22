@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Search, Plus, X, Scissors, Download, Trash2, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasItem, TranscriptionStatus } from '@/types'
+import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem, TranscriptionStatus } from '@/types'
 import { storage } from '@/lib/localStorage'
 import { RightPanel } from '@/components/canvas/right-panel'
 import { EpisodePanelContent } from '@/components/canvas/episode-panel-content'
@@ -237,6 +237,18 @@ export default function CanvasPage() {
 
   const handleItemMouseDown = (e: React.MouseEvent, item: CanvasItem) => {
     e.stopPropagation()
+    
+    // Handle Shift+click for multi-select
+    if (e.shiftKey) {
+      if (selectedItemIds.includes(item.id)) {
+        // Remove from selection
+        setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+      } else {
+        // Add to selection
+        setSelectedItemIds([...selectedItemIds, item.id])
+      }
+      return // Don't start dragging during multi-select
+    }
     
     // Determine which items will be dragged
     const itemsToDrag = selectedItemIds.includes(item.id) 
@@ -1038,7 +1050,10 @@ export default function CanvasPage() {
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleOpenEpisode(episode)
+                        // Just select the episode (panel is always visible)
+                        if (!e.shiftKey) {
+                          setSelectedItemIds([item.id])
+                        }
                       }}
                       className={`absolute cursor-pointer select-none group ${
                         isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
@@ -1243,35 +1258,103 @@ export default function CanvasPage() {
         </div>
       </div>
 
-      {/* Right Panel - Episode Details */}
-      <RightPanel
-        isOpen={panelType === 'episode' && selectedEpisode !== null}
-        onClose={handleClosePanel}
-        title="Episode Details"
-      >
-        {selectedEpisode && (
-          <EpisodePanelContent
-            episode={selectedEpisode}
-            onCreateClip={handleCreateClip}
-            onTranscribe={handleTranscribe}
-            isTranscribing={isTranscribing}
-          />
-        )}
-      </RightPanel>
+      {/* Always-Visible Right Panel (Figma-style) */}
+      <div className="w-[360px] bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+        {/* Panel Header */}
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-900">
+            {selectedItemIds.length === 0 && 'Canvas'}
+            {selectedItemIds.length === 1 && (() => {
+              const selectedItem = canvasItems.find(item => item.id === selectedItemIds[0])
+              if (selectedItem?.type === 'episode') return 'Episode'
+              if (selectedItem?.type === 'clip') return 'Clip'
+              if (selectedItem?.type === 'reel') return 'Reel'
+              return 'Selection'
+            })()}
+            {selectedItemIds.length > 1 && `${selectedItemIds.length} Items Selected`}
+          </h3>
+        </div>
 
-      {/* Right Panel - Export */}
-      <RightPanel
-        isOpen={panelType === 'export'}
-        onClose={handleClosePanel}
-        title="Export Clips"
-      >
-        {clipsToExport.length > 0 && (
-          <ExportPanelContent
-            clips={clipsToExport}
-            onExportComplete={handleClosePanel}
-          />
-        )}
-      </RightPanel>
+        {/* Panel Content */}
+        <div className="flex-1 overflow-y-auto">
+          {selectedItemIds.length === 0 && (
+            <div className="flex items-center justify-center h-full text-gray-400 text-sm p-8 text-center">
+              Select something to see details
+            </div>
+          )}
+
+          {selectedItemIds.length === 1 && (() => {
+            const selectedItem = canvasItems.find(item => item.id === selectedItemIds[0])
+            
+            if (selectedItem?.type === 'episode') {
+              const episode = selectedItem as CanvasEpisode
+              return (
+                <EpisodePanelContent
+                  episode={episode}
+                  onCreateClip={handleCreateClip}
+                  onTranscribe={handleTranscribe}
+                  isTranscribing={isTranscribing}
+                />
+              )
+            }
+            
+            if (selectedItem?.type === 'clip') {
+              const clip = selectedItem as CanvasClip
+              return (
+                <ExportPanelContent
+                  clips={[clip]}
+                  onExportComplete={() => setSelectedItemIds([])}
+                />
+              )
+            }
+            
+            if (selectedItem?.type === 'reel') {
+              return (
+                <div className="p-4 text-sm text-gray-600">
+                  Reel details (TODO)
+                </div>
+              )
+            }
+            
+            return null
+          })()}
+
+          {selectedItemIds.length > 1 && (
+            <div className="p-4 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="text-sm font-medium text-blue-900 mb-2">
+                  Multi-Selection
+                </div>
+                <div className="text-xs text-blue-700 space-y-1">
+                  {(() => {
+                    const selectedClips = canvasItems.filter(item => 
+                      selectedItemIds.includes(item.id) && item.type === 'clip'
+                    ) as CanvasClip[]
+                    const totalDuration = selectedClips.reduce((sum, clip) => sum + clip.duration, 0)
+                    return (
+                      <>
+                        <div>{selectedClips.length} clips selected</div>
+                        <div>Total duration: {Math.floor(totalDuration / 60)}:{(totalDuration % 60).toString().padStart(2, '0')}</div>
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+              
+              <Button 
+                className="w-full"
+                onClick={() => {
+                  // TODO: Create Reel
+                  console.log('Create Reel clicked')
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Reel
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Contextual Audio Player */}
       <ContextualPlayer

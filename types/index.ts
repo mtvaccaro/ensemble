@@ -115,7 +115,7 @@ export interface CanvasPosition {
   y: number
 }
 
-export type CanvasItemType = 'episode' | 'clip'
+export type CanvasItemType = 'episode' | 'clip' | 'reel'
 
 export interface CanvasItem {
   id: string
@@ -147,6 +147,13 @@ export interface CanvasClip extends CanvasItem {
   duration: number
   transcript: string
   segments: TranscriptSegment[]
+}
+
+export interface CanvasReel extends CanvasItem {
+  type: 'reel'
+  title: string
+  clipIds: string[] // References to CanvasClip IDs in order
+  totalDuration: number
 }
 
 export interface CanvasState {
