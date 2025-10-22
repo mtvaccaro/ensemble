@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasItem, TranscriptionStatus } from '@/types'
 import { storage } from '@/lib/localStorage'
-import { EpisodeDetailModal } from '@/components/canvas/episode-detail-modal'
+import { RightPanel } from '@/components/canvas/right-panel'
+import { EpisodePanelContent } from '@/components/canvas/episode-panel-content'
+import { ExportPanelContent } from '@/components/canvas/export-panel-content'
 import { ContextualPlayer } from '@/components/canvas/contextual-player'
-import { ExportModal } from '@/components/canvas/export-modal'
 import posthog from 'posthog-js'
 
 interface EpisodeResult {
@@ -42,7 +43,8 @@ export default function CanvasPage() {
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   
-  // Modal state
+  // Right panel state
+  const [panelType, setPanelType] = useState<'episode' | 'export' | null>(null)
   const [selectedEpisode, setSelectedEpisode] = useState<CanvasEpisode | null>(null)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [clipsToExport, setClipsToExport] = useState<CanvasClip[]>([])
@@ -410,6 +412,16 @@ export default function CanvasPage() {
 
   const handleOpenEpisode = (episode: CanvasEpisode) => {
     setSelectedEpisode(episode)
+    setPanelType('episode')
+  }
+
+  const handleClosePanel = () => {
+    setPanelType(null)
+    // Small delay before clearing state to allow panel to animate out
+    setTimeout(() => {
+      setSelectedEpisode(null)
+      setClipsToExport([])
+    }, 300)
   }
 
   const handleTranscribe = async (episodeId: string) => {
@@ -522,13 +534,13 @@ export default function CanvasPage() {
       clip_index: clipIndex
     })
 
-    // Close the modal
-    setSelectedEpisode(null)
+    // Don't close panel - user might want to create more clips
   }
 
   const handleExportClip = (clip: CanvasClip) => {
     setClipsToExport([clip])
-    posthog.capture('export_modal_opened', {
+    setPanelType('export')
+    posthog.capture('export_panel_opened', {
       clip_count: 1,
       source: 'single_clip'
     })
@@ -545,7 +557,8 @@ export default function CanvasPage() {
     }
 
     setClipsToExport(selectedClips)
-    posthog.capture('export_modal_opened', {
+    setPanelType('export')
+    posthog.capture('export_panel_opened', {
       clip_count: selectedClips.length,
       source: 'toolbar'
     })
@@ -1041,24 +1054,35 @@ export default function CanvasPage() {
         </div>
       </div>
 
-      {/* Episode Detail Modal */}
-      {selectedEpisode && (
-        <EpisodeDetailModal
-          episode={selectedEpisode}
-          onClose={() => setSelectedEpisode(null)}
-          onCreateClip={handleCreateClip}
-          onTranscribe={handleTranscribe}
-          isTranscribing={isTranscribing}
-        />
-      )}
+      {/* Right Panel - Episode Details */}
+      <RightPanel
+        isOpen={panelType === 'episode' && selectedEpisode !== null}
+        onClose={handleClosePanel}
+        title="Episode Details"
+      >
+        {selectedEpisode && (
+          <EpisodePanelContent
+            episode={selectedEpisode}
+            onCreateClip={handleCreateClip}
+            onTranscribe={handleTranscribe}
+            isTranscribing={isTranscribing}
+          />
+        )}
+      </RightPanel>
 
-      {/* Export Modal */}
-      {clipsToExport.length > 0 && (
-        <ExportModal
-          clips={clipsToExport}
-          onClose={() => setClipsToExport([])}
-        />
-      )}
+      {/* Right Panel - Export */}
+      <RightPanel
+        isOpen={panelType === 'export'}
+        onClose={handleClosePanel}
+        title="Export Clips"
+      >
+        {clipsToExport.length > 0 && (
+          <ExportPanelContent
+            clips={clipsToExport}
+            onExportComplete={handleClosePanel}
+          />
+        )}
+      </RightPanel>
 
       {/* Contextual Audio Player */}
       <ContextualPlayer
