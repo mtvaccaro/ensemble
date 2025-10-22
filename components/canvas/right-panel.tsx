@@ -11,7 +11,7 @@ interface RightPanelProps {
   width?: string
 }
 
-export function RightPanel({ isOpen, onClose, title, children, width = '480px' }: RightPanelProps) {
+export function RightPanel({ isOpen, onClose, title, children, width = '280px' }: RightPanelProps) {
   if (!isOpen) return null
 
   return (
