@@ -7,9 +7,11 @@ import { CanvasItem, CanvasEpisode, CanvasClip } from '@/types'
 interface ContextualPlayerProps {
   selectedItems: CanvasItem[]
   playTrigger?: number
+  pauseTrigger?: number
+  onPlayingChange?: (isPlaying: boolean) => void
 }
 
-export function ContextualPlayer({ selectedItems, playTrigger }: ContextualPlayerProps) {
+export function ContextualPlayer({ selectedItems, playTrigger, pauseTrigger, onPlayingChange }: ContextualPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -30,6 +32,7 @@ export function ContextualPlayer({ selectedItems, playTrigger }: ContextualPlaye
   useEffect(() => {
     if (!currentItem) {
       setIsPlaying(false)
+      onPlayingChange?.(false)
       return
     }
 
@@ -57,6 +60,7 @@ export function ContextualPlayer({ selectedItems, playTrigger }: ContextualPlaye
             // Stop playback
             audio.pause()
             setIsPlaying(false)
+            onPlayingChange?.(false)
           }
         }
       }
@@ -64,7 +68,7 @@ export function ContextualPlayer({ selectedItems, playTrigger }: ContextualPlaye
       audio.addEventListener('timeupdate', handleTimeUpdate)
       return () => audio.removeEventListener('timeupdate', handleTimeUpdate)
     }
-  }, [currentItem, currentItemIndex, playableItems.length, hasMultiple])
+  }, [currentItem, currentItemIndex, playableItems.length, hasMultiple, onPlayingChange])
 
   // Handle explicit play trigger
   useEffect(() => {
@@ -81,9 +85,11 @@ export function ContextualPlayer({ selectedItems, playTrigger }: ContextualPlaye
         audio.currentTime = clip.startTime
         audio.play().then(() => {
           setIsPlaying(true)
+          onPlayingChange?.(true)
         }).catch(error => {
           console.log('Auto-play prevented:', error)
           setIsPlaying(false)
+          onPlayingChange?.(false)
         })
       }
       
@@ -97,12 +103,26 @@ export function ContextualPlayer({ selectedItems, playTrigger }: ContextualPlaye
       // For episodes, just play
       audio.play().then(() => {
         setIsPlaying(true)
+        onPlayingChange?.(true)
       }).catch(error => {
         console.log('Auto-play prevented:', error)
         setIsPlaying(false)
+        onPlayingChange?.(false)
       })
     }
-  }, [playTrigger, currentItem])
+  }, [playTrigger, currentItem, onPlayingChange])
+
+  // Handle explicit pause trigger
+  useEffect(() => {
+    if (!pauseTrigger) return
+
+    const audio = audioRef.current
+    if (!audio) return
+
+    audio.pause()
+    setIsPlaying(false)
+    onPlayingChange?.(false)
+  }, [pauseTrigger, onPlayingChange])
 
   // Handle audio metadata loaded
   useEffect(() => {
@@ -142,16 +162,20 @@ export function ContextualPlayer({ selectedItems, playTrigger }: ContextualPlaye
 
     if (isPlaying) {
       audio.pause()
+      setIsPlaying(false)
+      onPlayingChange?.(false)
     } else {
       audio.play()
+      setIsPlaying(true)
+      onPlayingChange?.(true)
     }
-    setIsPlaying(!isPlaying)
   }
 
   const handleNext = () => {
     if (currentItemIndex < playableItems.length - 1) {
       setCurrentItemIndex(currentItemIndex + 1)
       setIsPlaying(false)
+      onPlayingChange?.(false)
     }
   }
 
@@ -159,6 +183,7 @@ export function ContextualPlayer({ selectedItems, playTrigger }: ContextualPlaye
     if (currentItemIndex > 0) {
       setCurrentItemIndex(currentItemIndex - 1)
       setIsPlaying(false)
+      onPlayingChange?.(false)
     }
   }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, Plus, X, Scissors, Download, Trash2, FileText, Play, ZoomIn, ZoomOut, Maximize2, RotateCcw } from 'lucide-react'
+import { Search, Plus, X, Scissors, Download, Trash2, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasItem, TranscriptionStatus } from '@/types'
@@ -54,6 +54,8 @@ export default function CanvasPage() {
   
   // Play trigger (to differentiate selection from explicit play action)
   const [playTrigger, setPlayTrigger] = useState<number>(0)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [pauseTrigger, setPauseTrigger] = useState<number>(0)
   
   const canvasRef = useRef<HTMLDivElement>(null)
   
@@ -995,21 +997,30 @@ export default function CanvasPage() {
                           </div>
                         </div>
                         
-                        {/* Play button */}
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full text-xs"
+                        {/* Play/Pause button */}
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-center">
+                          <button
+                            className="bg-purple-600 hover:bg-purple-700 rounded-full p-2 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation()
-                              setSelectedItemIds([item.id])
-                              setPlayTrigger(Date.now()) // Trigger playback
+                              const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
+                              if (isThisPlaying) {
+                                setPauseTrigger(Date.now())
+                                setIsPlaying(false)
+                              } else {
+                                setSelectedItemIds([item.id])
+                                setPlayTrigger(Date.now())
+                                setIsPlaying(true)
+                              }
                             }}
+                            title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
                           >
-                            <Play className="h-3 w-3 mr-1" />
-                            Play Episode
-                          </Button>
+                            {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
+                              <Pause className="h-4 w-4 text-white" />
+                            ) : (
+                              <Play className="h-4 w-4 text-white ml-0.5" />
+                            )}
+                          </button>
                         </div>
                         
                         {/* Transcript indicator badge */}
@@ -1079,20 +1090,32 @@ export default function CanvasPage() {
                           </p>
                         </div>
                         
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1 text-xs"
+                        <div className="flex gap-2 items-center">
+                          {/* Play/Pause button */}
+                          <button
+                            className="bg-purple-600 hover:bg-purple-700 rounded-full p-2 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation()
-                              setSelectedItemIds([item.id])
-                              setPlayTrigger(Date.now()) // Trigger playback
+                              const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
+                              if (isThisPlaying) {
+                                setPauseTrigger(Date.now())
+                                setIsPlaying(false)
+                              } else {
+                                setSelectedItemIds([item.id])
+                                setPlayTrigger(Date.now())
+                                setIsPlaying(true)
+                              }
                             }}
+                            title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
                           >
-                            <Play className="h-3 w-3 mr-1" />
-                            Play
-                          </Button>
+                            {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
+                              <Pause className="h-4 w-4 text-white" />
+                            ) : (
+                              <Play className="h-4 w-4 text-white ml-0.5" />
+                            )}
+                          </button>
+                          
+                          {/* Export button */}
                           <Button 
                             size="sm" 
                             className="flex-1 text-xs bg-purple-600 hover:bg-purple-700"
@@ -1165,6 +1188,8 @@ export default function CanvasPage() {
       <ContextualPlayer
         selectedItems={canvasItems.filter(item => selectedItemIds.includes(item.id))}
         playTrigger={playTrigger}
+        pauseTrigger={pauseTrigger}
+        onPlayingChange={setIsPlaying}
       />
     </div>
   )
