@@ -48,7 +48,6 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
   // Reset to first item when selection ACTUALLY changes (not just array reference)
   const selectedItemIds = selectedItems.map(item => item.id).join(',')
   useEffect(() => {
-    console.log('[DEBUG] Selection changed, resetting to index 0')
     setCurrentItemIndex(0)
     setIsPlaying(false)
     setShouldAutoPlay(false)
@@ -76,23 +75,17 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
 
     // Auto-play if transitioning between clips in a Reel
     if (shouldAutoPlay) {
-      console.log(`[DEBUG] shouldAutoPlay=true, setting up auto-play for index ${currentItemIndex}`)
-      
       const handleCanPlay = () => {
-        console.log(`[DEBUG] handleCanPlay triggered, readyState=${audio.readyState}`)
         if (currentItem.type === 'clip') {
           const clip = currentItem as CanvasClip
-          console.log(`[DEBUG] Seeking to startTime=${clip.startTime}`)
           audio.currentTime = clip.startTime
         }
-        console.log(`[DEBUG] Calling audio.play()`)
         audio.play().then(() => {
-          console.log(`[DEBUG] Auto-play successful!`)
           setIsPlaying(true)
           onPlayingChange?.(true)
           setShouldAutoPlay(false) // Reset after successful play
         }).catch(error => {
-          console.log('[DEBUG] Auto-play prevented:', error)
+          console.log('Auto-play prevented:', error)
           setIsPlaying(false)
           onPlayingChange?.(false)
           setShouldAutoPlay(false) // Reset even on error
@@ -100,10 +93,8 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
       }
 
       if (audio.readyState >= 2) {
-        console.log(`[DEBUG] Audio already ready (readyState=${audio.readyState}), playing immediately`)
         handleCanPlay()
       } else {
-        console.log(`[DEBUG] Audio not ready (readyState=${audio.readyState}), waiting for canplay event`)
         audio.addEventListener('canplay', handleCanPlay, { once: true })
       }
     }
@@ -113,19 +104,13 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
       const clip = currentItem as CanvasClip
       
       const handleTimeUpdate = () => {
-        console.log(`[DEBUG] Clip timeupdate: currentTime=${audio.currentTime.toFixed(2)}, endTime=${clip.endTime}, hasMultiple=${hasMultiple}, currentIndex=${currentItemIndex}, totalItems=${playableItems.length}`)
-        
         if (audio.currentTime >= clip.endTime) {
-          console.log(`[DEBUG] Clip ended! Moving to next...`)
-          
           if (hasMultiple && currentItemIndex < playableItems.length - 1) {
             // Move to next clip and auto-play it
-            console.log(`[DEBUG] Setting shouldAutoPlay=true and advancing to index ${currentItemIndex + 1}`)
             setShouldAutoPlay(true)
             setCurrentItemIndex(currentItemIndex + 1)
           } else {
             // Stop playback at the end of the last clip
-            console.log(`[DEBUG] Last clip finished, stopping playback`)
             audio.pause()
             setIsPlaying(false)
             onPlayingChange?.(false)
