@@ -89,15 +89,15 @@ export function SearchableTranscript({ segments, onSegmentClick }: SearchableTra
       </div>
 
       {/* Transcript Paragraphs */}
-      <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+      <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
         {paragraphs.map((paragraphSegments, paragraphIndex) => {
           const hasMatchInParagraph = paragraphSegments.some(s => s.hasMatch)
-          
+
           return (
             <div
               key={paragraphIndex}
               className={`
-                space-y-1 p-3 rounded-lg border
+                space-y-0.5 p-2 rounded border
                 ${hasMatchInParagraph ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200'}
               `}
             >
@@ -105,19 +105,19 @@ export function SearchableTranscript({ segments, onSegmentClick }: SearchableTra
                 <div
                   key={segment.id}
                   className={`
-                    flex gap-3 p-2 rounded cursor-pointer transition-colors
+                    flex gap-2 p-1.5 rounded cursor-pointer transition-colors
                     ${segment.hasMatch ? 'bg-yellow-100' : 'hover:bg-white'}
                   `}
                   onClick={() => onSegmentClick?.(segment)}
                   title={`Click to jump to ${formatTimestamp(segment.start)}`}
                 >
                   {/* Timestamp */}
-                  <div className="text-xs text-gray-500 font-mono min-w-[60px] flex-shrink-0 hover:text-blue-600">
+                  <div className="text-[10px] text-gray-500 font-mono min-w-[50px] flex-shrink-0 hover:text-blue-600">
                     {formatTimestamp(segment.start)}
                   </div>
                   
                   {/* Text with highlights */}
-                  <div className="text-sm text-gray-700 flex-1 leading-relaxed">
+                  <div className="text-xs text-gray-700 flex-1 leading-snug">
                     {searchQuery ? (
                       <HighlightedText text={segment.text} query={searchQuery} />
                     ) : (

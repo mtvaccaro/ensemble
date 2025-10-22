@@ -101,9 +101,9 @@ export function EpisodePanelContent({
   }, [selectedSegments])
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Episode Info */}
-      <div>
+    <div className="space-y-6">
+      {/* Episode Info - with padding */}
+      <div className="px-4 pt-4">
         {episode.imageUrl && (
           <img
             src={episode.imageUrl}
@@ -119,8 +119,8 @@ export function EpisodePanelContent({
         </p>
       </div>
 
-      {/* Transcript Section */}
-      <div>
+      {/* Transcript Section - full width */}
+      <div className="px-2">
         {!hasTranscript ? (
           <div className="text-center py-8 bg-gray-50 rounded-lg">
             <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />

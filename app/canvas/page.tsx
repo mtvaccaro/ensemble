@@ -64,6 +64,18 @@ export default function CanvasPage() {
     setSelectedItemIds(state.selectedItemIds)
   }, [])
 
+  // Handle Escape key to close panel
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && panelType !== null) {
+        handleClosePanel()
+      }
+    }
+
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [panelType])
+
   // Save canvas state whenever it changes
   useEffect(() => {
     storage.setCanvasState({
@@ -392,9 +404,10 @@ export default function CanvasPage() {
   }
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-    // Deselect all if clicking on empty canvas
+    // Deselect all and close panel if clicking on empty canvas
     if (e.target === canvasRef.current) {
       setSelectedItemIds([])
+      handleClosePanel()
     }
   }
 
