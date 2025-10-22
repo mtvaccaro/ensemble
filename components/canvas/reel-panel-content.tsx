@@ -29,7 +29,7 @@ export function ReelPanelContent({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleDragStart = (e: React.DragEvent, clipId: string, index: number) => {
+  const handleDragStart = (e: React.DragEvent, clipId: string, _index: number) => {
     setDraggedClipId(clipId)
     e.dataTransfer.effectAllowed = 'move'
   }

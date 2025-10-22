@@ -119,7 +119,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
               name="exportType"
               value="individual"
               checked={exportType === 'individual'}
-              onChange={(e) => setExportType(e.target.value as any)}
+              onChange={(e) => setExportType(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
               className="mt-1 mr-3"
             />
             <div className="flex-1">
@@ -136,7 +136,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
               name="exportType"
               value="splice"
               checked={exportType === 'splice'}
-              onChange={(e) => setExportType(e.target.value as any)}
+              onChange={(e) => setExportType(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
               className="mt-1 mr-3"
             />
             <div className="flex-1">
@@ -161,7 +161,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
               name="format"
               value="mp3"
               checked={exportFormat === 'mp3'}
-              onChange={(e) => setExportFormat(e.target.value as any)}
+              onChange={(e) => setExportFormat(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
               className="mr-2"
             />
             <span className="font-medium text-gray-900 text-sm">MP3</span>
@@ -173,7 +173,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
               name="format"
               value="wav"
               checked={exportFormat === 'wav'}
-              onChange={(e) => setExportFormat(e.target.value as any)}
+              onChange={(e) => setExportFormat(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
               className="mr-2"
             />
             <span className="font-medium text-gray-900 text-sm">WAV</span>
@@ -212,7 +212,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
             </h4>
             <p className="text-sm text-blue-800">
               Exporting clip metadata (JSON files with timestamps and audio URLs). 
-              For full audio file generation, we'll add FFmpeg server-side processing.
+              For full audio file generation, we&apos;ll add FFmpeg server-side processing.
             </p>
           </div>
         </div>

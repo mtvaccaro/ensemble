@@ -11,12 +11,11 @@ declare global {
     }
   }
 }
-import { Search, Scissors, Download, Trash2, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film } from 'lucide-react'
+import { Search, Scissors, Download, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film, X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem, TranscriptionStatus } from '@/types'
+import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem } from '@/types'
 import { storage } from '@/lib/localStorage'
-import { RightPanel } from '@/components/canvas/right-panel'
 import { EpisodePanelContent } from '@/components/canvas/episode-panel-content'
 import { ExportPanelContent } from '@/components/canvas/export-panel-content'
 import { ReelPanelContent } from '@/components/canvas/reel-panel-content'
@@ -58,7 +57,7 @@ export default function CanvasPage() {
   const [panelType, setPanelType] = useState<'episode' | 'export' | null>(null)
   const [selectedEpisode, setSelectedEpisode] = useState<CanvasEpisode | null>(null)
   const [isTranscribing, setIsTranscribing] = useState(false)
-  const [clipsToExport, setClipsToExport] = useState<CanvasClip[]>([])
+  const [, setClipsToExport] = useState<CanvasClip[]>([])
   
   // Track which episodes are currently transcribing (by episodeId)
   const [transcribingEpisodes, setTranscribingEpisodes] = useState<Set<string>>(new Set())
@@ -518,22 +517,24 @@ export default function CanvasPage() {
     }
   }
 
-  const handleDeleteSelected = () => {
-    if (selectedItemIds.length === 0) return
-    
-    if (confirm(`Delete ${selectedItemIds.length} item(s)?`)) {
-      setCanvasItems(items => items.filter(item => !selectedItemIds.includes(item.id)))
-      setSelectedItemIds([])
-      posthog.capture('canvas_items_deleted', {
-        count: selectedItemIds.length
-      })
-    }
-  }
+  // Unused - kept for potential future use
+  // const handleDeleteSelected = () => {
+  //   if (selectedItemIds.length === 0) return
+  //   
+  //   if (confirm(`Delete ${selectedItemIds.length} item(s)?`)) {
+  //     setCanvasItems(items => items.filter(item => !selectedItemIds.includes(item.id)))
+  //     setSelectedItemIds([])
+  //     posthog.capture('canvas_items_deleted', {
+  //       count: selectedItemIds.length
+  //     })
+  //   }
+  // }
 
-  const handleOpenEpisode = (episode: CanvasEpisode) => {
-    setSelectedEpisode(episode)
-    setPanelType('episode')
-  }
+  // Unused - kept for potential future use
+  // const handleOpenEpisode = (episode: CanvasEpisode) => {
+  //   setSelectedEpisode(episode)
+  //   setPanelType('episode')
+  // }
 
   const handleClosePanel = () => {
     setPanelType(null)
@@ -727,23 +728,24 @@ export default function CanvasPage() {
     })
   }
 
-  const handleExportSelected = () => {
-    const selectedClips = canvasItems.filter(
-      item => item.type === 'clip' && selectedItemIds.includes(item.id)
-    ) as CanvasClip[]
-    
-    if (selectedClips.length === 0) {
-      alert('Please select at least one clip to export')
-      return
-    }
-
-    setClipsToExport(selectedClips)
-    setPanelType('export')
-    posthog.capture('export_panel_opened', {
-      clip_count: selectedClips.length,
-      source: 'toolbar'
-    })
-  }
+  // Unused - kept for potential future use
+  // const handleExportSelected = () => {
+  //   const selectedClips = canvasItems.filter(
+  //     item => item.type === 'clip' && selectedItemIds.includes(item.id)
+  //   ) as CanvasClip[]
+  //   
+  //   if (selectedClips.length === 0) {
+  //     alert('Please select at least one clip to export')
+  //     return
+  //   }
+  //
+  //   setClipsToExport(selectedClips)
+  //   setPanelType('export')
+  //   posthog.capture('export_panel_opened', {
+  //     clip_count: selectedClips.length,
+  //     source: 'toolbar'
+  //   })
+  // }
 
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)

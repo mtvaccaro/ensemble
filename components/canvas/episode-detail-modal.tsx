@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { X, Scissors, Play, FileText, Loader2 } from 'lucide-react'
+import { X, Scissors, FileText, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { TranscriptSegment, CanvasEpisode, CanvasClip } from '@/types'
