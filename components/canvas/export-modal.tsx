@@ -142,7 +142,7 @@ export function ExportModal({ clips, onClose }: ExportModalProps) {
                   name="exportType"
                   value="individual"
                   checked={exportType === 'individual'}
-                  onChange={(e) => setExportType(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
+                  onChange={(e) => setExportType(e.target.value as 'individual' | 'splice')}
                   className="mt-1 mr-3"
                 />
                 <div className="flex-1">
@@ -159,7 +159,7 @@ export function ExportModal({ clips, onClose }: ExportModalProps) {
                   name="exportType"
                   value="splice"
                   checked={exportType === 'splice'}
-                  onChange={(e) => setExportType(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
+                  onChange={(e) => setExportType(e.target.value as 'individual' | 'splice')}
                   className="mt-1 mr-3"
                 />
                 <div className="flex-1">
@@ -184,7 +184,7 @@ export function ExportModal({ clips, onClose }: ExportModalProps) {
                   name="format"
                   value="mp3"
                   checked={exportFormat === 'mp3'}
-                  onChange={(e) => setExportFormat(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
+                  onChange={(e) => setExportFormat(e.target.value as 'mp3' | 'wav')}
                   className="mr-2"
                 />
                 <span className="font-medium text-gray-900">MP3</span>
@@ -196,7 +196,7 @@ export function ExportModal({ clips, onClose }: ExportModalProps) {
                   name="format"
                   value="wav"
                   checked={exportFormat === 'wav'}
-                  onChange={(e) => setExportFormat(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
+                  onChange={(e) => setExportFormat(e.target.value as 'mp3' | 'wav')}
                   className="mr-2"
                 />
                 <span className="font-medium text-gray-900">WAV</span>

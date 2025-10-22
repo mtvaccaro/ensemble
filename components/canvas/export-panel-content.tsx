@@ -119,7 +119,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
               name="exportType"
               value="individual"
               checked={exportType === 'individual'}
-              onChange={(e) => setExportType(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
+              onChange={(e) => setExportType(e.target.value as 'individual' | 'splice')}
               className="mt-1 mr-3"
             />
             <div className="flex-1">
@@ -136,7 +136,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
               name="exportType"
               value="splice"
               checked={exportType === 'splice'}
-              onChange={(e) => setExportType(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
+              onChange={(e) => setExportType(e.target.value as 'individual' | 'splice')}
               className="mt-1 mr-3"
             />
             <div className="flex-1">
@@ -161,7 +161,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
               name="format"
               value="mp3"
               checked={exportFormat === 'mp3'}
-              onChange={(e) => setExportFormat(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
+              onChange={(e) => setExportFormat(e.target.value as 'mp3' | 'wav')}
               className="mr-2"
             />
             <span className="font-medium text-gray-900 text-sm">MP3</span>
@@ -173,7 +173,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
               name="format"
               value="wav"
               checked={exportFormat === 'wav'}
-              onChange={(e) => setExportFormat(e.target.value as 'individual' | 'splice' | 'mp3' | 'wav')}
+              onChange={(e) => setExportFormat(e.target.value as 'mp3' | 'wav')}
               className="mr-2"
             />
             <span className="font-medium text-gray-900 text-sm">WAV</span>
