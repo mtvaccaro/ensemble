@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasItem, TranscriptionStatus } from '@/types'
 import { storage } from '@/lib/localStorage'
 import { EpisodeDetailModal } from '@/components/canvas/episode-detail-modal'
+import { ContextualPlayer } from '@/components/canvas/contextual-player'
+import { ExportModal } from '@/components/canvas/export-modal'
 import posthog from 'posthog-js'
 
 interface EpisodeResult {
@@ -36,6 +38,7 @@ export default function CanvasPage() {
   // Modal state
   const [selectedEpisode, setSelectedEpisode] = useState<CanvasEpisode | null>(null)
   const [isTranscribing, setIsTranscribing] = useState(false)
+  const [clipsToExport, setClipsToExport] = useState<CanvasClip[]>([])
   
   const canvasRef = useRef<HTMLDivElement>(null)
 
@@ -316,6 +319,31 @@ export default function CanvasPage() {
     setSelectedEpisode(null)
   }
 
+  const handleExportClip = (clip: CanvasClip) => {
+    setClipsToExport([clip])
+    posthog.capture('export_modal_opened', {
+      clip_count: 1,
+      source: 'single_clip'
+    })
+  }
+
+  const handleExportSelected = () => {
+    const selectedClips = canvasItems.filter(
+      item => item.type === 'clip' && selectedItemIds.includes(item.id)
+    ) as CanvasClip[]
+    
+    if (selectedClips.length === 0) {
+      alert('Please select at least one clip to export')
+      return
+    }
+
+    setClipsToExport(selectedClips)
+    posthog.capture('export_modal_opened', {
+      clip_count: selectedClips.length,
+      source: 'toolbar'
+    })
+  }
+
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
@@ -469,15 +497,27 @@ export default function CanvasPage() {
           
           <div className="flex items-center gap-2">
             {selectedItemIds.length > 0 && (
-              <Button
-                onClick={handleDeleteSelected}
-                variant="outline"
-                size="sm"
-                className="text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete ({selectedItemIds.length})
-              </Button>
+              <>
+                {canvasItems.filter(item => item.type === 'clip' && selectedItemIds.includes(item.id)).length > 0 && (
+                  <Button
+                    onClick={handleExportSelected}
+                    size="sm"
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export ({canvasItems.filter(item => item.type === 'clip' && selectedItemIds.includes(item.id)).length})
+                  </Button>
+                )}
+                <Button
+                  onClick={handleDeleteSelected}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete ({selectedItemIds.length})
+                </Button>
+              </>
             )}
             <Button
               onClick={() => {
@@ -624,7 +664,14 @@ export default function CanvasPage() {
                             <Play className="h-3 w-3 mr-1" />
                             Preview
                           </Button>
-                          <Button size="sm" className="flex-1 text-xs bg-purple-600 hover:bg-purple-700">
+                          <Button 
+                            size="sm" 
+                            className="flex-1 text-xs bg-purple-600 hover:bg-purple-700"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleExportClip(clip)
+                            }}
+                          >
                             <Download className="h-3 w-3 mr-1" />
                             Export
                           </Button>
@@ -651,6 +698,19 @@ export default function CanvasPage() {
           isTranscribing={isTranscribing}
         />
       )}
+
+      {/* Export Modal */}
+      {clipsToExport.length > 0 && (
+        <ExportModal
+          clips={clipsToExport}
+          onClose={() => setClipsToExport([])}
+        />
+      )}
+
+      {/* Contextual Audio Player */}
+      <ContextualPlayer
+        selectedItems={canvasItems.filter(item => selectedItemIds.includes(item.id))}
+      />
     </div>
   )
 }
