@@ -1006,11 +1006,9 @@ export default function CanvasPage() {
                               const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
                               if (isThisPlaying) {
                                 setPauseTrigger(Date.now())
-                                setIsPlaying(false)
                               } else {
                                 setSelectedItemIds([item.id])
                                 setPlayTrigger(Date.now())
-                                setIsPlaying(true)
                               }
                             }}
                             title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
@@ -1099,11 +1097,9 @@ export default function CanvasPage() {
                               const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
                               if (isThisPlaying) {
                                 setPauseTrigger(Date.now())
-                                setIsPlaying(false)
                               } else {
                                 setSelectedItemIds([item.id])
                                 setPlayTrigger(Date.now())
-                                setIsPlaying(true)
                               }
                             }}
                             title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
