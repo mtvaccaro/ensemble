@@ -45,13 +45,15 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
   const currentItem = playableItems[currentItemIndex]
   const hasMultiple = playableItems.length > 1
 
-  // Reset to first item when selection changes
+  // Reset to first item when selection ACTUALLY changes (not just array reference)
+  const selectedItemIds = selectedItems.map(item => item.id).join(',')
   useEffect(() => {
+    console.log('[DEBUG] Selection changed, resetting to index 0')
     setCurrentItemIndex(0)
     setIsPlaying(false)
     setShouldAutoPlay(false)
     onPlayingChange?.(false)
-  }, [selectedItems, onPlayingChange])
+  }, [selectedItemIds, onPlayingChange])
 
   // Update audio source when selection changes (but don't auto-play unless shouldAutoPlay is true)
   useEffect(() => {
