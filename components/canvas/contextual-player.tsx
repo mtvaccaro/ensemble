@@ -42,10 +42,23 @@ export function ContextualPlayer({ selectedItems }: ContextualPlayerProps) {
 
     audio.src = audioUrl
 
-    // For clips, we need to handle start/end times
+    // For clips, set start time before playing
     if (currentItem.type === 'clip') {
       const clip = currentItem as CanvasClip
-      audio.currentTime = clip.startTime
+      
+      // Wait for metadata to load, then set time and play
+      const handleCanPlay = () => {
+        audio.currentTime = clip.startTime
+        audio.play().then(() => {
+          setIsPlaying(true)
+        }).catch(error => {
+          console.log('Auto-play prevented:', error)
+          setIsPlaying(false)
+        })
+      }
+      
+      audio.addEventListener('canplay', handleCanPlay, { once: true })
+      audio.load()
       
       // Set up listener to stop at end time
       const handleTimeUpdate = () => {
@@ -63,6 +76,15 @@ export function ContextualPlayer({ selectedItems }: ContextualPlayerProps) {
 
       audio.addEventListener('timeupdate', handleTimeUpdate)
       return () => audio.removeEventListener('timeupdate', handleTimeUpdate)
+    } else {
+      // For episodes, just load and play
+      audio.load()
+      audio.play().then(() => {
+        setIsPlaying(true)
+      }).catch(error => {
+        console.log('Auto-play prevented:', error)
+        setIsPlaying(false)
+      })
     }
   }, [currentItem, currentItemIndex, playableItems.length, hasMultiple])
 
