@@ -446,13 +446,32 @@ export default function CanvasPage() {
   const handleCreateClip = (clipData: Omit<CanvasClip, 'id' | 'createdAt' | 'updatedAt' | 'position'>) => {
     if (!selectedEpisode) return
 
-    // Position the clip near the source episode
+    // Find all existing clips from this episode
+    const existingClips = canvasItems.filter(
+      item => item.type === 'clip' && (item as CanvasClip).episodeId === selectedEpisode.episodeId
+    ) as CanvasClip[]
+
+    // Smart positioning: place clips in a row below the episode
+    const clipWidth = 280
+    const clipHeight = 200
+    const horizontalSpacing = 20
+    const verticalOffset = 250 // Space below episode
+    
+    // Calculate position for new clip
+    const clipIndex = existingClips.length
+    const xPosition = selectedEpisode.position.x + (clipIndex * (clipWidth + horizontalSpacing))
+    const yPosition = selectedEpisode.position.y + verticalOffset
+    
+    // Constrain to canvas bounds
+    const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - clipWidth, xPosition))
+    const constrainedY = Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - clipHeight, yPosition))
+
     const newClip: CanvasClip = {
       ...clipData,
       id: `canvas-clip-${Date.now()}-${Math.random()}`,
       position: {
-        x: selectedEpisode.position.x + 320, // Offset to the right
-        y: selectedEpisode.position.y
+        x: constrainedX,
+        y: constrainedY
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -462,7 +481,8 @@ export default function CanvasPage() {
     posthog.capture('clip_created_on_canvas', {
       clip_title: clipData.title,
       clip_duration: clipData.duration,
-      source_episode: selectedEpisode.episodeId
+      source_episode: selectedEpisode.episodeId,
+      clip_index: clipIndex
     })
 
     // Close the modal
@@ -503,6 +523,42 @@ export default function CanvasPage() {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
     }
     return `${minutes}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Calculate connector lines from clips to their parent episodes
+  const getConnectorLines = () => {
+    const lines: Array<{ clipId: string; episodeId: string; x1: number; y1: number; x2: number; y2: number }> = []
+    
+    canvasItems.forEach(item => {
+      if (item.type === 'clip') {
+        const clip = item as CanvasClip
+        // Find parent episode
+        const parentEpisode = canvasItems.find(
+          e => e.type === 'episode' && (e as CanvasEpisode).episodeId === clip.episodeId
+        ) as CanvasEpisode | undefined
+        
+        if (parentEpisode) {
+          // Calculate connection points
+          // From bottom center of episode to top center of clip
+          const episodeX = parentEpisode.position.x + 140 // Half of episode width (280/2)
+          const episodeY = parentEpisode.position.y + 200 // Bottom of episode card
+          
+          const clipX = clip.position.x + 140 // Half of clip width (280/2)
+          const clipY = clip.position.y // Top of clip card
+          
+          lines.push({
+            clipId: clip.id,
+            episodeId: parentEpisode.id,
+            x1: episodeX,
+            y1: episodeY,
+            x2: clipX,
+            y2: clipY
+          })
+        }
+      }
+    })
+    
+    return lines
   }
 
   return (
@@ -739,6 +795,54 @@ export default function CanvasPage() {
               left: 0
             }}
           >
+            {/* Connector Lines Layer (SVG) */}
+            <svg
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: `${CANVAS_MAX_X}px`,
+                height: `${CANVAS_MAX_Y}px`,
+                pointerEvents: 'none',
+                zIndex: 0
+              }}
+            >
+              {getConnectorLines().map((line) => {
+                const isSelected = selectedItemIds.includes(line.clipId) || selectedItemIds.includes(line.episodeId)
+                return (
+                  <g key={`connector-${line.clipId}`}>
+                    {/* Line */}
+                    <line
+                      x1={line.x1}
+                      y1={line.y1}
+                      x2={line.x2}
+                      y2={line.y2}
+                      stroke={isSelected ? '#9333ea' : '#d8b4fe'}
+                      strokeWidth={isSelected ? 3 : 2}
+                      strokeDasharray="8 4"
+                      opacity={isSelected ? 0.8 : 0.5}
+                    />
+                    {/* Circle at episode end */}
+                    <circle
+                      cx={line.x1}
+                      cy={line.y1}
+                      r={6}
+                      fill={isSelected ? '#9333ea' : '#d8b4fe'}
+                      opacity={isSelected ? 0.8 : 0.5}
+                    />
+                    {/* Circle at clip end */}
+                    <circle
+                      cx={line.x2}
+                      cy={line.y2}
+                      r={6}
+                      fill={isSelected ? '#9333ea' : '#d8b4fe'}
+                      opacity={isSelected ? 0.8 : 0.5}
+                    />
+                  </g>
+                )
+              })}
+            </svg>
+
             {canvasItems.length === 0 ? (
               <div 
                 className="flex items-center justify-center pointer-events-none"
@@ -770,7 +874,8 @@ export default function CanvasPage() {
                       style={{
                         left: item.position.x,
                         top: item.position.y,
-                        width: '280px'
+                        width: '280px',
+                        zIndex: 10
                       }}
                     >
                       <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow">
@@ -830,7 +935,8 @@ export default function CanvasPage() {
                       style={{
                         left: item.position.x,
                         top: item.position.y,
-                        width: '280px'
+                        width: '280px',
+                        zIndex: 10
                       }}
                     >
                       <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-lg border-2 border-purple-300 p-4 hover:shadow-xl transition-shadow">
