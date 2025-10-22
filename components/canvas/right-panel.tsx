@@ -16,13 +16,7 @@ export function RightPanel({ isOpen, onClose, title, children, width = '480px' }
 
   return (
     <>
-      {/* Backdrop - click to close */}
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-20 z-40 transition-opacity"
-        onClick={onClose}
-      />
-      
-      {/* Panel */}
+      {/* Panel - no backdrop, Figma-style */}
       <div 
         className="fixed top-0 right-0 h-full bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200 transition-transform duration-300 ease-out"
         style={{ 
