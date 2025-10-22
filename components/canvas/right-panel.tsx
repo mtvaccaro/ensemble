@@ -18,7 +18,7 @@ export function RightPanel({ isOpen, onClose, title, children, width = '480px' }
     <>
       {/* Panel - no backdrop, Figma-style */}
       <div 
-        className="fixed top-0 right-0 h-full bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200 transition-transform duration-300 ease-out"
+        className="fixed top-0 right-0 h-full bg-white shadow-2xl z-40 flex flex-col border-l border-gray-200 transition-transform duration-300 ease-out"
         style={{ 
           width,
           transform: isOpen ? 'translateX(0)' : 'translateX(100%)'

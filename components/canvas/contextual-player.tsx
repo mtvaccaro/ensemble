@@ -184,7 +184,7 @@ export function ContextualPlayer({ selectedItems }: ContextualPlayerProps) {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white shadow-2xl border-t border-gray-700 z-40">
+    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white shadow-2xl border-t border-gray-700 z-50">
       <audio ref={audioRef} />
       
       <div className="max-w-7xl mx-auto px-6 py-4">
