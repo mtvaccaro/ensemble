@@ -821,27 +821,9 @@ export default function CanvasPage() {
           
           <div className="flex items-center gap-2">
             {selectedItemIds.length > 0 && (
-              <>
-                {canvasItems.filter(item => item.type === 'clip' && selectedItemIds.includes(item.id)).length > 0 && (
-                  <Button
-                    onClick={handleExportSelected}
-                    size="sm"
-                    className="bg-purple-600 hover:bg-purple-700"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export ({canvasItems.filter(item => item.type === 'clip' && selectedItemIds.includes(item.id)).length})
-                  </Button>
-                )}
-                <Button
-                  onClick={handleDeleteSelected}
-                  variant="outline"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete ({selectedItemIds.length})
-                </Button>
-              </>
+              <div className="text-xs text-gray-600 px-3 py-1 bg-gray-100 rounded">
+                {selectedItemIds.length} selected
+              </div>
             )}
             <Button
               onClick={() => {
@@ -966,7 +948,7 @@ export default function CanvasPage() {
                         e.stopPropagation()
                         handleOpenEpisode(episode)
                       }}
-                      className={`absolute cursor-pointer select-none ${
+                      className={`absolute cursor-pointer select-none group ${
                         isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                       }`}
                       style={{
@@ -977,6 +959,21 @@ export default function CanvasPage() {
                       }}
                     >
                       <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow relative">
+                        {/* Floating X delete button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (confirm('Remove this episode from canvas?')) {
+                              setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                              setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+                            }
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
+                          title="Remove from canvas"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        
                         <div className="flex items-start gap-3">
                           {episode.imageUrl && (
                             <img
@@ -995,9 +992,25 @@ export default function CanvasPage() {
                           </div>
                         </div>
                         
+                        {/* Play button */}
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedItemIds([item.id])
+                            }}
+                          >
+                            <Play className="h-3 w-3 mr-1" />
+                            Play Episode
+                          </Button>
+                        </div>
+                        
                         {/* Transcript indicator badge */}
                         {episode.transcript_segments && (
-                          <div className="absolute top-2 right-2 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
+                          <div className="absolute top-2 right-8 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
                             <FileText className="h-3 w-3 inline" />
                           </div>
                         )}
@@ -1015,7 +1028,7 @@ export default function CanvasPage() {
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
                       onClick={(e) => e.stopPropagation()}
-                      className={`absolute cursor-move select-none ${
+                      className={`absolute cursor-move select-none group ${
                         isSelected ? 'ring-2 ring-purple-500 ring-offset-2' : ''
                       }`}
                       style={{
@@ -1025,7 +1038,22 @@ export default function CanvasPage() {
                         zIndex: 10
                       }}
                     >
-                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-lg border-2 border-purple-300 p-4 hover:shadow-xl transition-shadow">
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-lg border-2 border-purple-300 p-4 hover:shadow-xl transition-shadow relative">
+                        {/* Floating X delete button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (confirm('Remove this clip from canvas?')) {
+                              setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                              setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+                            }
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
+                          title="Remove from canvas"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        
                         <div className="flex items-start gap-2 mb-3">
                           <div className="bg-purple-600 text-white p-2 rounded">
                             <Scissors className="h-4 w-4" />
@@ -1048,9 +1076,17 @@ export default function CanvasPage() {
                         </div>
                         
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline" className="flex-1 text-xs">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedItemIds([item.id])
+                            }}
+                          >
                             <Play className="h-3 w-3 mr-1" />
-                            Preview
+                            Play
                           </Button>
                           <Button 
                             size="sm" 
