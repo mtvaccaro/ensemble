@@ -212,19 +212,22 @@ export default function CanvasPage() {
     
     setDraggedItem(item)
     
-    // Calculate offset relative to canvas, accounting for zoom and pan
+    // Store the offset between mouse and item in canvas coordinates
+    // This is the key: we're storing how far the mouse is from the item's top-left corner
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
     
-    const clientX = e.clientX - rect.left
-    const clientY = e.clientY - rect.top
+    // Convert mouse viewport position to canvas coordinates
+    const viewportX = e.clientX - rect.left
+    const viewportY = e.clientY - rect.top
     
-    const canvasX = (clientX - canvasOffset.x) / canvasZoom
-    const canvasY = (clientY - canvasOffset.y) / canvasZoom
+    const canvasMouseX = (viewportX - canvasOffset.x) / canvasZoom
+    const canvasMouseY = (viewportY - canvasOffset.y) / canvasZoom
     
+    // Store offset from mouse to item's position
     setDragOffset({
-      x: canvasX - item.position.x,
-      y: canvasY - item.position.y
+      x: canvasMouseX - item.position.x,
+      y: canvasMouseY - item.position.y
     })
   }
 
@@ -249,15 +252,16 @@ export default function CanvasPage() {
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
 
-    // Calculate mouse position in canvas coordinates (accounting for zoom and pan)
-    const clientX = e.clientX - rect.left
-    const clientY = e.clientY - rect.top
+    // Convert current mouse position to canvas coordinates
+    const viewportX = e.clientX - rect.left
+    const viewportY = e.clientY - rect.top
     
-    const canvasX = (clientX - canvasOffset.x) / canvasZoom
-    const canvasY = (clientY - canvasOffset.y) / canvasZoom
+    const canvasMouseX = (viewportX - canvasOffset.x) / canvasZoom
+    const canvasMouseY = (viewportY - canvasOffset.y) / canvasZoom
 
-    const newX = canvasX - dragOffset.x
-    const newY = canvasY - dragOffset.y
+    // Calculate new item position by subtracting the stored offset
+    const newX = canvasMouseX - dragOffset.x
+    const newY = canvasMouseY - dragOffset.y
 
     // Constrain to canvas bounds
     const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 280, newX))
@@ -290,8 +294,8 @@ export default function CanvasPage() {
   }
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    // Start panning with space key or middle mouse button
-    if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+    // Middle mouse button always pans
+    if (e.button === 1) {
       e.preventDefault()
       setIsPanning(true)
       setPanStart({ x: e.clientX, y: e.clientY })
@@ -301,12 +305,23 @@ export default function CanvasPage() {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     
-    // Zoom with mouse wheel
-    const zoomSpeed = 0.001
-    const delta = -e.deltaY * zoomSpeed
-    const newZoom = Math.max(0.25, Math.min(2, canvasZoom + delta))
+    // Figma-style controls:
+    // Cmd/Ctrl + Scroll = Zoom
+    // Two-finger drag (trackpad) or Shift + Scroll = Pan
     
-    setCanvasZoom(newZoom)
+    if (e.metaKey || e.ctrlKey) {
+      // Zoom with Cmd+scroll
+      const zoomSpeed = 0.002
+      const delta = -e.deltaY * zoomSpeed
+      const newZoom = Math.max(0.25, Math.min(2, canvasZoom + delta))
+      setCanvasZoom(newZoom)
+    } else {
+      // Pan with two-finger drag (natural scrolling on trackpad)
+      setCanvasOffset(prev => ({
+        x: prev.x - e.deltaX,
+        y: prev.y - e.deltaY
+      }))
+    }
   }
 
   const handleZoomIn = () => {
@@ -722,7 +737,7 @@ export default function CanvasPage() {
             </div>
             
             <div className="text-xs text-gray-500 border-l pl-4">
-              Shift+Drag to pan · Scroll to zoom
+              Two-finger drag to pan · ⌘+Scroll to zoom
             </div>
           </div>
           
