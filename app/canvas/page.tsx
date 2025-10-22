@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, Plus, X, Scissors, Download, Trash2, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw } from 'lucide-react'
+import { Search, Plus, X, Scissors, Download, Trash2, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasItem, TranscriptionStatus } from '@/types'
@@ -48,6 +48,9 @@ export default function CanvasPage() {
   const [selectedEpisode, setSelectedEpisode] = useState<CanvasEpisode | null>(null)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [clipsToExport, setClipsToExport] = useState<CanvasClip[]>([])
+  
+  // Track which episodes are currently transcribing (by episodeId)
+  const [transcribingEpisodes, setTranscribingEpisodes] = useState<Set<string>>(new Set())
   
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -218,8 +221,15 @@ export default function CanvasPage() {
     posthog.capture('episode_added_to_canvas', {
       episode_title: episode.title,
       podcast_id: podcast.id,
-      position: { x: constrainedX, y: constrainedY }
+      position: { x: constrainedX, y: constrainedY },
+      had_cached_transcript: !!existingTranscript
     })
+
+    // Auto-transcribe if no cached transcript exists
+    if (!existingTranscript) {
+      console.log('🎙️ Starting auto-transcription for:', episode.title)
+      transcribeEpisode(episode.id, episode.audioUrl, episode.title)
+    }
 
     // Clean up
     delete (window as any).__draggedEpisode
@@ -510,10 +520,9 @@ export default function CanvasPage() {
     }, 300)
   }
 
-  const handleTranscribe = async (episodeId: string) => {
-    if (!selectedEpisode) return
-    
-    setIsTranscribing(true)
+  const transcribeEpisode = async (episodeId: string, audioUrl: string, title: string) => {
+    // Add to transcribing set
+    setTranscribingEpisodes(prev => new Set(prev).add(episodeId))
     
     try {
       const response = await fetch(`/api/episodes/${episodeId}/transcribe`, {
@@ -522,8 +531,8 @@ export default function CanvasPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          audioUrl: selectedEpisode.audioUrl,
-          episodeTitle: selectedEpisode.title
+          audioUrl,
+          episodeTitle: title
         })
       })
 
@@ -532,19 +541,19 @@ export default function CanvasPage() {
         
         // Save transcript to localStorage by episodeId for future reuse
         storage.setTranscript(
-          selectedEpisode.episodeId, // Use the actual episode ID, not canvas item ID
+          episodeId,
           data.transcript,
           data.status,
           undefined,
           data.segments
         )
         
-        console.log('💾 Transcript saved to localStorage for:', selectedEpisode.title)
+        console.log('💾 Transcript saved to localStorage for:', title)
         
-        // Update the episode in canvas with transcript
+        // Update all canvas items with this episodeId
         setCanvasItems(items =>
           items.map(item => {
-            if (item.id === selectedEpisode.id) {
+            if (item.type === 'episode' && (item as CanvasEpisode).episodeId === episodeId) {
               return {
                 ...item,
                 transcript: data.transcript,
@@ -555,27 +564,42 @@ export default function CanvasPage() {
           })
         )
 
-        // Update the modal episode
-        setSelectedEpisode({
-          ...selectedEpisode,
-          transcript: data.transcript,
-          transcript_segments: data.segments
-        })
+        // Update selected episode if it matches
+        if (selectedEpisode && selectedEpisode.episodeId === episodeId) {
+          setSelectedEpisode({
+            ...selectedEpisode,
+            transcript: data.transcript,
+            transcript_segments: data.segments
+          })
+        }
 
         posthog.capture('canvas_episode_transcribed', {
-          episode_id: selectedEpisode.episodeId,
+          episode_id: episodeId,
           segment_count: data.segments?.length || 0,
-          saved_to_cache: true
+          saved_to_cache: true,
+          auto_transcribed: true
         })
       } else {
-        alert('Transcription failed. Please try again.')
+        console.error('Transcription failed for:', title)
       }
     } catch (error) {
       console.error('Transcription error:', error)
-      alert('Transcription failed. Please try again.')
     } finally {
-      setIsTranscribing(false)
+      // Remove from transcribing set
+      setTranscribingEpisodes(prev => {
+        const next = new Set(prev)
+        next.delete(episodeId)
+        return next
+      })
     }
+  }
+
+  const handleTranscribe = async (episodeId: string) => {
+    if (!selectedEpisode) return
+    
+    setIsTranscribing(true)
+    await transcribeEpisode(episodeId, selectedEpisode.audioUrl, selectedEpisode.title)
+    setIsTranscribing(false)
   }
 
   const handleCreateClip = (clipData: Omit<CanvasClip, 'id' | 'createdAt' | 'updatedAt' | 'position'>) => {
@@ -1081,12 +1105,18 @@ export default function CanvasPage() {
                           </button>
                         </div>
                         
-                        {/* Transcript indicator badge */}
-                        {episode.transcript_segments && (
-                          <div className="absolute top-2 right-8 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
-                            <FileText className="h-3 w-3 inline" />
+                        {/* Transcript status badge */}
+                        {transcribingEpisodes.has(episode.episodeId) ? (
+                          <div className="absolute top-2 right-8 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>Transcribing...</span>
                           </div>
-                        )}
+                        ) : episode.transcript_segments && episode.transcript_segments.length > 0 ? (
+                          <div className="absolute top-2 right-8 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            <span>Ready</span>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   )
