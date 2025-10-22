@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, Plus, X, Scissors, Download, Trash2, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2 } from 'lucide-react'
+import { Search, Plus, X, Scissors, Download, Trash2, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem, TranscriptionStatus } from '@/types'
@@ -660,6 +660,53 @@ export default function CanvasPage() {
     // Don't close panel - user might want to create more clips
   }
 
+  const handleCreateReel = () => {
+    // Get selected clips only
+    const selectedClips = canvasItems.filter(item => 
+      selectedItemIds.includes(item.id) && item.type === 'clip'
+    ) as CanvasClip[]
+    
+    if (selectedClips.length < 2) {
+      alert('Please select at least 2 clips to create a Reel')
+      return
+    }
+    
+    // Calculate average position (center of selected clips)
+    const avgX = selectedClips.reduce((sum, clip) => sum + clip.position.x, 0) / selectedClips.length
+    const avgY = selectedClips.reduce((sum, clip) => sum + clip.position.y, 0) / selectedClips.length
+    
+    // Calculate total duration
+    const totalDuration = selectedClips.reduce((sum, clip) => sum + clip.duration, 0)
+    
+    // Create reel title from clips
+    const reelTitle = selectedClips.length === 2 
+      ? `${selectedClips[0].title} + ${selectedClips[1].title}`
+      : `Reel (${selectedClips.length} clips)`
+    
+    const newReel: CanvasReel = {
+      id: `canvas-reel-${Date.now()}-${Math.random()}`,
+      type: 'reel',
+      title: reelTitle,
+      clipIds: selectedClips.map(clip => clip.id),
+      totalDuration,
+      position: {
+        x: Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 280, avgX)),
+        y: Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, avgY + 300)) // Below clips
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    
+    setCanvasItems([...canvasItems, newReel])
+    setSelectedItemIds([newReel.id]) // Select the new reel
+    
+    posthog.capture('reel_created_on_canvas', {
+      reel_title: reelTitle,
+      clip_count: selectedClips.length,
+      total_duration: totalDuration
+    })
+  }
+
   const handleExportClip = (clip: CanvasClip) => {
     setClipsToExport([clip])
     setPanelType('export')
@@ -1237,6 +1284,122 @@ export default function CanvasPage() {
                   )
                 }
                 
+                if (item.type === 'reel') {
+                  const reel = item as CanvasReel
+                  const isSelected = selectedItemIds.includes(item.id)
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      onMouseDown={(e) => handleItemMouseDown(e, item)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // Select the reel
+                        if (!e.shiftKey) {
+                          setSelectedItemIds([item.id])
+                        }
+                      }}
+                      className={`absolute cursor-pointer select-none group ${
+                        isSelected ? 'ring-2 ring-orange-500 ring-offset-2' : ''
+                      }`}
+                      style={{
+                        left: item.position.x,
+                        top: item.position.y,
+                        width: '280px',
+                        zIndex: 10
+                      }}
+                    >
+                      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg shadow-lg border-2 border-orange-400 p-4 hover:shadow-xl transition-shadow relative">
+                        {/* Floating X delete button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (confirm('Delete this Reel?')) {
+                              setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                              setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+                            }
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
+                          title="Delete Reel"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        
+                        <div className="flex items-start gap-2 mb-3">
+                          <div className="bg-orange-600 text-white p-2 rounded">
+                            <Film className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-orange-600 mb-1">🎬 REEL</div>
+                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
+                              {reel.title}
+                            </h3>
+                            <p className="text-xs text-gray-600 mt-1">
+                              {reel.clipIds.length} clips • {formatDuration(reel.totalDuration)}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white bg-opacity-50 rounded p-2 mb-3">
+                          <div className="flex flex-wrap gap-1">
+                            {reel.clipIds.slice(0, 3).map((clipId, index) => {
+                              const clip = canvasItems.find(i => i.id === clipId) as CanvasClip | undefined
+                              return (
+                                <div key={clipId} className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                                  {clip ? `Clip ${index + 1}` : 'Clip'}
+                                </div>
+                              )
+                            })}
+                            {reel.clipIds.length > 3 && (
+                              <div className="text-xs text-gray-600 px-2 py-1">
+                                +{reel.clipIds.length - 3} more
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2 items-center">
+                          {/* Play/Pause button */}
+                          <button
+                            className="bg-orange-600 hover:bg-orange-700 rounded-full p-2 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
+                              if (isThisPlaying) {
+                                setPauseTrigger(Date.now())
+                              } else {
+                                setSelectedItemIds([item.id])
+                                setPlayTrigger(Date.now())
+                              }
+                            }}
+                            title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
+                          >
+                            {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
+                              <Pause className="h-4 w-4 text-white" />
+                            ) : (
+                              <Play className="h-4 w-4 text-white ml-0.5" />
+                            )}
+                          </button>
+                          
+                          {/* Export button */}
+                          <Button 
+                            size="sm" 
+                            className="flex-1 text-xs bg-orange-600 hover:bg-orange-700"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              // TODO: Handle reel export (will open panel with clip list)
+                              setSelectedItemIds([item.id])
+                            }}
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Export
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+                
                 return null
               })}
             </>
@@ -1343,10 +1506,7 @@ export default function CanvasPage() {
               
               <Button 
                 className="w-full"
-                onClick={() => {
-                  // TODO: Create Reel
-                  console.log('Create Reel clicked')
-                }}
+                onClick={handleCreateReel}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Reel
