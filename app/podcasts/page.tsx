@@ -76,9 +76,7 @@ export default function PodcastsPage() {
       language: podcast.language,
       categories: podcast.categories,
       episode_count: podcast.episodeCount,
-      last_updated: podcast.lastUpdated,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      last_updated: podcast.lastUpdated
     }
     
     storage.addPodcast(newPodcast)
