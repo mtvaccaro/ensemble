@@ -49,6 +49,9 @@ export default function CanvasPage() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [clipsToExport, setClipsToExport] = useState<CanvasClip[]>([])
   
+  // Sidebar collapse state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  
   const canvasRef = useRef<HTMLDivElement>(null)
   
   // Canvas constraints (keep items within bounds)
@@ -404,10 +407,15 @@ export default function CanvasPage() {
   }
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-    // Deselect all and close panel if clicking on empty canvas
-    if (e.target === canvasRef.current) {
-      setSelectedItemIds([])
-      handleClosePanel()
+    // Only deselect and close panel if clicking directly on canvas background
+    // Check if the click target is the canvas or the transform container
+    const target = e.target as HTMLElement
+    if (target === canvasRef.current || target.closest('[data-canvas-content]')) {
+      // If clicking on empty space (not on any card)
+      if (target === canvasRef.current || (target.hasAttribute('data-canvas-content') && target === e.target)) {
+        setSelectedItemIds([])
+        handleClosePanel()
+      }
     }
   }
 
@@ -626,12 +634,22 @@ export default function CanvasPage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar - Podcast Search */}
-      <div className="w-[360px] bg-white border-r border-gray-200 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Canvas Clip Editor</h2>
-          <p className="text-sm text-gray-600 mb-4">Search podcasts, drag episodes to canvas</p>
+      {/* Sidebar - Podcast Search - Collapsible */}
+      {!isSidebarCollapsed && (
+        <div className="w-[360px] bg-white border-r border-gray-200 flex flex-col overflow-hidden relative">
+          {/* Collapse button */}
+          <button
+            onClick={() => setIsSidebarCollapsed(true)}
+            className="absolute top-4 right-2 z-10 p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700 transition-colors"
+            title="Collapse sidebar (more canvas space)"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Canvas Clip Editor</h2>
+            <p className="text-sm text-gray-600 mb-4">Search podcasts, drag episodes to canvas</p>
           
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="relative flex-1">
@@ -748,6 +766,18 @@ export default function CanvasPage() {
           )}
         </div>
       </div>
+      )}
+      
+      {/* Collapsed Sidebar Toggle Button */}
+      {isSidebarCollapsed && (
+        <button
+          onClick={() => setIsSidebarCollapsed(false)}
+          className="fixed top-4 left-4 z-30 bg-white border border-gray-300 shadow-lg p-3 rounded-lg hover:bg-gray-50 transition-colors"
+          title="Show podcast search"
+        >
+          <Search className="h-5 w-5 text-gray-700" />
+        </button>
+      )}
 
       {/* Canvas Area */}
       <div className="flex-1 flex flex-col">
@@ -848,6 +878,7 @@ export default function CanvasPage() {
         >
           {/* Canvas Content Container with Transform */}
           <div
+            data-canvas-content
             style={{
               transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${canvasZoom})`,
               transformOrigin: '0 0',
@@ -931,6 +962,7 @@ export default function CanvasPage() {
                     <div
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
+                      onClick={(e) => e.stopPropagation()}
                       className={`absolute cursor-move select-none ${
                         isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                       }`}
@@ -992,6 +1024,7 @@ export default function CanvasPage() {
                     <div
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
+                      onClick={(e) => e.stopPropagation()}
                       className={`absolute cursor-move select-none ${
                         isSelected ? 'ring-2 ring-purple-500 ring-offset-2' : ''
                       }`}
