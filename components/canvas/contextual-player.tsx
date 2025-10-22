@@ -19,6 +19,10 @@ export function ContextualPlayer({ selectedItems, playTrigger, pauseTrigger, onP
   const [isMuted, setIsMuted] = useState(false)
   const [volume, setVolume] = useState(1)
   const [currentItemIndex, setCurrentItemIndex] = useState(0)
+  
+  // Track processed triggers to avoid re-processing on item changes
+  const lastProcessedPlayTrigger = useRef<number>(0)
+  const lastProcessedPauseTrigger = useRef<number>(0)
 
   // Determine what to play
   const playableItems = selectedItems.filter(
@@ -73,6 +77,11 @@ export function ContextualPlayer({ selectedItems, playTrigger, pauseTrigger, onP
   // Handle explicit play trigger
   useEffect(() => {
     if (!playTrigger || !currentItem) return
+    
+    // Skip if we've already processed this trigger
+    if (playTrigger === lastProcessedPlayTrigger.current) return
+    
+    lastProcessedPlayTrigger.current = playTrigger
 
     const audio = audioRef.current
     if (!audio) return
@@ -115,6 +124,11 @@ export function ContextualPlayer({ selectedItems, playTrigger, pauseTrigger, onP
   // Handle explicit pause trigger
   useEffect(() => {
     if (!pauseTrigger) return
+    
+    // Skip if we've already processed this trigger
+    if (pauseTrigger === lastProcessedPauseTrigger.current) return
+    
+    lastProcessedPauseTrigger.current = pauseTrigger
 
     const audio = audioRef.current
     if (!audio) return
