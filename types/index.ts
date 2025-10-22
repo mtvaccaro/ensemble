@@ -107,4 +107,50 @@ export interface ApiResponse<T> {
   data: T
   error?: string
   message?: string
+}
+
+// Canvas types for clip editor
+export interface CanvasPosition {
+  x: number
+  y: number
+}
+
+export type CanvasItemType = 'episode' | 'clip'
+
+export interface CanvasItem {
+  id: string
+  type: CanvasItemType
+  position: CanvasPosition
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CanvasEpisode extends CanvasItem {
+  type: 'episode'
+  episodeId: string
+  podcastId: string
+  title: string
+  audioUrl: string
+  imageUrl?: string
+  duration: number
+  transcript?: string
+  transcript_segments?: TranscriptSegment[]
+}
+
+export interface CanvasClip extends CanvasItem {
+  type: 'clip'
+  episodeId: string
+  title: string
+  audioUrl: string
+  startTime: number
+  endTime: number
+  duration: number
+  transcript: string
+  segments: TranscriptSegment[]
+}
+
+export interface CanvasState {
+  items: CanvasItem[]
+  selectedItemIds: string[]
+  lastUpdated: string
 } 

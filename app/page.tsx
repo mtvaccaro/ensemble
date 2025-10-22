@@ -27,6 +27,25 @@ export default function HomePage() {
           <p className="mt-6 text-xl text-gray-600 max-w-3xl mx-auto">
             Transform podcasts into viral clips with AI
           </p>
+          
+          {/* New Canvas Editor Feature */}
+          <div className="mt-8 p-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border-2 border-purple-200 max-w-2xl mx-auto">
+            <div className="text-2xl mb-2">🎨✨</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              New: Canvas Clip Editor
+            </h2>
+            <p className="text-gray-700 mb-4">
+              Drag episodes onto a canvas, create clips, and arrange them visually. No signup required!
+            </p>
+            <a 
+              href="/canvas" 
+              onClick={() => posthog.capture('cta_clicked', { cta_text: 'Try Canvas Editor', location: 'hero_feature', target_url: '/canvas' })} 
+              className="inline-block bg-purple-600 text-white px-8 py-3 rounded-lg text-lg font-medium hover:bg-purple-700 shadow-lg hover:shadow-xl transition-all"
+            >
+              🚀 Try Canvas Editor
+            </a>
+          </div>
+          
           <div className="mt-10">
             <a href="/podcasts" onClick={() => posthog.capture('cta_clicked', { cta_text: 'Try Demo (No Signup Required)', location: 'hero', target_url: '/podcasts' })} className="bg-green-600 text-white px-6 py-3 rounded-lg text-lg font-medium hover:bg-green-700 mr-4">
               Try Demo (No Signup Required)

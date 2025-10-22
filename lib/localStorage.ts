@@ -1,13 +1,14 @@
 // localStorage utilities for persisting data without a backend
 // This allows the app to work fully offline with data persistence
 
-import { Podcast, Episode, TranscriptionStatusType, TranscriptionStatus, TranscriptSegment } from '@/types'
+import { Podcast, Episode, TranscriptionStatusType, TranscriptionStatus, TranscriptSegment, CanvasState, CanvasItem } from '@/types'
 
 const STORAGE_KEYS = {
   PODCASTS: 'clipper_subscribed_podcasts',
   EPISODES: 'clipper_episodes',
   TRANSCRIPTS: 'clipper_transcripts',
-  LAST_UPDATED: 'clipper_last_updated'
+  LAST_UPDATED: 'clipper_last_updated',
+  CANVAS: 'clipper_canvas_state'
 }
 
 interface StoredTranscript {
@@ -243,6 +244,104 @@ export const storage = {
     } catch (error) {
       console.error('Error updating transcript status:', error)
     }
+  },
+
+  // === CANVAS STORAGE ===
+
+  // Get canvas state
+  getCanvasState: (): CanvasState => {
+    if (!isBrowser) return { items: [], selectedItemIds: [], lastUpdated: new Date().toISOString() }
+    
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.CANVAS)
+      return data ? JSON.parse(data) : { items: [], selectedItemIds: [], lastUpdated: new Date().toISOString() }
+    } catch (error) {
+      console.error('Error reading canvas state from localStorage:', error)
+      return { items: [], selectedItemIds: [], lastUpdated: new Date().toISOString() }
+    }
+  },
+
+  // Save canvas state
+  setCanvasState: (state: CanvasState): void => {
+    if (!isBrowser) return
+    
+    try {
+      const updatedState = {
+        ...state,
+        lastUpdated: new Date().toISOString()
+      }
+      localStorage.setItem(STORAGE_KEYS.CANVAS, JSON.stringify(updatedState))
+    } catch (error) {
+      console.error('Error writing canvas state to localStorage:', error)
+    }
+  },
+
+  // Add item to canvas
+  addCanvasItem: (item: CanvasItem): void => {
+    if (!isBrowser) return
+    
+    const state = storage.getCanvasState()
+    state.items.push(item)
+    storage.setCanvasState(state)
+  },
+
+  // Remove item from canvas
+  removeCanvasItem: (itemId: string): void => {
+    if (!isBrowser) return
+    
+    const state = storage.getCanvasState()
+    state.items = state.items.filter(item => item.id !== itemId)
+    state.selectedItemIds = state.selectedItemIds.filter(id => id !== itemId)
+    storage.setCanvasState(state)
+  },
+
+  // Update canvas item position
+  updateCanvasItemPosition: (itemId: string, position: { x: number; y: number }): void => {
+    if (!isBrowser) return
+    
+    const state = storage.getCanvasState()
+    const item = state.items.find(i => i.id === itemId)
+    if (item) {
+      item.position = position
+      item.updatedAt = new Date().toISOString()
+      storage.setCanvasState(state)
+    }
+  },
+
+  // Update canvas item
+  updateCanvasItem: (itemId: string, updates: Partial<CanvasItem>): void => {
+    if (!isBrowser) return
+    
+    const state = storage.getCanvasState()
+    const itemIndex = state.items.findIndex(i => i.id === itemId)
+    if (itemIndex !== -1) {
+      state.items[itemIndex] = {
+        ...state.items[itemIndex],
+        ...updates,
+        updatedAt: new Date().toISOString()
+      }
+      storage.setCanvasState(state)
+    }
+  },
+
+  // Set selected items
+  setSelectedItems: (itemIds: string[]): void => {
+    if (!isBrowser) return
+    
+    const state = storage.getCanvasState()
+    state.selectedItemIds = itemIds
+    storage.setCanvasState(state)
+  },
+
+  // Clear canvas
+  clearCanvas: (): void => {
+    if (!isBrowser) return
+    
+    storage.setCanvasState({
+      items: [],
+      selectedItemIds: [],
+      lastUpdated: new Date().toISOString()
+    })
   }
 }
 
