@@ -161,6 +161,9 @@ export default function CanvasPage() {
     const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 280, x))
     const constrainedY = Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, y))
 
+    // Check if we already have a transcript for this episode
+    const existingTranscript = storage.getTranscript(episode.id)
+
     // Create new canvas episode
     const newItem: CanvasEpisode = {
       id: `canvas-episode-${Date.now()}-${Math.random()}`,
@@ -172,8 +175,20 @@ export default function CanvasPage() {
       imageUrl: episode.imageUrl,
       duration: episode.duration,
       position: { x: constrainedX, y: constrainedY },
+      // Populate with existing transcript if available
+      transcript: existingTranscript?.transcript,
+      transcript_segments: existingTranscript?.segments,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
+    }
+
+    // Log if we're reusing a cached transcript
+    if (existingTranscript) {
+      console.log('✅ Loaded cached transcript for:', episode.title)
+      posthog.capture('cached_transcript_loaded', {
+        episode_id: episode.id,
+        segment_count: existingTranscript.segments?.length || 0
+      })
     }
 
     setCanvasItems([...canvasItems, newItem])
@@ -380,6 +395,17 @@ export default function CanvasPage() {
       if (response.ok) {
         const data = await response.json()
         
+        // Save transcript to localStorage by episodeId for future reuse
+        storage.setTranscript(
+          selectedEpisode.episodeId, // Use the actual episode ID, not canvas item ID
+          data.transcript,
+          data.status,
+          undefined,
+          data.segments
+        )
+        
+        console.log('💾 Transcript saved to localStorage for:', selectedEpisode.title)
+        
         // Update the episode in canvas with transcript
         setCanvasItems(items =>
           items.map(item => {
@@ -402,8 +428,9 @@ export default function CanvasPage() {
         })
 
         posthog.capture('canvas_episode_transcribed', {
-          episode_id: episodeId,
-          segment_count: data.segments?.length || 0
+          episode_id: selectedEpisode.episodeId,
+          segment_count: data.segments?.length || 0,
+          saved_to_cache: true
         })
       } else {
         alert('Transcription failed. Please try again.')
