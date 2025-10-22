@@ -354,11 +354,29 @@ export default function CanvasPage() {
     // Two-finger drag (trackpad) or Shift + Scroll = Pan
     
     if (e.metaKey || e.ctrlKey) {
-      // Zoom with Cmd+scroll
+      // Zoom toward cursor position (Figma-style)
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      
+      // Mouse position in viewport coordinates
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+      
+      // Calculate zoom change
       const zoomSpeed = 0.002
       const delta = -e.deltaY * zoomSpeed
       const newZoom = Math.max(0.25, Math.min(2, canvasZoom + delta))
+      
+      // Calculate what canvas point is currently under the cursor
+      const canvasPointX = (mouseX - canvasOffset.x) / canvasZoom
+      const canvasPointY = (mouseY - canvasOffset.y) / canvasZoom
+      
+      // Calculate new offset so that same canvas point stays under cursor
+      const newOffsetX = mouseX - canvasPointX * newZoom
+      const newOffsetY = mouseY - canvasPointY * newZoom
+      
       setCanvasZoom(newZoom)
+      setCanvasOffset({ x: newOffsetX, y: newOffsetY })
     } else {
       // Pan with two-finger drag (natural scrolling on trackpad)
       setCanvasOffset(prev => ({
@@ -369,11 +387,53 @@ export default function CanvasPage() {
   }
 
   const handleZoomIn = () => {
-    setCanvasZoom(prev => Math.min(2, prev + 0.25))
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) {
+      setCanvasZoom(prev => Math.min(2, prev + 0.25))
+      return
+    }
+    
+    // Zoom toward center of viewport
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+    
+    const newZoom = Math.min(2, canvasZoom + 0.25)
+    
+    // Calculate what canvas point is at center
+    const canvasPointX = (centerX - canvasOffset.x) / canvasZoom
+    const canvasPointY = (centerY - canvasOffset.y) / canvasZoom
+    
+    // Calculate new offset to keep center point stable
+    const newOffsetX = centerX - canvasPointX * newZoom
+    const newOffsetY = centerY - canvasPointY * newZoom
+    
+    setCanvasZoom(newZoom)
+    setCanvasOffset({ x: newOffsetX, y: newOffsetY })
   }
 
   const handleZoomOut = () => {
-    setCanvasZoom(prev => Math.max(0.25, prev - 0.25))
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) {
+      setCanvasZoom(prev => Math.max(0.25, prev - 0.25))
+      return
+    }
+    
+    // Zoom toward center of viewport
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+    
+    const newZoom = Math.max(0.25, canvasZoom - 0.25)
+    
+    // Calculate what canvas point is at center
+    const canvasPointX = (centerX - canvasOffset.x) / canvasZoom
+    const canvasPointY = (centerY - canvasOffset.y) / canvasZoom
+    
+    // Calculate new offset to keep center point stable
+    const newOffsetX = centerX - canvasPointX * newZoom
+    const newOffsetY = centerY - canvasPointY * newZoom
+    
+    setCanvasZoom(newZoom)
+    setCanvasOffset({ x: newOffsetX, y: newOffsetY })
   }
 
   const handleResetView = () => {
