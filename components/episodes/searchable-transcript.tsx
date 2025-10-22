@@ -135,7 +135,7 @@ export function SearchableTranscript({ segments, onSegmentClick }: SearchableTra
       {searchQuery && matchCount === 0 && (
         <div className="text-center py-12 text-gray-500">
           <Search className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-sm">No matches found for <span className="font-semibold">"{searchQuery}"</span></p>
+          <p className="text-sm">No matches found for <span className="font-semibold">&quot;{searchQuery}&quot;</span></p>
           <p className="text-xs mt-1">Try a different search term</p>
         </div>
       )}

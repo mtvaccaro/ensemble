@@ -164,7 +164,7 @@ export default function DemoPodcastEpisodesPage() {
         }
 
         const data = await response.json()
-        const episodes: Episode[] = data.episodes.map((ep: any, index: number) => ({
+        const episodes: Episode[] = data.episodes.map((ep: { title: string; description?: string; duration: number; publishedAt?: string; audioUrl: string }, index: number) => ({
           id: `${podcastId}-real-${index}`,
           title: ep.title,
           description: ep.description,
@@ -177,7 +177,7 @@ export default function DemoPodcastEpisodesPage() {
         setRealEpisodes(episodes)
         
         // Save to localStorage
-        storage.setEpisodes(podcastId, episodes as any[])
+        storage.setEpisodes(podcastId, episodes)
         
       } catch (error) {
         console.error('Error fetching RSS feed:', error)
@@ -267,7 +267,7 @@ export default function DemoPodcastEpisodesPage() {
                     Loading Real Episodes...
                   </h3>
                   <div className="mt-2 text-sm text-blue-700">
-                    <p>Fetching episodes from the podcast's RSS feed.</p>
+                    <p>Fetching episodes from the podcast&apos;s RSS feed.</p>
                   </div>
                 </div>
               </div>

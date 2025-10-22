@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         duration,
         publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
         audioUrl,
-        // @ts-ignore
+        // @ts-expect-error - RSS feed types don't include itunes namespace
         imageUrl: item.itunes?.image || feed.image?.url || ''
       }
     }).filter(episode => episode.audioUrl) // Only episodes with audio

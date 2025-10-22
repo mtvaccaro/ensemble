@@ -226,7 +226,7 @@ export default function PodcastEpisodesPage() {
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900">No episodes found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              This podcast doesn't have any episodes yet, or there was an error loading them.
+              This podcast doesn&apos;t have any episodes yet, or there was an error loading them.
             </p>
           </div>
         ) : (

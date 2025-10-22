@@ -180,7 +180,7 @@ export default function PodcastsPage() {
                     </p>
                     <ol className="mt-2 ml-4 list-decimal">
                       <li>Search for podcasts (real iTunes API data)</li>
-                      <li>Click "Subscribe" - saved to your browser</li>
+                      <li>Click &quot;Subscribe&quot; - saved to your browser</li>
                       <li>Podcasts stay subscribed even after closing the browser</li>
                       <li>Click podcast titles to view episodes</li>
                     </ol>

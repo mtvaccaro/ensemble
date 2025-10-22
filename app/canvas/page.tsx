@@ -1,7 +1,17 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, Plus, X, Scissors, Download, Trash2, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film } from 'lucide-react'
+
+// Augment Window interface for drag and drop
+declare global {
+  interface Window {
+    __draggedEpisode?: {
+      episode: { id: string; title: string; audioUrl: string; duration: number; imageUrl?: string; description?: string; publishedAt?: string }
+      podcast: PodcastSearchResult
+    }
+  }
+}
+import { Search, Scissors, Download, Trash2, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem, TranscriptionStatus } from '@/types'
@@ -129,7 +139,7 @@ export default function CanvasPage() {
       const response = await fetch(`/api/rss?url=${encodeURIComponent(podcast.feedUrl)}`)
       if (response.ok) {
         const data = await response.json()
-        const formattedEpisodes = data.episodes.map((ep: any, index: number) => ({
+        const formattedEpisodes = data.episodes.map((ep: { title: string; audioUrl: string; duration: number; imageUrl?: string; description?: string; publishedAt?: string }, index: number) => ({
           id: `${podcast.id}-${index}`,
           title: ep.title,
           audioUrl: ep.audioUrl,
@@ -159,7 +169,7 @@ export default function CanvasPage() {
       podcast
     }
     // Store in a way that can be accessed on drop
-    ;(window as any).__draggedEpisode = dragData
+    window.__draggedEpisode = dragData
   }
 
   const handleCanvasDragOver = (e: React.DragEvent) => {
@@ -169,7 +179,7 @@ export default function CanvasPage() {
   const handleCanvasDrop = (e: React.DragEvent) => {
     e.preventDefault()
     
-    const dragData = (window as any).__draggedEpisode
+    const dragData = window.__draggedEpisode
     if (!dragData) return
 
     const rect = canvasRef.current?.getBoundingClientRect()
@@ -233,7 +243,7 @@ export default function CanvasPage() {
     }
 
     // Clean up
-    delete (window as any).__draggedEpisode
+    delete window.__draggedEpisode
   }
 
   const handleItemMouseDown = (e: React.MouseEvent, item: CanvasItem) => {
