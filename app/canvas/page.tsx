@@ -962,8 +962,11 @@ export default function CanvasPage() {
                     <div
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
-                      onClick={(e) => e.stopPropagation()}
-                      className={`absolute cursor-move select-none ${
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleOpenEpisode(episode)
+                      }}
+                      className={`absolute cursor-pointer select-none ${
                         isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                       }`}
                       style={{
@@ -973,7 +976,7 @@ export default function CanvasPage() {
                         zIndex: 10
                       }}
                     >
-                      <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow">
+                      <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow relative">
                         <div className="flex items-start gap-3">
                           {episode.imageUrl && (
                             <img
@@ -992,25 +995,12 @@ export default function CanvasPage() {
                           </div>
                         </div>
                         
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleOpenEpisode(episode)
-                            }}
-                          >
-                            <Scissors className="h-3 w-3 mr-1" />
-                            Create Clip
-                          </Button>
-                          {episode.transcript_segments && (
-                            <div className="absolute top-2 right-2 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
-                              <FileText className="h-3 w-3 inline" />
-                            </div>
-                          )}
-                        </div>
+                        {/* Transcript indicator badge */}
+                        {episode.transcript_segments && (
+                          <div className="absolute top-2 right-2 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
+                            <FileText className="h-3 w-3 inline" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
