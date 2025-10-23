@@ -269,37 +269,43 @@ Base timestamps on the segment timing provided. Be precise with times.`
       }
     })
     
-    // Enrich with actual segments and filter out ads
+    // Enrich with actual segments - search for GPT's claimed text instead of trusting timestamps
     const suggestions = result.clips
-      // Filter out invalid 0-duration clips
-      .filter((clip: AIClipSuggestion) => {
-        const duration = clip.endTime - clip.startTime
-        if (duration <= 0) {
-          console.log(`\n🚫 Skipping invalid 0-second clip: "${clip.title}"`)
-          return false
-        }
-        return true
-      })
       .map((clip: AIClipSuggestion) => {
-        const relevantSegments = segments.filter((s: TranscriptSegment) => 
-          s.start >= clip.startTime && s.end <= clip.endTime
-        )
+        console.log(`\n🔍 Searching for clip: "${clip.title}"`)
+        console.log(`   GPT claimed timestamps: ${formatTime(clip.startTime)} - ${formatTime(clip.endTime)}`)
+        console.log(`   Searching for text: "${clip.transcriptText.substring(0, 100)}..."`)
         
-        const transcript = relevantSegments.map((s: TranscriptSegment) => s.text).join(' ')
+        // Try to find where GPT's claimed text actually appears in the transcript
+        const found = findTextInTranscript(clip.transcriptText, segments)
+        
+        if (!found) {
+          console.log(`   ❌ Could not find this text in transcript - skipping clip`)
+          return null
+        }
+        
+        console.log(`   ✅ Found at: ${formatTime(found.startTime)} - ${formatTime(found.endTime)}`)
+        
+        if (Math.abs(found.startTime - clip.startTime) > 30) {
+          console.log(`   ⚠️  Corrected GPT's timestamps by ${Math.abs(found.startTime - clip.startTime).toFixed(0)}s!`)
+        }
+        
+        const transcript = found.segments.map((s: TranscriptSegment) => s.text).join(' ')
         
         return {
-          startTime: clip.startTime,
-          endTime: clip.endTime,
-          duration: clip.endTime - clip.startTime,
+          startTime: found.startTime,
+          endTime: found.endTime,
+          duration: found.endTime - found.startTime,
           title: clip.title,
           reason: clip.reason,
           hookScore: clip.hookScore,
           viralPotential: clip.viralPotential,
           contentType: clip.contentType,
           transcript,
-          segments: relevantSegments
+          segments: found.segments
         }
       })
+      .filter((clip): clip is NonNullable<typeof clip> => clip !== null)
       // Safety filter: Remove any clips that still contain ad keywords
       .filter(suggestion => {
         const isAd = isLikelyAd(suggestion.transcript)
@@ -329,65 +335,72 @@ Base timestamps on the segment timing provided. Be precise with times.`
   }
 }
 
-// Safety filter to detect ads that AI might have missed
+// Search for GPT's claimed text in the actual transcript and return correct timestamps
+function findTextInTranscript(searchText: string, segments: TranscriptSegment[]): { startTime: number; endTime: number; segments: TranscriptSegment[] } | null {
+  // Clean the search text for comparison
+  const cleanSearch = searchText.toLowerCase().trim()
+  
+  // Try to find the text across consecutive segments
+  for (let i = 0; i < segments.length; i++) {
+    let combinedText = ''
+    const matchingSegments: TranscriptSegment[] = []
+    
+    // Look ahead to combine segments
+    for (let j = i; j < segments.length && j < i + 50; j++) {
+      combinedText += ' ' + segments[j].text
+      matchingSegments.push(segments[j])
+      
+      const cleanCombined = combinedText.toLowerCase().trim()
+      
+      // Check if we found the text (allow some flexibility with partial matches)
+      if (cleanCombined.includes(cleanSearch.substring(0, Math.min(50, cleanSearch.length)))) {
+        // Found it! Return the time range
+        return {
+          startTime: matchingSegments[0].start,
+          endTime: matchingSegments[matchingSegments.length - 1].end,
+          segments: matchingSegments
+        }
+      }
+    }
+  }
+  
+  return null
+}
+
+// Safety filter to detect obvious ads (generic patterns only)
 function isLikelyAd(text: string): boolean {
   const lowerText = text.toLowerCase()
   
-  // DEAD GIVEAWAY patterns - if any of these appear, it's 100% an ad
-  const deadGiveaways = [
-    // Legal disclaimers (financial ads)
-    'not suitable for all investors',
-    'risk of losing more than',
-    'past performance does not guarantee',
-    'consult your financial advisor',
-    'investment involves risk',
-    
-    // Direct sponsorship
-    'brought to you by',
-    'thanks to our sponsor',
-    'today\'s episode is sponsored',
-    
-    // Promo codes
+  // Strong ad indicators (single match = ad)
+  const strongIndicators = [
     'promo code',
+    'discount code', 
     'use code',
     'enter code',
-    'discount code',
-    
-    // Marketing value propositions
-    'see what adding',
-    'see how you can',
-    'learn how to',
-    'find out how',
-    'discover how',
-    
-    // Specific company CTAs (financial ad red flags)
-    'visit your online broker',
-    'capitalize on around-the-clock',
-    'balance your trading strategy',
-    'manage risk and capture opportunities',
+    'brought to you by',
+    'thanks to our sponsor',
+    'this episode is sponsored'
   ]
   
-  // Check for dead giveaways first
-  if (deadGiveaways.some(phrase => lowerText.includes(phrase))) {
+  if (strongIndicators.some(phrase => lowerText.includes(phrase))) {
     return true
   }
   
-  // General ad keywords (need 2+ to confirm)
-  const adKeywords = [
-    'sponsor', 'discount', 'coupon', 'special offer', 'limited time',
-    'save 10%', 'save 20%', 'get 10%', 'get 20%', 'get 30%', 'percent off',
-    'visit', 'check out', 'go to', 'head over to', 'head to',
-    'link in description', 'link in the show notes',
-    'sign up', 'free trial', 'try it free', 'start your free',
-    'www.', '.com/', '.io/', '.co/', 'slash podcast', 'forward slash'
+  // Weaker indicators (need 2+ to confirm)
+  const weakIndicators = [
+    'sponsor',
+    'discount',
+    'coupon',
+    'special offer',
+    'percent off',
+    'free trial',
+    '.com/',
+    'www.',
   ]
   
-  const matchCount = adKeywords.filter(keyword => lowerText.includes(keyword)).length
+  const matchCount = weakIndicators.filter(keyword => lowerText.includes(keyword)).length
   
-  // If 2+ general ad keywords appear, it's an ad
-  if (matchCount >= 2) return true
-  
-  return false
+  return matchCount >= 2
 }
 
 // Helper to format transcript with timestamps for better AI analysis
