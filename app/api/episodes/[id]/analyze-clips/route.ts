@@ -15,6 +15,7 @@ interface AIClipSuggestion {
   viralPotential: number
   contentType: 'story' | 'insight' | 'quote' | 'debate' | 'funny'
   topicRelevance: string
+  transcriptText: string // EXACT text GPT claims is at this timestamp - validates it actually read the content
 }
 
 const openai = new OpenAI({
@@ -185,10 +186,13 @@ Return a JSON object with the episode topic and ${maxSuggestions} ON-TOPIC clips
       "hookScore": <1-10: how attention-grabbing is the opening>,
       "viralPotential": <1-10: overall shareability>,
       "contentType": "<story|insight|quote|debate|funny>",
-      "topicRelevance": "<how this clip relates to the episode's main topic>"
+      "topicRelevance": "<how this clip relates to the episode's main topic>",
+      "transcriptText": "<MUST INCLUDE: Copy the EXACT transcript text from your selected time range. This proves you read the actual content.>"
     }
   ]
 }
+
+CRITICAL: You MUST include "transcriptText" with the EXACT words from the transcript between startTime and endTime. If you can't quote the actual text, don't select that clip.
 
 Base timestamps on the segment timing provided. Be precise with times.`
 
@@ -229,14 +233,22 @@ Base timestamps on the segment timing provided. Be precise with times.`
       const clipSegments = segments.filter((s: TranscriptSegment) => 
         s.start >= clip.startTime && s.end <= clip.endTime
       )
-      const clipText = clipSegments.map((s: TranscriptSegment) => s.text).join(' ')
+      const actualText = clipSegments.map((s: TranscriptSegment) => s.text).join(' ')
       
       console.log(`\nClip ${i + 1}: "${clip.title}"`)
       console.log(`  ⏱️  Time: ${mins}:${secs.toString().padStart(2, '0')} - ${formatTime(clip.endTime)} (${(clip.endTime - clip.startTime).toFixed(0)}s)`)
       console.log(`  🎯 Hook: ${clip.hookScore}/10 | Viral: ${clip.viralPotential}/10 | Type: ${clip.contentType}`)
       console.log(`  💡 Why: ${clip.reason}`)
       console.log(`  🔗 Topic Link: ${clip.topicRelevance}`)
-      console.log(`  📝 ACTUAL TEXT: "${clipText.substring(0, 200)}${clipText.length > 200 ? '...' : ''}"`)
+      console.log(`  🤖 GPT CLAIMS TEXT IS: "${clip.transcriptText.substring(0, 150)}${clip.transcriptText.length > 150 ? '...' : ''}"`)
+      console.log(`  📝 ACTUAL TEXT IS: "${actualText.substring(0, 150)}${actualText.length > 150 ? '...' : ''}"`)
+      if (actualText.toLowerCase().trim() !== clip.transcriptText.toLowerCase().trim()) {
+        console.log(`  ⚠️  WARNING: GPT's text doesn't match actual transcript! GPT may be hallucinating.`)
+      }
+      // Check if GPT's own claimed text looks like an ad
+      if (isLikelyAd(clip.transcriptText)) {
+        console.log(`  🚨 GPT's CLAIMED TEXT contains ad language!`)
+      }
     })
     
     // Enrich with actual segments and filter out ads
