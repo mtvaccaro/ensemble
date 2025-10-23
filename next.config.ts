@@ -3,6 +3,30 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
 
+  webpack: (config, { isServer }) => {
+    // Don't process mediabunny on the server side
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('mediabunny');
+    }
+    
+    // Disable WASM warnings
+    config.module = config.module || {};
+    config.module.rules = config.module.rules || [];
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: 'webassembly/async',
+    });
+    
+    // Enable async WASM
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+    
+    return config;
+  },
+
   async rewrites() {
     return [
       {
