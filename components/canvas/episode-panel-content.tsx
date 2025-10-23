@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { FileText, Loader2, Scissors } from 'lucide-react'
+import { FileText, Loader2, Scissors, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { TranscriptSegment, CanvasEpisode, CanvasClip } from '@/types'
 import { SearchableTranscript } from '@/components/episodes/searchable-transcript'
 
@@ -20,56 +19,68 @@ export function EpisodePanelContent({
   onTranscribe,
   isTranscribing = false
 }: EpisodePanelContentProps) {
-  const [selectedSegments, setSelectedSegments] = useState<TranscriptSegment[]>([])
-  const [clipTitle, setClipTitle] = useState('')
-  const [selectionMode, setSelectionMode] = useState<'start' | 'end' | null>(null)
+  const [startSegment, setStartSegment] = useState<TranscriptSegment | null>(null)
+  const [endSegment, setEndSegment] = useState<TranscriptSegment | null>(null)
+  const [hoveredSegment, setHoveredSegment] = useState<TranscriptSegment | null>(null)
   
   const hasTranscript = episode.transcript_segments && episode.transcript_segments.length > 0
 
   const handleSegmentClick = (segment: TranscriptSegment) => {
-    if (selectionMode === 'start') {
-      setSelectedSegments([segment])
-      setSelectionMode('end')
-    } else if (selectionMode === 'end' && selectedSegments.length > 0) {
-      const startSegment = selectedSegments[0]
-      const segments = episode.transcript_segments || []
-      
+    const segments = episode.transcript_segments || []
+    
+    // If no start point, set it
+    if (!startSegment) {
+      setStartSegment(segment)
+      setEndSegment(null)
+      return
+    }
+    
+    // If start point exists but no end point
+    if (startSegment && !endSegment) {
       const startIndex = segments.findIndex(s => s.id === startSegment.id)
-      const endIndex = segments.findIndex(s => s.id === segment.id)
+      const clickedIndex = segments.findIndex(s => s.id === segment.id)
       
-      if (startIndex !== -1 && endIndex !== -1) {
-        const [minIndex, maxIndex] = startIndex < endIndex 
-          ? [startIndex, endIndex] 
-          : [endIndex, startIndex]
-        
-        const rangeSegments = segments.slice(minIndex, maxIndex + 1)
-        setSelectedSegments(rangeSegments)
-        setSelectionMode(null)
-        
-        const previewText = rangeSegments[0].text.split(' ').slice(0, 5).join(' ')
-        setClipTitle(previewText + '...')
+      // Prevent backward selection
+      if (clickedIndex < startIndex) {
+        return
       }
+      
+      // Set end point
+      setEndSegment(segment)
+      return
+    }
+    
+    // If both start and end exist, do nothing (must reset first)
+  }
+
+  const handleSegmentHover = (segment: TranscriptSegment | null) => {
+    // Only show hover preview if we have a start but no end
+    if (startSegment && !endSegment) {
+      setHoveredSegment(segment)
     }
   }
 
-  const startSelection = () => {
-    setSelectedSegments([])
-    setSelectionMode('start')
-    setClipTitle('')
-  }
-
-  const cancelSelection = () => {
-    setSelectedSegments([])
-    setSelectionMode(null)
-    setClipTitle('')
+  const resetSelection = () => {
+    setStartSegment(null)
+    setEndSegment(null)
+    setHoveredSegment(null)
   }
 
   const handleCreateClip = () => {
-    if (selectedSegments.length === 0) return
+    if (!startSegment || !endSegment) return
 
+    const segments = episode.transcript_segments || []
+    const startIndex = segments.findIndex(s => s.id === startSegment.id)
+    const endIndex = segments.findIndex(s => s.id === endSegment.id)
+    
+    const selectedSegments = segments.slice(startIndex, endIndex + 1)
     const startTime = selectedSegments[0].start
     const endTime = selectedSegments[selectedSegments.length - 1].end
     const transcript = selectedSegments.map(s => s.text).join(' ')
+
+    // Auto-generate title from first few words
+    const previewText = selectedSegments[0].text.split(' ').slice(0, 5).join(' ')
+    const clipTitle = previewText + '...'
 
     const clipData: Omit<CanvasClip, 'id' | 'createdAt' | 'updatedAt' | 'position'> = {
       type: 'clip',
@@ -86,7 +97,8 @@ export function EpisodePanelContent({
     }
 
     onCreateClip(clipData)
-    cancelSelection()
+    // Auto-reset after creating clip
+    resetSelection()
   }
 
   const formatDuration = (seconds: number): string => {
@@ -95,34 +107,45 @@ export function EpisodePanelContent({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const selectedDuration = useMemo(() => {
-    if (selectedSegments.length === 0) return 0
-    const start = selectedSegments[0].start
-    const end = selectedSegments[selectedSegments.length - 1].end
-    return end - start
-  }, [selectedSegments])
+  // Calculate selected range for display
+  const selectedRange = useMemo(() => {
+    if (!startSegment || !endSegment) return null
+    
+    const segments = episode.transcript_segments || []
+    const startIndex = segments.findIndex(s => s.id === startSegment.id)
+    const endIndex = segments.findIndex(s => s.id === endSegment.id)
+    
+    const selectedSegments = segments.slice(startIndex, endIndex + 1)
+    const duration = endSegment.end - startSegment.start
+    
+    return {
+      segments: selectedSegments,
+      duration,
+      count: selectedSegments.length
+    }
+  }, [startSegment, endSegment, episode.transcript_segments])
+
+  // Calculate preview range (for hover effect)
+  const previewRange = useMemo(() => {
+    if (!startSegment || endSegment || !hoveredSegment) return null
+    
+    const segments = episode.transcript_segments || []
+    const startIndex = segments.findIndex(s => s.id === startSegment.id)
+    const hoverIndex = segments.findIndex(s => s.id === hoveredSegment.id)
+    
+    // Only show preview if hovering after start
+    if (hoverIndex < startIndex) return null
+    
+    return {
+      startIndex,
+      endIndex: hoverIndex
+    }
+  }, [startSegment, endSegment, hoveredSegment, episode.transcript_segments])
 
   return (
-    <div className="space-y-6">
-      {/* Episode Info - with padding */}
-      <div className="px-4 pt-4">
-        {episode.imageUrl && (
-          <img
-            src={episode.imageUrl}
-            alt={episode.title}
-            className="w-full aspect-video object-cover rounded-lg mb-4"
-          />
-        )}
-        <h3 className="text-xl font-bold text-gray-900 mb-2">
-          {episode.title}
-        </h3>
-        <p className="text-sm text-gray-600">
-          Duration: {formatDuration(episode.duration)}
-        </p>
-      </div>
-
-      {/* Transcript Section - full width */}
-      <div className="px-2">
+    <div className="relative h-full flex flex-col">
+      {/* Transcript Section */}
+      <div className="flex-1 px-2 pt-4 overflow-y-auto" style={{ paddingBottom: selectedRange ? '140px' : '0' }}>
         {!hasTranscript ? (
           <div className="text-center py-8 bg-gray-50 rounded-lg">
             <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -150,76 +173,54 @@ export function EpisodePanelContent({
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Selection toolbar */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="space-y-3">
-                {selectionMode === 'start' && (
-                  <div className="flex items-center text-blue-700 text-sm">
-                    <div className="animate-pulse mr-2">●</div>
-                    <span className="font-medium">Click a segment to start</span>
-                  </div>
-                )}
-                {selectionMode === 'end' && (
-                  <div className="flex items-center text-blue-700 text-sm">
-                    <div className="animate-pulse mr-2">●</div>
-                    <span className="font-medium">Click a segment to end</span>
-                  </div>
-                )}
-                {!selectionMode && selectedSegments.length === 0 && (
-                  <div className="text-gray-700 text-sm">
-                    <span className="font-medium">Create a clip:</span> Select a range from transcript
-                  </div>
-                )}
-                {!selectionMode && selectedSegments.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-green-700 text-sm font-medium">
-                      {selectedSegments.length} segments ({formatDuration(selectedDuration)})
-                    </div>
-                    <Input
-                      type="text"
-                      placeholder="Clip title..."
-                      value={clipTitle}
-                      onChange={(e) => setClipTitle(e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                )}
-                
-                <div className="flex items-center gap-2">
-                  {selectionMode ? (
-                    <Button onClick={cancelSelection} variant="outline" size="sm" className="w-full">
-                      Cancel
-                    </Button>
-                  ) : selectedSegments.length > 0 ? (
-                    <>
-                      <Button onClick={cancelSelection} variant="outline" size="sm" className="flex-1">
-                        Clear
-                      </Button>
-                      <Button onClick={handleCreateClip} size="sm" className="flex-1">
-                        <Scissors className="h-4 w-4 mr-2" />
-                        Create Clip
-                      </Button>
-                    </>
-                  ) : (
-                    <Button onClick={startSelection} size="sm" className="w-full">
-                      <Scissors className="h-4 w-4 mr-2" />
-                      Select Range
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Transcript */}
-            <SearchableTranscript
-              segments={episode.transcript_segments || []}
-              onSegmentClick={handleSegmentClick}
-            />
-          </div>
+          <SearchableTranscript
+            segments={episode.transcript_segments || []}
+            onSegmentClick={handleSegmentClick}
+            onSegmentHover={handleSegmentHover}
+            startSegment={startSegment}
+            endSegment={endSegment}
+            previewRange={previewRange}
+          />
         )}
       </div>
+
+      {/* Fixed action buttons at bottom (only when range is selected) */}
+      {selectedRange && (
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg">
+          <div className="space-y-2">
+            {/* Duration display */}
+            <div className="text-center text-sm font-semibold text-gray-700">
+              {formatDuration(selectedRange.duration)}
+            </div>
+            
+            {/* Action buttons stacked */}
+            <div className="flex flex-col gap-2">
+              <Button 
+                onClick={handleCreateClip} 
+                size="sm"
+                className="w-full gap-2"
+              >
+                <Scissors className="h-4 w-4" />
+                Create Clip
+              </Button>
+              <Button 
+                onClick={resetSelection} 
+                variant="outline" 
+                size="sm"
+                className="w-full gap-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Clear Selection
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+
+
+
 

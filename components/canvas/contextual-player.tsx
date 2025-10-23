@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX } from 'lucide-react'
+import { Play, Pause, SkipForward, SkipBack } from 'lucide-react'
 import { CanvasItem, CanvasEpisode, CanvasClip, CanvasReel } from '@/types'
 
 interface ContextualPlayerProps {
@@ -17,8 +17,6 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [isMuted, setIsMuted] = useState(false)
-  const [volume, setVolume] = useState(1)
   const [currentItemIndex, setCurrentItemIndex] = useState(0)
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false)
   
@@ -265,23 +263,6 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
     setCurrentTime(newTime)
   }
 
-  const toggleMute = () => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    audio.muted = !isMuted
-    setIsMuted(!isMuted)
-  }
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    const newVolume = parseFloat(e.target.value)
-    audio.volume = newVolume
-    setVolume(newVolume)
-  }
-
   const formatTime = (seconds: number): string => {
     if (isNaN(seconds)) return '0:00'
     const mins = Math.floor(seconds / 60)
@@ -310,143 +291,124 @@ export function ContextualPlayer({ selectedItems, allItems, playTrigger, pauseTr
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white shadow-2xl border-t border-gray-700 z-50">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-gray-900/95 backdrop-blur-md text-white shadow-2xl border border-gray-700 rounded-xl z-30 w-[380px]">
       <audio ref={audioRef} />
       
-      <div className="max-w-7xl mx-auto px-6 py-4">
-        <div className="flex items-center gap-4">
-          {/* Current item info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-medium text-purple-400 uppercase">
-                {getType()}
+      <div className="px-4 py-3">
+        {/* Title and Type */}
+        <div className="mb-2">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] font-semibold text-purple-400 uppercase tracking-wide">
+              {getType()}
+            </span>
+            {hasMultiple && (
+              <span className="text-[10px] text-gray-400">
+                {currentItemIndex + 1} of {playableItems.length}
               </span>
-              {hasMultiple && (
-                <span className="text-xs text-gray-400">
-                  {currentItemIndex + 1} of {playableItems.length}
-                </span>
-              )}
-            </div>
-            <h3 className="text-sm font-semibold truncate">
-              {getTitle()}
-            </h3>
+            )}
           </div>
+          <h3 className="text-xs font-semibold truncate">
+            {getTitle()}
+          </h3>
+        </div>
 
+        {/* Progress bar with controls in same row */}
+        <div className="flex items-center gap-2">
           {/* Playback controls */}
-          <div className="flex items-center gap-3">
-            {hasMultiple && (
-              <button
-                onClick={handlePrevious}
-                disabled={currentItemIndex === 0}
-                className="hover:text-purple-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <SkipBack className="h-5 w-5" />
-              </button>
-            )}
-            
+          {hasMultiple && (
             <button
-              onClick={togglePlay}
-              className="bg-purple-600 hover:bg-purple-700 rounded-full p-3 transition-colors"
+              onClick={handlePrevious}
+              disabled={currentItemIndex === 0}
+              className="hover:text-purple-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-1 flex-shrink-0"
             >
-              {isPlaying ? (
-                <Pause className="h-5 w-5" />
-              ) : (
-                <Play className="h-5 w-5 ml-0.5" />
-              )}
+              <SkipBack className="h-3.5 w-3.5" />
             </button>
-
-            {hasMultiple && (
-              <button
-                onClick={handleNext}
-                disabled={currentItemIndex === playableItems.length - 1}
-                className="hover:text-purple-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <SkipForward className="h-5 w-5" />
-              </button>
-            )}
-          </div>
-
-          {/* Progress bar - Segmented for multiple clips */}
-          <div className="flex-1 flex items-center gap-3">
-            <span className="text-xs text-gray-400 w-12 text-right">
-              {formatTime(currentTime)}
-            </span>
-            
-            {hasMultiple ? (
-              // Segmented progress bar
-              <div className="flex-1 flex gap-0.5 h-2">
-                {playableItems.map((item, index) => {
-                  const itemDuration = item.type === 'clip' 
-                    ? (item as CanvasClip).duration 
-                    : (item as CanvasEpisode).duration
-                  const totalDuration = playableItems.reduce((sum, i) => {
-                    return sum + (i.type === 'clip' ? (i as CanvasClip).duration : (i as CanvasEpisode).duration)
-                  }, 0)
-                  const widthPercent = (itemDuration / totalDuration) * 100
-                  const isActive = index === currentItemIndex
-                  const isPast = index < currentItemIndex
-                  const isFuture = index > currentItemIndex
-                  
-                  // Calculate fill percentage for active segment
-                  const fillPercent = isActive ? (currentTime / duration) * 100 : 0
-                  
-                  return (
-                    <button
-                      key={`segment-${index}`}
-                      onClick={() => {
-                        setCurrentItemIndex(index)
-                        setIsPlaying(false)
-                        onPlayingChange?.(false)
-                      }}
-                      className="relative h-full rounded-sm overflow-hidden transition-all hover:opacity-80"
-                      style={{
-                        width: `${widthPercent}%`,
-                        background: isPast 
-                          ? '#9333ea' // Purple for completed
-                          : isFuture 
-                            ? '#374151' // Gray for upcoming
-                            : `linear-gradient(to right, #9333ea 0%, #9333ea ${fillPercent}%, #374151 ${fillPercent}%, #374151 100%)` // Active segment
-                      }}
-                      title={`Clip ${index + 1}`}
-                    />
-                  )
-                })}
-              </div>
+          )}
+          
+          <button
+            onClick={togglePlay}
+            className="bg-purple-600 hover:bg-purple-700 rounded-full p-2 transition-colors flex-shrink-0"
+          >
+            {isPlaying ? (
+              <Pause className="h-3.5 w-3.5" />
             ) : (
-              // Single progress bar
-              <input
-                type="range"
-                min="0"
-                max={duration || 0}
-                value={currentTime}
-                onChange={handleSeek}
-                className="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                style={{
-                  background: `linear-gradient(to right, #9333ea 0%, #9333ea ${(currentTime / duration) * 100}%, #374151 ${(currentTime / duration) * 100}%, #374151 100%)`
-                }}
-              />
+              <Play className="h-3.5 w-3.5 ml-0.5" />
             )}
-            
-            <span className="text-xs text-gray-400 w-12">
-              {formatTime(duration)}
-            </span>
-          </div>
+          </button>
 
-          {/* Volume control */}
-          <div className="flex items-center gap-2">
-            <button onClick={toggleMute} className="hover:text-purple-400 transition-colors">
-              {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          {hasMultiple && (
+            <button
+              onClick={handleNext}
+              disabled={currentItemIndex === playableItems.length - 1}
+              className="hover:text-purple-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-1 flex-shrink-0"
+            >
+              <SkipForward className="h-3.5 w-3.5" />
             </button>
+          )}
+
+          {/* Time and progress */}
+          <span className="text-[10px] text-gray-400 w-9 text-right flex-shrink-0">
+            {formatTime(currentTime)}
+          </span>
+          
+          {hasMultiple ? (
+            // Segmented progress bar for multiple clips
+            <div className="flex-1 flex gap-0.5 h-1.5">
+              {playableItems.map((item, index) => {
+                const itemDuration = item.type === 'clip' 
+                  ? (item as CanvasClip).duration 
+                  : (item as CanvasEpisode).duration
+                const totalDuration = playableItems.reduce((sum, i) => {
+                  return sum + (i.type === 'clip' ? (i as CanvasClip).duration : (i as CanvasEpisode).duration)
+                }, 0)
+                const widthPercent = (itemDuration / totalDuration) * 100
+                const isActive = index === currentItemIndex
+                const isPast = index < currentItemIndex
+                const isFuture = index > currentItemIndex
+                
+                // Calculate fill percentage for active segment
+                const fillPercent = isActive ? (currentTime / duration) * 100 : 0
+                
+                return (
+                  <button
+                    key={`segment-${index}`}
+                    onClick={() => {
+                      setCurrentItemIndex(index)
+                      setIsPlaying(false)
+                      onPlayingChange?.(false)
+                    }}
+                    className="relative h-full rounded-sm overflow-hidden transition-all hover:opacity-80"
+                    style={{
+                      width: `${widthPercent}%`,
+                      background: isPast 
+                        ? '#9333ea' // Purple for completed
+                        : isFuture 
+                          ? '#374151' // Gray for upcoming
+                          : `linear-gradient(to right, #9333ea 0%, #9333ea ${fillPercent}%, #374151 ${fillPercent}%, #374151 100%)` // Active segment
+                    }}
+                    title={`Clip ${index + 1}`}
+                  />
+                )
+              })}
+            </div>
+          ) : (
+            // Single progress bar
             <input
               type="range"
               min="0"
-              max="1"
-              step="0.01"
-              value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="w-20 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+              max={duration || 0}
+              value={currentTime}
+              onChange={handleSeek}
+              className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+              style={{
+                background: `linear-gradient(to right, #9333ea 0%, #9333ea ${(currentTime / duration) * 100}%, #374151 ${(currentTime / duration) * 100}%, #374151 100%)`
+              }}
             />
-          </div>
+          )}
+          
+          <span className="text-[10px] text-gray-400 w-9 flex-shrink-0">
+            {formatTime(duration)}
+          </span>
         </div>
       </div>
     </div>

@@ -1,9 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { GripVertical, X, Play } from 'lucide-react'
+import { GripVertical, X, Play, Download, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CanvasReel, CanvasClip } from '@/types'
+import { 
+  exportReelToVideo,
+  isWebCodecsSupported,
+  sanitizeFilename,
+  type ClipExportData 
+} from '@/lib/video-export'
 
 interface ReelPanelContentProps {
   reel: CanvasReel
@@ -22,6 +28,13 @@ export function ReelPanelContent({
 }: ReelPanelContentProps) {
   const [draggedClipId, setDraggedClipId] = useState<string | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const [progress, setProgress] = useState<number>(0)
+  const [statusMessage, setStatusMessage] = useState<string>('')
+  const [isComplete, setIsComplete] = useState(false)
+  const [includeCaptions, setIncludeCaptions] = useState(true)
+
+  const webCodecsSupported = isWebCodecsSupported()
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -67,6 +80,66 @@ export function ReelPanelContent({
   const handleDragEnd = () => {
     setDraggedClipId(null)
     setDragOverIndex(null)
+  }
+
+  const handleExport = async () => {
+    setIsExporting(true)
+    setProgress(0)
+    setIsComplete(false)
+    setStatusMessage('Preparing export...')
+
+    try {
+      // Get clips in order from the reel
+      const reelClips = reel.clipIds
+        .map(clipId => clips.find(c => c.id === clipId))
+        .filter((clip): clip is CanvasClip => clip !== undefined)
+
+      if (reelClips.length === 0) {
+        alert('This reel has no clips to export')
+        return
+      }
+
+      const clipData: ClipExportData[] = reelClips.map(clip => ({
+        title: clip.title,
+        audioUrl: clip.audioUrl,
+        imageUrl: clip.imageUrl,
+        startTime: clip.startTime,
+        endTime: clip.endTime,
+        duration: clip.duration,
+        segments: clip.segments
+      }))
+
+      setStatusMessage('Generating reel...')
+      const videoBlob = await exportReelToVideo(clipData, (p) => {
+        setProgress(p * 100)
+      }, { includeCaptions })
+      
+      // Download the video
+      const url = URL.createObjectURL(videoBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${sanitizeFilename(reel.title)}.mp4`
+      a.click()
+      URL.revokeObjectURL(url)
+
+      setStatusMessage('Export complete!')
+      setIsComplete(true)
+      setProgress(100)
+      
+      // Reset after 3 seconds
+      setTimeout(() => {
+        setStatusMessage('')
+        setIsComplete(false)
+        setProgress(0)
+      }, 3000)
+    } catch (error) {
+      console.error('Export failed:', error)
+      setStatusMessage('')
+      setProgress(0)
+      alert(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
@@ -158,11 +231,79 @@ export function ReelPanelContent({
       </div>
 
       {/* Export Section */}
-      <div className="border-t pt-4">
-        <Button className="w-full bg-orange-600 hover:bg-orange-700">
-          Export Reel
+      <div className="border-t pt-4 space-y-3">
+        {/* Browser Support Warning */}
+        {!webCodecsSupported && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="flex gap-2">
+              <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-xs text-yellow-800">
+                  Video export requires WebCodecs API. Please use Chrome 94+, Edge 94+, or Safari 16.4+.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Export Options */}
+        <div>
+          <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+            <input
+              type="checkbox"
+              checked={includeCaptions}
+              onChange={(e) => setIncludeCaptions(e.target.checked)}
+              className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+            />
+            <div className="flex-1">
+              <div className="text-sm font-medium text-gray-900">Include Captions</div>
+              <div className="text-xs text-gray-500">Add transcript as subtitles on video</div>
+            </div>
+          </label>
+        </div>
+
+        {/* Progress */}
+        {isExporting && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-orange-600 font-medium">{statusMessage}</span>
+              <span className="text-gray-600">{Math.round(progress)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-orange-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {isComplete && (
+          <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
+            <CheckCircle className="h-4 w-4" />
+            {statusMessage}
+          </div>
+        )}
+
+        <Button 
+          onClick={handleExport}
+          disabled={isExporting || !webCodecsSupported}
+          className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400"
+        >
+          {isExporting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Exporting Video...
+            </>
+          ) : (
+            <>
+              <Download className="h-4 w-4 mr-2" />
+              Export Reel
+            </>
+          )}
         </Button>
-        <p className="text-xs text-gray-500 mt-2 text-center">
+        <p className="text-xs text-gray-500 text-center">
           Export all clips as a continuous sequence
         </p>
       </div>

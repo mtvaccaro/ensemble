@@ -22,7 +22,8 @@ interface TranscriptionResponse {
 }
 
 interface StartTranscriptionParams {
-  audioUrl: string
+  audioUrl?: string
+  audioFile?: File
   title: string
 }
 
@@ -46,19 +47,34 @@ export function useTranscription(episodeId: string) {
     }
   }, [episodeId])
 
-  const startTranscription = useCallback(async ({ audioUrl, title }: StartTranscriptionParams) => {
+  const startTranscription = useCallback(async ({ audioUrl, audioFile, title }: StartTranscriptionParams) => {
     // Set status to in-progress in localStorage
     storage.setTranscriptStatus(episodeId, TranscriptionStatus.IN_PROGRESS)
     setState(prev => ({ ...prev, isLoading: true, error: undefined, status: TranscriptionStatus.IN_PROGRESS }))
 
     try {
-      const response = await fetch(`/api/episodes/${episodeId}/transcribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ audioUrl, title }),
-      })
+      let response
+      
+      if (audioFile) {
+        // Send file upload
+        const formData = new FormData()
+        formData.append('audio', audioFile)
+        formData.append('title', title)
+        
+        response = await fetch(`/api/episodes/${episodeId}/transcribe`, {
+          method: 'POST',
+          body: formData,
+        })
+      } else {
+        // Send URL
+        response = await fetch(`/api/episodes/${episodeId}/transcribe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ audioUrl, episodeTitle: title }),
+        })
+      }
 
       const data: TranscriptionResponse = await response.json()
 

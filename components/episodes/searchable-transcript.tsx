@@ -7,10 +7,50 @@ import { TranscriptSegment } from '@/types'
 interface SearchableTranscriptProps {
   segments: TranscriptSegment[]
   onSegmentClick?: (segment: TranscriptSegment) => void
+  onSegmentHover?: (segment: TranscriptSegment | null) => void
+  startSegment?: TranscriptSegment | null
+  endSegment?: TranscriptSegment | null
+  previewRange?: { startIndex: number; endIndex: number } | null
 }
 
-export function SearchableTranscript({ segments, onSegmentClick }: SearchableTranscriptProps) {
+export function SearchableTranscript({ 
+  segments, 
+  onSegmentClick,
+  onSegmentHover,
+  startSegment,
+  endSegment,
+  previewRange
+}: SearchableTranscriptProps) {
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Determine segment selection state
+  const getSegmentState = (segment: TranscriptSegment, index: number): 'start' | 'end' | 'selected' | 'preview' | null => {
+    // Check if this is the start segment
+    if (startSegment && segment.id === startSegment.id) {
+      return 'start'
+    }
+    
+    // Check if this is the end segment
+    if (endSegment && segment.id === endSegment.id) {
+      return 'end'
+    }
+    
+    // Check if in selected range (between start and end)
+    if (startSegment && endSegment) {
+      const startIndex = segments.findIndex(s => s.id === startSegment.id)
+      const endIndex = segments.findIndex(s => s.id === endSegment.id)
+      if (index > startIndex && index < endIndex) {
+        return 'selected'
+      }
+    }
+    
+    // Check if in preview range (hover effect)
+    if (previewRange && index > previewRange.startIndex && index < previewRange.endIndex) {
+      return 'preview'
+    }
+    
+    return null
+  }
 
   // Find matches and highlight segments
   const { highlightedSegments, matchCount } = useMemo(() => {
@@ -89,7 +129,7 @@ export function SearchableTranscript({ segments, onSegmentClick }: SearchableTra
       </div>
 
       {/* Transcript Paragraphs */}
-      <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+      <div className="space-y-2 pr-1">
         {paragraphs.map((paragraphSegments, paragraphIndex) => {
           const hasMatchInParagraph = paragraphSegments.some(s => s.hasMatch)
 
@@ -101,31 +141,46 @@ export function SearchableTranscript({ segments, onSegmentClick }: SearchableTra
                 ${hasMatchInParagraph ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200'}
               `}
             >
-              {paragraphSegments.map((segment) => (
-                <div
-                  key={segment.id}
-                  className={`
-                    flex gap-2 p-1.5 rounded cursor-pointer transition-colors
-                    ${segment.hasMatch ? 'bg-yellow-100' : 'hover:bg-white'}
-                  `}
-                  onClick={() => onSegmentClick?.(segment)}
-                  title={`Click to jump to ${formatTimestamp(segment.start)}`}
-                >
-                  {/* Timestamp */}
-                  <div className="text-[10px] text-gray-500 font-mono min-w-[50px] flex-shrink-0 hover:text-blue-600">
-                    {formatTimestamp(segment.start)}
+              {paragraphSegments.map((segment) => {
+                const segmentIndex = segments.findIndex(s => s.id === segment.id)
+                const state = getSegmentState(segment, segmentIndex)
+                
+                // Determine background color based on state
+                let bgClass = segment.hasMatch ? 'bg-yellow-100' : 'hover:bg-white'
+                if (state === 'start' || state === 'end' || state === 'selected') {
+                  bgClass = 'bg-blue-100 border border-blue-300'
+                } else if (state === 'preview') {
+                  bgClass = 'bg-blue-50 border border-blue-200'
+                }
+                
+                return (
+                  <div
+                    key={segment.id}
+                    className={`
+                      flex gap-2 p-1.5 rounded cursor-pointer transition-colors
+                      ${bgClass}
+                    `}
+                    onClick={() => onSegmentClick?.(segment)}
+                    onMouseEnter={() => onSegmentHover?.(segment)}
+                    onMouseLeave={() => onSegmentHover?.(null)}
+                    title={`Click to ${state === null ? 'select' : state === 'start' ? 'selected as start' : 'select as end'}`}
+                  >
+                    {/* Timestamp */}
+                    <div className="text-[10px] text-gray-500 font-mono min-w-[50px] flex-shrink-0 hover:text-blue-600">
+                      {formatTimestamp(segment.start)}
+                    </div>
+                    
+                    {/* Text with highlights */}
+                    <div className="text-xs text-gray-700 flex-1 leading-snug">
+                      {searchQuery ? (
+                        <HighlightedText text={segment.text} query={searchQuery} />
+                      ) : (
+                        segment.text
+                      )}
+                    </div>
                   </div>
-                  
-                  {/* Text with highlights */}
-                  <div className="text-xs text-gray-700 flex-1 leading-snug">
-                    {searchQuery ? (
-                      <HighlightedText text={segment.text} query={searchQuery} />
-                    ) : (
-                      segment.text
-                    )}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )
         })}

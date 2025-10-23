@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+import { AssemblyAI } from 'assemblyai'
 import { TranscriptionStatus } from '@/types'
 
 interface RouteParams {
@@ -8,88 +8,132 @@ interface RouteParams {
   }>
 }
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+// Initialize AssemblyAI client
+const client = new AssemblyAI({
+  apiKey: process.env.ASSEMBLYAI_API_KEY!,
 })
-
-// Maximum file size for Whisper API (25 MB)
-const MAX_FILE_SIZE = 25 * 1024 * 1024
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id: episodeId } = await params
   
   try {
-    // Get episode data from request body (sent from client with localStorage data)
-    const body = await request.json()
-    const { audioUrl, title } = body
+    const contentType = request.headers.get('content-type')
+    let audioUrl: string | undefined
+    let audioFile: File | undefined
+    let episodeTitle: string | undefined
 
-    if (!audioUrl) {
-      return NextResponse.json({ error: 'Audio URL is required' }, { status: 400 })
+    // Handle both JSON (URL) and FormData (file upload)
+    if (contentType?.includes('multipart/form-data')) {
+      // File upload
+      const formData = await request.formData()
+      audioFile = formData.get('audio') as File
+      episodeTitle = formData.get('title') as string
+
+      if (!audioFile) {
+        return NextResponse.json({ error: 'Audio file is required' }, { status: 400 })
+      }
+      console.log('🎙️  Starting AssemblyAI transcription for uploaded file:', episodeTitle)
+      console.log('📁 File:', audioFile.name, `(${(audioFile.size / 1024 / 1024).toFixed(2)} MB)`)
+    } else {
+      // URL from podcast episode
+      const body = await request.json()
+      audioUrl = body.audioUrl
+      episodeTitle = body.episodeTitle
+
+      if (!audioUrl) {
+        return NextResponse.json({ error: 'Audio URL is required' }, { status: 400 })
+      }
+      console.log('🎙️  Starting AssemblyAI transcription for episode:', episodeId, episodeTitle)
+      console.log('🎵 Audio URL:', audioUrl)
     }
 
-    console.log('Starting transcription for episode:', episodeId, title)
-
     try {
-      // Download the audio file
-      console.log('Downloading audio file:', audioUrl)
-      const audioResponse = await fetch(audioUrl)
+      const startTime = Date.now()
+
+      // Submit transcription to AssemblyAI
+      console.log('🚀 Submitting to AssemblyAI...')
       
-      if (!audioResponse.ok) {
-        throw new Error(`Failed to download audio file: ${audioResponse.statusText}`)
+      let transcript
+      if (audioFile) {
+        // Upload file directly to AssemblyAI
+        transcript = await client.transcripts.transcribe({
+          audio: audioFile,
+          language_code: 'en',
+        })
+      } else {
+        // Use URL for podcast episodes
+        transcript = await client.transcripts.transcribe({
+          audio_url: audioUrl!,
+          language_code: 'en',
+        })
       }
 
-      const contentLength = audioResponse.headers.get('content-length')
-      if (contentLength && parseInt(contentLength) > MAX_FILE_SIZE) {
-        throw new Error('Audio file is too large (max 25MB for Whisper API)')
+      const processingTime = ((Date.now() - startTime) / 1000).toFixed(1)
+      console.log(`✅ Transcription completed in ${processingTime}s`)
+      console.log('📝 Words:', transcript.words?.length || 0)
+      console.log('📄 Full text length:', transcript.text?.length || 0, 'characters')
+      console.log('⏱️  Audio duration:', transcript.audio_duration, 'seconds')
+
+      // Convert AssemblyAI words to segments format (similar to Whisper)
+      // Group words into ~5-second segments for compatibility with existing UI
+      const segments = []
+      if (transcript.words && transcript.words.length > 0) {
+        let currentSegment: any = {
+          id: 0,
+          start: transcript.words[0].start / 1000, // Convert ms to seconds
+          end: transcript.words[0].end / 1000,
+          text: ''
+        }
+        
+        for (let i = 0; i < transcript.words.length; i++) {
+          const word = transcript.words[i]
+          const wordStart = word.start / 1000
+          const wordEnd = word.end / 1000
+          
+          // Start new segment if we've exceeded 5 seconds or have 50 words
+          if ((wordStart - currentSegment.start > 5) || (currentSegment.text.split(' ').length >= 50)) {
+            segments.push({ ...currentSegment })
+            currentSegment = {
+              id: segments.length,
+              start: wordStart,
+              end: wordEnd,
+              text: word.text
+            }
+          } else {
+            currentSegment.text += (currentSegment.text ? ' ' : '') + word.text
+            currentSegment.end = wordEnd
+          }
+        }
+        
+        // Push final segment
+        if (currentSegment.text) {
+          segments.push(currentSegment)
+        }
       }
 
-      const audioBuffer = await audioResponse.arrayBuffer()
-      const audioBlob = new Blob([audioBuffer])
-      
-      // Get file extension from URL or default to mp3
-      const urlParts = audioUrl.split('.')
-      const extension = urlParts[urlParts.length - 1].split('?')[0] || 'mp3'
-      const fileName = `episode_${episodeId}.${extension}`
-      
-      // Create a File object for OpenAI
-      const audioFile = new File([audioBlob], fileName, {
-        type: `audio/${extension}`,
-      })
-
-      console.log('Sending to OpenAI Whisper API...', {
-        fileSize: audioBlob.size,
-        fileName
-      })
-      
-      // Call OpenAI Whisper API with verbose_json for segments
-      const transcription = await openai.audio.transcriptions.create({
-        file: audioFile,
-        model: 'whisper-1',
-        language: 'en',
-        response_format: 'verbose_json',
-        timestamp_granularities: ['segment']
-      })
-
-      console.log('Transcription completed successfully')
-      console.log('Segments:', transcription.segments?.length || 0)
-      console.log('Full text length:', transcription.text?.length || 0)
+      console.log('📦 Created', segments.length, 'segments from', transcript.words?.length || 0, 'words')
 
       return NextResponse.json({
         message: 'Transcription completed successfully',
-        transcript: transcription.text,
-        segments: transcription.segments || [],
-        duration: transcription.duration,
-        language: transcription.language,
+        transcript: transcript.text,
+        segments: segments,
+        duration: transcript.audio_duration || 0,
+        language: 'en',
         status: TranscriptionStatus.COMPLETED,
+        processingTime: processingTime,
       })
 
     } catch (transcriptionError) {
-      console.error('Transcription error:', transcriptionError)
+      console.error('❌ Transcription error:', transcriptionError)
       
       const errorMessage = transcriptionError instanceof Error 
         ? transcriptionError.message 
         : 'Unknown error during transcription'
+      
+      // Log the full error for debugging
+      if (transcriptionError instanceof Error && transcriptionError.stack) {
+        console.error('Stack trace:', transcriptionError.stack)
+      }
 
       return NextResponse.json(
         {
@@ -102,7 +146,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
   } catch (error) {
-    console.error('Transcribe endpoint error:', error)
+    console.error('❌ Transcribe endpoint error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

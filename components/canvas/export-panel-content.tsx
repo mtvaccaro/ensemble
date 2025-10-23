@@ -5,7 +5,8 @@ import { Download, Video, Loader2, AlertCircle, CheckCircle } from 'lucide-react
 import { Button } from '@/components/ui/button'
 import { CanvasClip } from '@/types'
 import { 
-  exportClipToVideo, 
+  exportClipToVideo,
+  exportReelToVideo, 
   isWebCodecsSupported,
   sanitizeFilename,
   type ClipExportData 
@@ -21,6 +22,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
   const [progress, setProgress] = useState<number>(0)
   const [statusMessage, setStatusMessage] = useState<string>('')
   const [isComplete, setIsComplete] = useState(false)
+  const [includeCaptions, setIncludeCaptions] = useState(true)
 
   const webCodecsSupported = isWebCodecsSupported()
 
@@ -37,20 +39,34 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
         imageUrl: clip.imageUrl,
         startTime: clip.startTime,
         endTime: clip.endTime,
-        duration: clip.duration
+        duration: clip.duration,
+        segments: clip.segments
       }))
 
-      // Always export as individual clip
-      setStatusMessage('Generating video...')
-      const videoBlob = await exportClipToVideo(clipData[0], (p) => {
-        setProgress(p * 100)
-      })
+      let videoBlob: Blob
+      let filename: string
+
+      if (clips.length > 1) {
+        // Export as reel (concatenated clips)
+        setStatusMessage('Generating reel...')
+        videoBlob = await exportReelToVideo(clipData, (p) => {
+          setProgress(p * 100)
+        }, { includeCaptions })
+        filename = `reel-${clips.length}-clips.mp4`
+      } else {
+        // Export single clip
+        setStatusMessage('Generating video...')
+        videoBlob = await exportClipToVideo(clipData[0], (p) => {
+          setProgress(p * 100)
+        }, { includeCaptions })
+        filename = `${sanitizeFilename(clipData[0].title)}.mp4`
+      }
       
       // Download the video
       const url = URL.createObjectURL(videoBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${sanitizeFilename(clipData[0].title)}.mp4`
+      a.download = filename
       a.click()
       URL.revokeObjectURL(url)
 
@@ -88,10 +104,11 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
       {/* Summary */}
       <div>
         <h3 className="text-lg font-bold text-gray-900 mb-1">
-          Export to MP4 Video
+          {clips.length > 1 ? 'Export Reel to MP4' : 'Export Clip to MP4'}
         </h3>
         <p className="text-sm text-gray-600">
-          {clips.length} clip{clips.length !== 1 ? 's' : ''} · {formatDuration(totalDuration)} · 1080x1080 (LinkedIn optimized)
+          {clips.length} clip{clips.length !== 1 ? 's' : ''} · {formatDuration(totalDuration)} · 1080x1080
+          {clips.length > 1 && ' (concatenated)'}
         </p>
       </div>
 
@@ -115,7 +132,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
       {/* Clip List */}
       <div>
         <label className="block text-sm font-medium text-gray-900 mb-3">
-          Clips to Export
+          {clips.length > 1 ? `Clips (in order)` : 'Clip to Export'}
         </label>
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {clips.map((clip, index) => (
@@ -131,6 +148,25 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Export Options */}
+      <div>
+        <label className="block text-sm font-medium text-gray-900 mb-2">
+          Export Options
+        </label>
+        <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+          <input
+            type="checkbox"
+            checked={includeCaptions}
+            onChange={(e) => setIncludeCaptions(e.target.checked)}
+            className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+          />
+          <div className="flex-1">
+            <div className="text-sm font-medium text-gray-900">Include Captions</div>
+            <div className="text-xs text-gray-500">Add transcript as subtitles on video</div>
+          </div>
+        </label>
       </div>
 
       {/* Progress */}
