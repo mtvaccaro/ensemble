@@ -2,8 +2,15 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Force cache invalidation: 2025-01-23
 
   webpack: (config, { isServer }) => {
+    // Cache buster
+    config.cache = {
+      ...config.cache,
+      version: '2025-01-23-v2',
+    };
+
     // Don't process mediabunny on the server side
     if (isServer) {
       config.externals = config.externals || [];
