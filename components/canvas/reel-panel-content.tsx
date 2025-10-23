@@ -33,8 +33,36 @@ export function ReelPanelContent({
   const [statusMessage, setStatusMessage] = useState<string>('')
   const [isComplete, setIsComplete] = useState(false)
   const [includeCaptions, setIncludeCaptions] = useState(true)
+  const [platform, setPlatform] = useState('instagram')
+  const [format, setFormat] = useState('reels')
 
   const webCodecsSupported = isWebCodecsSupported()
+
+  // Get dimensions based on platform and format
+  const getDimensions = () => {
+    if (platform === 'tiktok') return { width: 1080, height: 1920, label: 'Vertical (9:16)' }
+    if (platform === 'instagram') {
+      if (format === 'reels') return { width: 1080, height: 1920, label: 'Reels/Stories (9:16)' }
+      if (format === 'square') return { width: 1080, height: 1080, label: 'Feed Square (1:1)' }
+      if (format === 'portrait') return { width: 1080, height: 1350, label: 'Feed Portrait (4:5)' }
+    }
+    if (platform === 'youtube') {
+      if (format === 'shorts') return { width: 1080, height: 1920, label: 'Shorts (9:16)' }
+      if (format === 'standard') return { width: 1920, height: 1080, label: 'Standard (16:9)' }
+    }
+    if (platform === 'linkedin') {
+      if (format === 'square') return { width: 1080, height: 1080, label: 'Square (1:1)' }
+      if (format === 'horizontal') return { width: 1920, height: 1080, label: 'Horizontal (16:9)' }
+      if (format === 'vertical') return { width: 1080, height: 1920, label: 'Vertical (9:16)' }
+    }
+    if (platform === 'twitter') {
+      if (format === 'horizontal') return { width: 1280, height: 720, label: 'Horizontal (16:9)' }
+      if (format === 'square') return { width: 1080, height: 1080, label: 'Square (1:1)' }
+    }
+    return { width: 1080, height: 1080, label: 'Square (1:1)' }
+  }
+
+  const dimensions = getDimensions()
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -112,7 +140,7 @@ export function ReelPanelContent({
       setStatusMessage('Generating reel...')
       const videoBlob = await exportReelToVideo(clipData, (p) => {
         setProgress(p * 100)
-      }, { includeCaptions })
+      }, { includeCaptions, width: dimensions.width, height: dimensions.height })
       
       // Download the video
       const url = URL.createObjectURL(videoBlob)
@@ -245,6 +273,102 @@ export function ReelPanelContent({
             </div>
           </div>
         )}
+
+        {/* Platform & Format Selection */}
+        <div className="space-y-3">
+          {/* Platform */}
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">
+              Platform
+            </label>
+            <select
+              value={platform}
+              onChange={(e) => {
+                setPlatform(e.target.value)
+                // Reset format when platform changes
+                if (e.target.value === 'tiktok') setFormat('vertical')
+                if (e.target.value === 'instagram') setFormat('reels')
+                if (e.target.value === 'youtube') setFormat('shorts')
+                if (e.target.value === 'linkedin') setFormat('square')
+                if (e.target.value === 'twitter') setFormat('horizontal')
+              }}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            >
+              <option value="tiktok">TikTok</option>
+              <option value="instagram">Instagram</option>
+              <option value="youtube">YouTube</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="twitter">Twitter/X</option>
+            </select>
+          </div>
+
+          {/* Format - conditional based on platform */}
+          {platform === 'instagram' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Format
+              </label>
+              <select
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              >
+                <option value="reels">Reels / Stories (9:16)</option>
+                <option value="square">Feed Square (1:1)</option>
+                <option value="portrait">Feed Portrait (4:5)</option>
+              </select>
+            </div>
+          )}
+
+          {platform === 'youtube' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Format
+              </label>
+              <select
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              >
+                <option value="shorts">Shorts (9:16)</option>
+                <option value="standard">Standard (16:9)</option>
+              </select>
+            </div>
+          )}
+
+          {platform === 'linkedin' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Format
+              </label>
+              <select
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              >
+                <option value="square">Square (1:1)</option>
+                <option value="horizontal">Horizontal (16:9)</option>
+                <option value="vertical">Vertical (9:16)</option>
+              </select>
+            </div>
+          )}
+
+          {platform === 'twitter' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Format
+              </label>
+              <select
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              >
+                <option value="horizontal">Horizontal (16:9)</option>
+                <option value="square">Square (1:1)</option>
+              </select>
+            </div>
+          )}
+        </div>
 
         {/* Export Options */}
         <div>
