@@ -510,7 +510,13 @@ export default function CanvasPage() {
     }
     
     // Left click on canvas background (not on items) starts selection rectangle
-    if (e.button === 0 && e.target === e.currentTarget) {
+    const target = e.target as HTMLElement
+    const isCanvasBackground = 
+      target === canvasRef.current || 
+      target.hasAttribute('data-canvas-content') ||
+      target.tagName.toLowerCase() === 'svg'
+    
+    if (e.button === 0 && isCanvasBackground) {
       const rect = canvasRef.current?.getBoundingClientRect()
       if (!rect) return
       
