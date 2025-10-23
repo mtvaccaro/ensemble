@@ -64,13 +64,11 @@ export default function CanvasPage() {
   // Track which episode is generating AI clips
   const [generatingClipsFor, setGeneratingClipsFor] = useState<string | null>(null)
   
-  // Sidebar collapse state
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  // Search panel state
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   
-  // Panel resize state
-  const [leftPanelWidth, setLeftPanelWidth] = useState(360)
+  // Right panel resize state
   const [rightPanelWidth, setRightPanelWidth] = useState(360)
-  const [isResizingLeft, setIsResizingLeft] = useState(false)
   const [isResizingRight, setIsResizingRight] = useState(false)
   const MIN_PANEL_WIDTH = 260
   const MAX_PANEL_WIDTH = 600
@@ -94,10 +92,8 @@ export default function CanvasPage() {
     setCanvasItems(state.items)
     setSelectedItemIds(state.selectedItemIds)
     
-    // Load panel widths from localStorage
-    const savedLeftWidth = localStorage.getItem('leftPanelWidth')
+    // Load right panel width from localStorage
     const savedRightWidth = localStorage.getItem('rightPanelWidth')
-    if (savedLeftWidth) setLeftPanelWidth(parseInt(savedLeftWidth))
     if (savedRightWidth) setRightPanelWidth(parseInt(savedRightWidth))
   }, [])
 
@@ -113,14 +109,9 @@ export default function CanvasPage() {
     return () => window.removeEventListener('keydown', handleEscape)
   }, [panelType])
 
-  // Handle panel resizing
+  // Handle right panel resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (isResizingLeft) {
-        const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, e.clientX))
-        setLeftPanelWidth(newWidth)
-        localStorage.setItem('leftPanelWidth', newWidth.toString())
-      }
       if (isResizingRight) {
         const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, window.innerWidth - e.clientX))
         setRightPanelWidth(newWidth)
@@ -129,13 +120,12 @@ export default function CanvasPage() {
     }
 
     const handleMouseUp = () => {
-      setIsResizingLeft(false)
       setIsResizingRight(false)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
 
-    if (isResizingLeft || isResizingRight) {
+    if (isResizingRight) {
       document.body.style.cursor = 'ew-resize'
       document.body.style.userSelect = 'none'
       window.addEventListener('mousemove', handleMouseMove)
@@ -147,7 +137,14 @@ export default function CanvasPage() {
         document.body.style.userSelect = ''
       }
     }
-  }, [isResizingLeft, isResizingRight, MIN_PANEL_WIDTH, MAX_PANEL_WIDTH])
+  }, [isResizingRight, MIN_PANEL_WIDTH, MAX_PANEL_WIDTH])
+  
+  // Auto-expand search panel when results are loaded
+  useEffect(() => {
+    if (searchResults.length > 0 || selectedPodcast) {
+      setIsSearchExpanded(true)
+    }
+  }, [searchResults, selectedPodcast])
 
   // Save canvas state whenever it changes
   useEffect(() => {
@@ -993,32 +990,10 @@ export default function CanvasPage() {
 
   return (
     <div className="flex h-screen bg-gray-50" style={{ overscrollBehavior: 'none' }}>
-      {/* Sidebar - Podcast Search - Collapsible */}
-      {!isSidebarCollapsed && (
-        <div 
-          className="bg-white border-r border-gray-200 flex flex-col overflow-hidden relative group"
-          style={{ width: `${leftPanelWidth}px`, minWidth: `${MIN_PANEL_WIDTH}px`, maxWidth: `${MAX_PANEL_WIDTH}px` }}
-        >
-          {/* Resize Handle */}
-          <div
-            className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-blue-500 group-hover:bg-blue-300 transition-colors z-50"
-            onMouseDown={() => setIsResizingLeft(true)}
-            title="Drag to resize"
-          />
-          {/* Collapse button */}
-          <button
-            onClick={() => setIsSidebarCollapsed(true)}
-            className="absolute top-4 right-2 z-10 p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700 transition-colors"
-            title="Collapse sidebar (more canvas space)"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          
-          {/* Header */}
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900 mb-2">Canvas Clip Editor</h2>
-            <p className="text-sm text-gray-600 mb-4">Search podcasts, drag episodes to canvas</p>
-          
+      {/* Floating Search Card - Top Left */}
+      <div className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-xl">
+        {/* Search Input (Always Visible) */}
+        <div className="p-3">
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -1027,125 +1002,124 @@ export default function CanvasPage() {
                 placeholder="Search podcasts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 text-sm"
+                onFocus={() => {
+                  if (searchResults.length > 0 || selectedPodcast) {
+                    setIsSearchExpanded(true)
+                  }
+                }}
               />
             </div>
             <Button type="submit" disabled={isSearching} size="sm">
-              {isSearching ? '...' : 'Search'}
+              {isSearching ? '...' : 'Go'}
             </Button>
           </form>
         </div>
 
-        {/* Search Results or Episodes */}
-        <div className="flex-1 overflow-y-auto">
-          {selectedPodcast ? (
-            // Episode list
-            <div className="p-4">
-              <button
-                onClick={() => {
-                  setSelectedPodcast(null)
-                  setEpisodes([])
-                }}
-                className="flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
-              >
-                ← Back to search
-              </button>
-              
-              <div className="flex items-start gap-3 mb-4 pb-4 border-b">
-                <img
-                  src={selectedPodcast.imageUrl}
-                  alt={selectedPodcast.title}
-                  className="w-16 h-16 rounded-lg object-cover"
-                />
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-sm">
-                    {selectedPodcast.title}
-                  </h3>
-                  <p className="text-xs text-gray-600">{selectedPodcast.author}</p>
-                </div>
-              </div>
+        {/* Expanded Results (Collapsible) */}
+        {isSearchExpanded && (searchResults.length > 0 || selectedPodcast) && (
+          <>
+            <div className="border-t border-gray-200" />
+            <div className="overflow-y-auto" style={{ maxHeight: '60vh' }}>
+              {selectedPodcast ? (
+                // Episode list
+                <div className="p-3">
+                  <button
+                    onClick={() => {
+                      setSelectedPodcast(null)
+                      setEpisodes([])
+                    }}
+                    className="flex items-center text-sm text-gray-600 hover:text-gray-900 mb-3"
+                  >
+                    ← Back to search
+                  </button>
+                  
+                  <div className="flex items-start gap-3 mb-3 pb-3 border-b">
+                    <img
+                      src={selectedPodcast.imageUrl}
+                      alt={selectedPodcast.title}
+                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">
+                        {selectedPodcast.title}
+                      </h3>
+                      <p className="text-xs text-gray-600">{selectedPodcast.author}</p>
+                    </div>
+                  </div>
 
-              {isLoadingEpisodes ? (
-                <p className="text-sm text-gray-500 text-center py-4">Loading episodes...</p>
-              ) : (
-                <div className="space-y-2">
-                  {episodes.map((episode) => (
-                    <div
-                      key={episode.id}
-                      draggable
-                      onDragStart={() => handleDragEpisodeStart(episode, selectedPodcast)}
-                      className="p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100 hover:border-gray-300 transition-colors"
-                    >
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium text-gray-900 line-clamp-2">
-                            {episode.title}
-                          </h4>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {formatDuration(episode.duration)}
-                          </p>
+                  {isLoadingEpisodes ? (
+                    <p className="text-sm text-gray-500 text-center py-4">Loading episodes...</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {episodes.map((episode) => (
+                        <div
+                          key={episode.id}
+                          draggable
+                          onDragStart={() => handleDragEpisodeStart(episode, selectedPodcast)}
+                          className="p-2 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-xs font-medium text-gray-900 line-clamp-2">
+                                {episode.title}
+                              </h4>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {formatDuration(episode.duration)}
+                              </p>
+                            </div>
+                            <div className="text-gray-400 text-xs flex-shrink-0">⋮⋮</div>
+                          </div>
                         </div>
-                        <div className="text-gray-400 text-xs">⋮⋮</div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                </div>
+              ) : (
+                // Podcast search results
+                <div className="p-3">
+                  <div className="space-y-2">
+                    {searchResults.map((podcast) => (
+                      <div
+                        key={podcast.id}
+                        onClick={() => loadEpisodes(podcast)}
+                        className="p-2 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all"
+                      >
+                        <div className="flex items-start gap-2">
+                          <img
+                            src={podcast.imageUrl}
+                            alt={podcast.title}
+                            className="w-10 h-10 rounded object-cover flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-xs font-semibold text-gray-900 line-clamp-1">
+                              {podcast.title}
+                            </h3>
+                            <p className="text-xs text-gray-600 line-clamp-1">{podcast.author}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {podcast.episodeCount} episodes
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-          ) : (
-            // Podcast search results
-            <div className="p-4">
-              {searchResults.length === 0 ? (
-                <div className="text-center py-12">
-                  <Search className="mx-auto h-12 w-12 text-gray-300" />
-                  <p className="mt-2 text-sm text-gray-500">
-                    Search for podcasts to get started
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {searchResults.map((podcast) => (
-                    <div
-                      key={podcast.id}
-                      onClick={() => loadEpisodes(podcast)}
-                      className="p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-start gap-3">
-                        <img
-                          src={podcast.imageUrl}
-                          alt={podcast.title}
-                          className="w-12 h-12 rounded object-cover"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">
-                            {podcast.title}
-                          </h3>
-                          <p className="text-xs text-gray-600">{podcast.author}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {podcast.episodeCount} episodes
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            
+            {/* Collapse button */}
+            <div className="border-t border-gray-200 p-2">
+              <button
+                onClick={() => setIsSearchExpanded(false)}
+                className="w-full text-xs text-gray-600 hover:text-gray-900 py-1"
+              >
+                Collapse
+              </button>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
-      )}
-      
-      {/* Collapsed Sidebar Toggle Button */}
-      {isSidebarCollapsed && (
-        <button
-          onClick={() => setIsSidebarCollapsed(false)}
-          className="fixed top-4 left-4 z-30 bg-white border border-gray-300 shadow-lg p-3 rounded-lg hover:bg-gray-50 transition-colors"
-          title="Show podcast search"
-        >
-          <Search className="h-5 w-5 text-gray-700" />
-        </button>
-      )}
 
       {/* Canvas Area */}
       <div className="flex-1 flex flex-col" style={{ overscrollBehavior: 'none' }}>
