@@ -261,7 +261,7 @@ export function WordLevelTranscript({
     if (!searchQuery) return []
     
     const query = searchQuery.toLowerCase().trim()
-    const matches: Array<{ blockIdx: number; wordIdx: number; text: string }> = []
+    const matches: SearchMatch[] = []
     
     consolidatedSpeakerBlocks.forEach((block, blockIdx) => {
       // Build full text for this block with word positions
