@@ -67,6 +67,14 @@ export default function CanvasPage() {
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   
+  // Panel resize state
+  const [leftPanelWidth, setLeftPanelWidth] = useState(360)
+  const [rightPanelWidth, setRightPanelWidth] = useState(360)
+  const [isResizingLeft, setIsResizingLeft] = useState(false)
+  const [isResizingRight, setIsResizingRight] = useState(false)
+  const MIN_PANEL_WIDTH = 260
+  const MAX_PANEL_WIDTH = 600
+  
   // Play trigger (to differentiate selection from explicit play action)
   const [playTrigger, setPlayTrigger] = useState<number>(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -80,11 +88,17 @@ export default function CanvasPage() {
   const CANVAS_MIN_Y = 0
   const CANVAS_MAX_Y = 3000
 
-  // Load canvas state on mount
+  // Load canvas state and panel widths on mount
   useEffect(() => {
     const state = storage.getCanvasState()
     setCanvasItems(state.items)
     setSelectedItemIds(state.selectedItemIds)
+    
+    // Load panel widths from localStorage
+    const savedLeftWidth = localStorage.getItem('leftPanelWidth')
+    const savedRightWidth = localStorage.getItem('rightPanelWidth')
+    if (savedLeftWidth) setLeftPanelWidth(parseInt(savedLeftWidth))
+    if (savedRightWidth) setRightPanelWidth(parseInt(savedRightWidth))
   }, [])
 
   // Handle Escape key to close panel
@@ -98,6 +112,42 @@ export default function CanvasPage() {
     window.addEventListener('keydown', handleEscape)
     return () => window.removeEventListener('keydown', handleEscape)
   }, [panelType])
+
+  // Handle panel resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizingLeft) {
+        const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, e.clientX))
+        setLeftPanelWidth(newWidth)
+        localStorage.setItem('leftPanelWidth', newWidth.toString())
+      }
+      if (isResizingRight) {
+        const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, window.innerWidth - e.clientX))
+        setRightPanelWidth(newWidth)
+        localStorage.setItem('rightPanelWidth', newWidth.toString())
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsResizingLeft(false)
+      setIsResizingRight(false)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    if (isResizingLeft || isResizingRight) {
+      document.body.style.cursor = 'ew-resize'
+      document.body.style.userSelect = 'none'
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove)
+        window.removeEventListener('mouseup', handleMouseUp)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+      }
+    }
+  }, [isResizingLeft, isResizingRight, MIN_PANEL_WIDTH, MAX_PANEL_WIDTH])
 
   // Save canvas state whenever it changes
   useEffect(() => {
@@ -945,7 +995,16 @@ export default function CanvasPage() {
     <div className="flex h-screen bg-gray-50" style={{ overscrollBehavior: 'none' }}>
       {/* Sidebar - Podcast Search - Collapsible */}
       {!isSidebarCollapsed && (
-        <div className="w-[360px] bg-white border-r border-gray-200 flex flex-col overflow-hidden relative">
+        <div 
+          className="bg-white border-r border-gray-200 flex flex-col overflow-hidden relative group"
+          style={{ width: `${leftPanelWidth}px`, minWidth: `${MIN_PANEL_WIDTH}px`, maxWidth: `${MAX_PANEL_WIDTH}px` }}
+        >
+          {/* Resize Handle */}
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-blue-500 group-hover:bg-blue-300 transition-colors z-50"
+            onMouseDown={() => setIsResizingLeft(true)}
+            title="Drag to resize"
+          />
           {/* Collapse button */}
           <button
             onClick={() => setIsSidebarCollapsed(true)}
@@ -1594,7 +1653,16 @@ export default function CanvasPage() {
       </div>
 
       {/* Always-Visible Right Panel (Figma-style) */}
-      <div className="w-[360px] bg-white border-l border-gray-200 flex flex-col overflow-hidden z-40">
+      <div 
+        className="bg-white border-l border-gray-200 flex flex-col overflow-hidden z-40 relative group"
+        style={{ width: `${rightPanelWidth}px`, minWidth: `${MIN_PANEL_WIDTH}px`, maxWidth: `${MAX_PANEL_WIDTH}px` }}
+      >
+        {/* Resize Handle */}
+        <div
+          className="absolute top-0 left-0 w-1 h-full cursor-ew-resize hover:bg-blue-500 group-hover:bg-blue-300 transition-colors z-50"
+          onMouseDown={() => setIsResizingRight(true)}
+          title="Drag to resize"
+        />
         {/* Panel Header */}
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
           <h3 className="text-sm font-semibold text-gray-900">
