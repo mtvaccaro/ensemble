@@ -238,7 +238,7 @@ export async function exportReelToVideo(
     const frameDuration = 1 / options.frameRate
     
     // Build concatenated caption timeline if enabled
-    let captionSegments: Array<{ start: number; end: number; text: string }> = []
+    const captionSegments: Array<{ start: number; end: number; text: string }> = []
     if (options.includeCaptions) {
       let timeOffset = 0
       for (const clip of clips) {
@@ -512,7 +512,6 @@ function drawCaptionOnCanvas(
   const displayLines = lines.slice(-2)
   
   // Draw each line from bottom up
-  const totalHeight = displayLines.length * lineHeight
   let y = height - bottomMargin
   
   for (let i = displayLines.length - 1; i >= 0; i--) {

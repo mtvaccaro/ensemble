@@ -11,7 +11,7 @@ declare global {
     }
   }
 }
-import { Search, Scissors, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film, X, Plus, Sparkles, Upload, Music } from 'lucide-react'
+import { Search, Scissors, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, Loader2, Film, X, Plus, Sparkles, Upload, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem, ClipSuggestion } from '@/types'
@@ -540,11 +540,6 @@ export default function CanvasPage() {
     
     setCanvasZoom(newZoom)
     setCanvasOffset({ x: newOffsetX, y: newOffsetY })
-  }
-
-  const handleResetView = () => {
-    setCanvasZoom(1)
-    setCanvasOffset({ x: 0, y: 0 })
   }
 
   const handleFitToView = () => {

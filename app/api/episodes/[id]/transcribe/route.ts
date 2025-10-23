@@ -78,7 +78,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       // Group words into ~5-second segments for compatibility with existing UI
       const segments = []
       if (transcript.words && transcript.words.length > 0) {
-        let currentSegment: any = {
+        let currentSegment: { id: number; start: number; end: number; text: string } = {
           id: 0,
           start: transcript.words[0].start / 1000, // Convert ms to seconds
           end: transcript.words[0].end / 1000,
