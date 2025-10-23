@@ -74,8 +74,10 @@ export function EpisodePanelContent({
     const clipData: Omit<CanvasClip, 'id' | 'createdAt' | 'updatedAt' | 'position'> = {
       type: 'clip',
       episodeId: episode.episodeId,
+      podcastId: episode.podcastId,
       title: clipTitle || `Clip from ${episode.title}`,
       audioUrl: episode.audioUrl,
+      imageUrl: episode.imageUrl,
       startTime,
       endTime,
       duration: endTime - startTime,

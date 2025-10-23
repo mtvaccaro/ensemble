@@ -140,8 +140,10 @@ export interface CanvasEpisode extends CanvasItem {
 export interface CanvasClip extends CanvasItem {
   type: 'clip'
   episodeId: string
+  podcastId?: string
   title: string
   audioUrl: string
+  imageUrl?: string
   startTime: number
   endTime: number
   duration: number
