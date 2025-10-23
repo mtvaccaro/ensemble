@@ -9,6 +9,14 @@ interface WordSelection {
   timestamp: number
 }
 
+interface SearchMatch {
+  blockIdx: number
+  wordIdx: number
+  text: string
+  phraseStart?: boolean
+  phraseEnd?: boolean
+}
+
 interface WordLevelTranscriptProps {
   segments: TranscriptSegment[]
   onSelectionChange: (selection: { startTime: number; endTime: number; text: string } | null) => void
@@ -309,7 +317,7 @@ export function WordLevelTranscript({
   // Group matches by phrase (first word of each phrase)
   const phraseMatches = useMemo(() => {
     const phrases: Array<{ blockIdx: number; wordIdx: number }> = []
-    searchMatches.forEach((match: any) => {
+    searchMatches.forEach((match: SearchMatch) => {
       if (match.phraseStart) {
         phrases.push({ blockIdx: match.blockIdx, wordIdx: match.wordIdx })
       }
@@ -346,7 +354,7 @@ export function WordLevelTranscript({
     if (currentPhrase) {
       // Find the start word of current phrase in searchMatches
       const phraseStartIdx = searchMatches.findIndex(
-        (m: any) => m.blockIdx === currentPhrase.blockIdx && 
+        (m: SearchMatch) => m.blockIdx === currentPhrase.blockIdx && 
                    m.wordIdx === currentPhrase.wordIdx && 
                    m.phraseStart
       )
@@ -354,7 +362,7 @@ export function WordLevelTranscript({
       if (phraseStartIdx !== -1) {
         // Find all consecutive words in this phrase (until we hit phraseEnd)
         for (let i = phraseStartIdx; i < searchMatches.length; i++) {
-          const match: any = searchMatches[i]
+          const match: SearchMatch = searchMatches[i]
           if (match.blockIdx === blockIdx && match.wordIdx === wordIdx) {
             return 'current'
           }
@@ -366,7 +374,7 @@ export function WordLevelTranscript({
     }
     
     // Check if word is in any other match
-    const isMatch = searchMatches.some((m: any) => m.blockIdx === blockIdx && m.wordIdx === wordIdx)
+    const isMatch = searchMatches.some((m: SearchMatch) => m.blockIdx === blockIdx && m.wordIdx === wordIdx)
     return isMatch ? 'other' : null
   }
   

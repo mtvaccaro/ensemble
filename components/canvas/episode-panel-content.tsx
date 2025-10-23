@@ -17,7 +17,6 @@ interface EpisodePanelContentProps {
 export function EpisodePanelContent({ 
   episode, 
   onCreateClip,
-  onTranscribe,
   isTranscribing = false
 }: EpisodePanelContentProps) {
   const [startSegment, setStartSegment] = useState<TranscriptSegment | null>(null)
