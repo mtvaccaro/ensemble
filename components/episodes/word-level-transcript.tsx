@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { TranscriptSegment, TranscriptWord } from '@/types'
 
 interface WordSelection {
@@ -29,6 +29,9 @@ export function WordLevelTranscript({
   const [selectionStart, setSelectionStart] = useState<WordSelection | null>(null)
   const [selectionEnd, setSelectionEnd] = useState<WordSelection | null>(null)
   const [hoverWord, setHoverWord] = useState<WordSelection | null>(null)
+  
+  // Ref for current search match to scroll to
+  const currentMatchRef = useRef<HTMLButtonElement>(null)
   
   // ESC key to cancel selection
   useEffect(() => {
@@ -378,6 +381,16 @@ export function WordLevelTranscript({
       })
     }
   }, [phraseMatches.length, currentMatchIndex, onSearchInfoChange, goToNextMatch, goToPrevMatch])
+  
+  // Scroll to current match when index changes
+  useEffect(() => {
+    if (currentMatchRef.current && phraseMatches.length > 0) {
+      currentMatchRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      })
+    }
+  }, [currentMatchIndex, phraseMatches.length])
 
   const formatTimestamp = (milliseconds: number): string => {
     const totalSeconds = milliseconds / 1000
@@ -450,9 +463,15 @@ export function WordLevelTranscript({
                     extraClasses = 'px-0.5 -mx-0.5 rounded'
                   }
                   
+                  // Check if this is the first word of the current phrase match
+                  const isCurrentMatchStart = searchState === 'current' && 
+                    phraseMatches[currentMatchIndex]?.blockIdx === blockIdx && 
+                    phraseMatches[currentMatchIndex]?.wordIdx === idx
+                  
                   return (
                     <span key={idx}>
                       <button
+                        ref={isCurrentMatchStart ? currentMatchRef : null}
                         onClick={() => handleWordClick(segmentId, wordIndex, word)}
                         onMouseEnter={() => setHoverWord({ segmentId, wordIndex, timestamp: word.start })}
                         onMouseLeave={() => setHoverWord(null)}
