@@ -160,4 +160,23 @@ export interface CanvasState {
   items: CanvasItem[]
   selectedItemIds: string[]
   lastUpdated: string
+}
+
+// AI Clip Suggestion types
+export interface ClipSuggestion {
+  startTime: number
+  endTime: number
+  duration: number
+  title: string
+  reason: string // Why this is a good clip
+  hookScore: number // 1-10 rating
+  transcript: string
+  segments: TranscriptSegment[]
+}
+
+export interface ClipAnalysis {
+  episodeId: string
+  suggestions: ClipSuggestion[]
+  analyzedAt: string
+  costInCents: number
 } 

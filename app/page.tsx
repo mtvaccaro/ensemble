@@ -11,10 +11,10 @@ declare global {
     }
   }
 }
-import { Search, Scissors, Download, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film, X, Plus } from 'lucide-react'
+import { Search, Scissors, Download, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film, X, Plus, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem } from '@/types'
+import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem, ClipSuggestion } from '@/types'
 import { storage } from '@/lib/localStorage'
 import { EpisodePanelContent } from '@/components/canvas/episode-panel-content'
 import { ExportPanelContent } from '@/components/canvas/export-panel-content'
@@ -60,6 +60,9 @@ export default function CanvasPage() {
   
   // Track which episodes are currently transcribing (by episodeId)
   const [transcribingEpisodes, setTranscribingEpisodes] = useState<Set<string>>(new Set())
+  
+  // Track which episode is generating AI clips
+  const [generatingClipsFor, setGeneratingClipsFor] = useState<string | null>(null)
   
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -671,6 +674,110 @@ export default function CanvasPage() {
     // Don't close panel - user might want to create more clips
   }
 
+  /**
+   * Generate AI clip suggestions and add them to canvas
+   */
+  const handleGenerateAIClips = async (episode: CanvasEpisode) => {
+    if (!episode.transcript_segments || episode.transcript_segments.length === 0) {
+      alert('Episode needs to be transcribed first')
+      return
+    }
+
+    setGeneratingClipsFor(episode.episodeId)
+
+    try {
+      const response = await fetch(`/api/episodes/${episode.episodeId}/analyze-clips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: episode.transcript_segments.map(s => s.text).join(' '),
+          segments: episode.transcript_segments,
+          maxSuggestions: 3 // Only get top 3
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('AI analysis failed')
+      }
+
+      const { suggestions } = await response.json()
+
+      if (!suggestions || suggestions.length === 0) {
+        alert('No clips found. Try transcribing a different episode.')
+        return
+      }
+
+      // Find all existing clips from this episode to position new ones correctly
+      const existingClips = canvasItems.filter(
+        item => item.type === 'clip' && (item as CanvasClip).episodeId === episode.episodeId
+      ) as CanvasClip[]
+
+      // Create clip cards on canvas for each suggestion
+      const newClips: CanvasClip[] = []
+      suggestions.forEach((suggestion: ClipSuggestion, index: number) => {
+        const clipData: Omit<CanvasClip, 'id' | 'createdAt' | 'updatedAt' | 'position'> = {
+          type: 'clip',
+          episodeId: episode.episodeId,
+          title: suggestion.title,
+          audioUrl: episode.audioUrl,
+          startTime: suggestion.startTime,
+          endTime: suggestion.endTime,
+          duration: suggestion.duration,
+          transcript: suggestion.transcript,
+          segments: suggestion.segments
+        }
+
+        // Position clips below the episode, spread horizontally
+        const clipWidth = 280
+        const horizontalSpacing = 20
+        const clipIndex = existingClips.length + index
+        const xOffset = clipIndex * (clipWidth + horizontalSpacing)
+        const yOffset = 250 // Below the episode card
+        
+        const xPosition = episode.position.x + xOffset
+        const yPosition = episode.position.y + yOffset
+        
+        // Constrain to canvas bounds
+        const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - clipWidth, xPosition))
+        const constrainedY = Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, yPosition))
+
+        const newClip: CanvasClip = {
+          ...clipData,
+          id: `canvas-clip-ai-${Date.now()}-${index}`,
+          position: {
+            x: constrainedX,
+            y: constrainedY
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+
+        newClips.push(newClip)
+      })
+
+      // Add all clips to canvas
+      setCanvasItems(prev => [...prev, ...newClips])
+
+      // Select the episode and new clips to highlight them
+      setSelectedItemIds([episode.id, ...newClips.map(c => c.id)])
+
+      // Track event
+      posthog.capture('ai_clips_generated', {
+        episode_id: episode.episodeId,
+        clip_count: newClips.length,
+        episode_title: episode.title
+      })
+
+      console.log(`✨ Generated ${newClips.length} AI clips!`)
+
+    } catch (error) {
+      console.error('Failed to generate AI clips:', error)
+      alert('Failed to generate clips. Please try again.')
+    } finally {
+      setGeneratingClipsFor(null)
+    }
+  }
+
   const handleCreateReel = () => {
     // Get selected clips only
     const selectedClips = canvasItems.filter(item => 
@@ -1221,6 +1328,25 @@ export default function CanvasPage() {
                             )}
                           </button>
                         </div>
+                        
+                        {/* AI Clip Generator Button - hanging off bottom-right */}
+                        {episode.transcript_segments && episode.transcript_segments.length > 0 && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              await handleGenerateAIClips(episode)
+                            }}
+                            disabled={generatingClipsFor === episode.episodeId}
+                            className="absolute -bottom-3 -right-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-all shadow-lg hover:shadow-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-20"
+                            title="Generate AI clip suggestions"
+                          >
+                            {generatingClipsFor === episode.episodeId ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
                         
                         {/* Transcript status badge */}
                         {transcribingEpisodes.has(episode.episodeId) ? (
