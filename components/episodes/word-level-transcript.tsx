@@ -242,69 +242,102 @@ export function WordLevelTranscript({
         </div>
       </div>
 
-      {/* Word-level Transcript */}
-      <div className="space-y-3 pr-1">
+      {/* Word-level Transcript - Flowing Text */}
+      <div className="space-y-4 pr-1 leading-relaxed">
         {highlightedSegments.map((segment) => {
           if (!segment.words || segment.words.length === 0) return null
 
           const hasMatch = 'hasMatch' in segment && segment.hasMatch
+          
+          // Group words by speaker
+          const speakerGroups: Array<{ speaker: string | null; words: Array<{ word: TranscriptWord; wordIndex: number }> }> = []
+          let currentSpeaker = segment.words[0]?.speaker || null
+          let currentGroup: Array<{ word: TranscriptWord; wordIndex: number }> = []
+          
+          segment.words.forEach((word, wordIndex) => {
+            if (word.speaker !== currentSpeaker && currentGroup.length > 0) {
+              speakerGroups.push({ speaker: currentSpeaker, words: currentGroup })
+              currentGroup = []
+              currentSpeaker = word.speaker || null
+            }
+            currentGroup.push({ word, wordIndex })
+          })
+          
+          if (currentGroup.length > 0) {
+            speakerGroups.push({ speaker: currentSpeaker, words: currentGroup })
+          }
 
           return (
             <div
               key={segment.id}
               className={`
-                p-2 rounded-lg border
-                ${hasMatch ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200'}
+                ${hasMatch ? 'bg-yellow-50 border-l-2 border-yellow-400 pl-3 -ml-1' : ''}
               `}
             >
-              {/* Timestamp header */}
-              <div className="text-[10px] text-gray-400 font-mono mb-2">
-                {formatTimestampSimple(segment.words[0].start)} - {formatTimestampSimple(segment.words[segment.words.length - 1].end)}
-              </div>
-              
-              {/* Words */}
-              <div className="flex flex-wrap gap-1 items-baseline">
-                {segment.words.map((word, wordIndex) => {
-                  const state = isWordInSelection(segment.id, wordIndex)
+              {speakerGroups.map((group, groupIndex) => (
+                <div key={`${segment.id}-${groupIndex}`} className="mb-3">
+                  {/* Speaker label (if speaker changes or first group) */}
+                  {group.speaker && (groupIndex === 0 || group.speaker !== speakerGroups[groupIndex - 1]?.speaker) && (
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                        Speaker {group.speaker}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        {formatTimestampSimple(group.words[0].word.start)}
+                      </span>
+                    </div>
+                  )}
                   
-                  let bgClass = 'hover:bg-blue-50'
-                  let textClass = 'text-gray-800'
-                  let borderClass = ''
-                  
-                  if (state === 'start' || state === 'end') {
-                    bgClass = 'bg-blue-500 text-white'
-                    textClass = 'text-white'
-                    borderClass = 'border-2 border-blue-600'
-                  } else if (state === 'selected') {
-                    bgClass = 'bg-blue-200'
-                    textClass = 'text-blue-900'
-                  } else if (state === 'preview') {
-                    bgClass = 'bg-blue-100'
-                    textClass = 'text-blue-800'
-                  }
-                  
-                  // Highlight low confidence words
-                  if (word.confidence < 0.7 && state === null) {
-                    textClass = 'text-orange-600'
-                  }
-                  
-                  return (
-                    <button
-                      key={wordIndex}
-                      onClick={() => handleWordClick(segment.id, wordIndex, word)}
-                      onMouseEnter={() => setHoverWord({ segmentId: segment.id, wordIndex, timestamp: word.start })}
-                      onMouseLeave={() => setHoverWord(null)}
-                      className={`
-                        px-1 py-0.5 rounded text-sm transition-all cursor-pointer
-                        ${bgClass} ${textClass} ${borderClass}
-                      `}
-                      title={`${formatTimestamp(word.start)} - ${formatTimestamp(word.end)} (${Math.round(word.confidence * 100)}% confident)`}
-                    >
-                      {word.text}
-                    </button>
-                  )
-                })}
-              </div>
+                  {/* Flowing text with clickable words */}
+                  <div className="text-[15px] leading-relaxed">
+                    {group.words.map(({ word, wordIndex }, idx) => {
+                      const state = isWordInSelection(segment.id, wordIndex)
+                      
+                      let bgClass = 'hover:bg-blue-50'
+                      let textClass = 'text-gray-900'
+                      let borderClass = ''
+                      let extraClasses = ''
+                      
+                      if (state === 'start' || state === 'end') {
+                        bgClass = 'bg-blue-500'
+                        textClass = 'text-white'
+                        borderClass = 'border-b-2 border-blue-700'
+                        extraClasses = 'font-semibold'
+                      } else if (state === 'selected') {
+                        bgClass = 'bg-blue-200'
+                        textClass = 'text-blue-900'
+                      } else if (state === 'preview') {
+                        bgClass = 'bg-blue-100'
+                        textClass = 'text-blue-800'
+                      }
+                      
+                      // Highlight low confidence words
+                      if (word.confidence < 0.7 && state === null) {
+                        textClass = 'text-orange-600'
+                      }
+                      
+                      return (
+                        <span key={idx}>
+                          <button
+                            onClick={() => handleWordClick(segment.id, wordIndex, word)}
+                            onMouseEnter={() => setHoverWord({ segmentId: segment.id, wordIndex, timestamp: word.start })}
+                            onMouseLeave={() => setHoverWord(null)}
+                            className={`
+                              px-0.5 py-0.5 rounded transition-all cursor-pointer inline
+                              ${bgClass} ${textClass} ${borderClass} ${extraClasses}
+                            `}
+                            title={`${formatTimestamp(word.start)} - ${formatTimestamp(word.end)} (${Math.round(word.confidence * 100)}% confident)${word.speaker ? ` • Speaker ${word.speaker}` : ''}`}
+                          >
+                            {word.text}
+                          </button>
+                          {/* Add space after each word */}
+                          {' '}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )
         })}

@@ -59,12 +59,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         transcript = await client.transcripts.transcribe({
           audio: audioFile,
           language_code: 'en',
+          speaker_labels: true, // Enable speaker diarization
         })
       } else {
         // Use URL for podcast episodes
         transcript = await client.transcripts.transcribe({
           audio_url: audioUrl!,
           language_code: 'en',
+          speaker_labels: true, // Enable speaker diarization
         })
       }
 
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           start: number; 
           end: number; 
           text: string;
-          words: Array<{ text: string; start: number; end: number; confidence: number }>
+          words: Array<{ text: string; start: number; end: number; confidence: number; speaker?: string | null }>
         } = {
           id: 0,
           start: transcript.words[0].start / 1000, // Convert ms to seconds for segment timing
@@ -102,7 +104,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             text: word.text,
             start: word.start,  // Keep in milliseconds for precision
             end: word.end,      // Keep in milliseconds for precision
-            confidence: word.confidence || 1.0
+            confidence: word.confidence || 1.0,
+            speaker: word.speaker || null
           })
           
           // Start new segment if we've exceeded 5 seconds or have 50 words

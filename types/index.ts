@@ -21,7 +21,7 @@ export interface TranscriptWord {
   start: number  // milliseconds for precision
   end: number    // milliseconds for precision
   confidence: number
-  speaker?: string | null
+  speaker?: string | null  // Speaker label from diarization
 }
 
 export interface TranscriptSegment {
