@@ -41,9 +41,9 @@ export function WordLevelTranscript({
       'text-indigo-600',
       'text-rose-600'
     ]
-    // Use speaker ID to consistently assign color
-    const speakerNum = parseInt(speaker.replace(/\D/g, ''), 10) || 0
-    return colors[speakerNum % colors.length]
+    // Use character code of speaker letter (A=0, B=1, C=2, etc.)
+    const charCode = speaker.charCodeAt(0) - 65  // 'A' is ASCII 65
+    return colors[charCode % colors.length]
   }
 
   // Reset selection when parent passes new times
@@ -326,7 +326,7 @@ export function WordLevelTranscript({
               {/* Speaker label */}
               {block.speaker && (
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-sm font-semibold ${speakerColor} uppercase tracking-wide`}>
+                  <span className={`text-xs font-semibold ${speakerColor} uppercase tracking-wide`}>
                     Speaker {block.speaker}
                   </span>
                   <span className="text-[10px] text-gray-400 font-mono">
