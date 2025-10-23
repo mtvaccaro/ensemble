@@ -562,6 +562,7 @@ export default function CanvasPage() {
       if (target === canvasRef.current || (target.hasAttribute('data-canvas-content') && target === e.target)) {
         setSelectedItemIds([])
         handleClosePanel()
+        setIsSearchExpanded(false) // Collapse search when clicking canvas
       }
     }
   }
