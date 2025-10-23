@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { CanvasClip } from '@/types'
 import { 
   exportClipToVideo, 
-  exportReelToVideo, 
   isWebCodecsSupported,
   sanitizeFilename,
   type ClipExportData 
@@ -41,11 +40,9 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
         duration: clip.duration
       }))
 
-      let videoBlob: Blob
-
       // Always export as individual clip
       setStatusMessage('Generating video...')
-      videoBlob = await exportClipToVideo(clipData[0], (p) => {
+      const videoBlob = await exportClipToVideo(clipData[0], (p) => {
         setProgress(p * 100)
       })
       
