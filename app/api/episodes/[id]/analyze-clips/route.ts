@@ -14,6 +14,7 @@ interface AIClipSuggestion {
   hookScore: number
   viralPotential: number
   contentType: 'story' | 'insight' | 'quote' | 'debate' | 'funny'
+  topicRelevance: string
 }
 
 const openai = new OpenAI({
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id: episodeId } = await params
   
   try {
-    const { transcript, segments, maxSuggestions = 3 } = await request.json()
+    const { transcript, segments, maxSuggestions = 3, episodeTitle, episodeDescription } = await request.json()
 
     if (!transcript || !segments) {
       return NextResponse.json(
@@ -35,28 +36,46 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     console.log(`Analyzing episode ${episodeId} for ${maxSuggestions} clip suggestions...`)
     console.log(`📝 Transcript: ${segments.length} segments, ~${Math.round(transcript.length / 4)} tokens`)
+    if (episodeTitle) console.log(`📌 Title: "${episodeTitle}"`)
+    if (episodeDescription) console.log(`📄 Description: "${episodeDescription.substring(0, 100)}${episodeDescription.length > 100 ? '...' : ''}"`)
 
     // Build prompt for GPT
     const systemPrompt = `You are an expert podcast clip editor specializing in viral social media content. Analyze this transcript and identify the ${maxSuggestions} BEST moments that would explode on TikTok, Instagram Reels, and YouTube Shorts.
 
-CRITICAL: DISTINGUISH ADS FROM VIRAL CONTENT
-Ads are designed to grab attention but DON'T make good clips because:
-- They're promotional (selling something), not authentic content
-- They mention sponsors, promo codes, discounts, websites
-- They break the natural conversation flow
-- They often sound scripted/rehearsed vs genuine
+CRITICAL TWO-STEP PROCESS:
 
-RED FLAGS FOR ADS:
-- "Brought to you by", "thanks to our sponsor", "use code", "promo", "discount"
-- Mentions of websites, URLs, or "link in description"
-- Product pitches or service promotions
-- Scripted, monotone delivery (not conversational)
+STEP 1: IDENTIFY THE CORE TOPIC
+You will be given:
+- Episode Title: Clear indication of the topic
+- Episode Description: Summary of what the episode covers
+- Full Transcript: The actual conversation
 
-INSTEAD, look for GENUINE conversation where:
-- Hosts are speaking naturally and passionately
-- Ideas flow organically (not selling anything)
-- Emotion is authentic (laughter, surprise, vulnerability)
-- Insights come from personal experience, not marketing copy
+Use ALL THREE to determine:
+- What is this episode actually about? (the main theme/topic)
+- What are the hosts genuinely discussing and passionate about?
+- What insights, stories, or debates form the core content?
+- The title/description are your ANCHOR - clips must relate to these themes
+
+STEP 2: SELECT ON-TOPIC CLIPS ONLY
+Then, ONLY consider clips that are:
+- Directly related to the episode's main topic
+- Part of the authentic conversation about that topic
+- Contributing to the episode's core narrative or insights
+
+WHY THIS MATTERS - FILTERING ADS AUTOMATICALLY:
+Ads are almost always OFF-TOPIC from the episode's main theme:
+- Episode about investing? Ad for BetterHelp (mental health) = OFF-TOPIC
+- Episode about AI? Ad for Athletic Greens (nutrition) = OFF-TOPIC
+- Episode about marketing? Ad for Squarespace (web hosting) = OFF-TOPIC
+
+Even if ads sound engaging, they're promoting products/services UNRELATED to what the episode is actually about.
+
+AUTHENTIC CONTENT is ON-TOPIC:
+- Episode about investing → Clips about market strategies, personal losses, investment insights
+- Episode about AI → Clips about AI breakthroughs, ethical concerns, future predictions
+- Episode about business → Clips about entrepreneurship, failures, growth strategies
+
+The topic creates a natural filter: ads talk about DIFFERENT things than the episode's core content.
 
 VIRAL CONTENT PATTERNS TO LOOK FOR:
 1. **Strong Hooks (First 3 Seconds)**
@@ -114,36 +133,41 @@ EVALUATION CRITERIA (Rate each clip 1-10):
 - Emotional Impact: Makes you feel something
 - Replay Value: Worth watching multiple times
 
-EXAMPLES TO LEARN FROM:
+EXAMPLES - TOPIC-BASED FILTERING:
 
-❌ BAD CLIP (Even if attention-grabbing):
-"This episode is brought to you by BetterHelp. Mental health is important, and BetterHelp makes therapy accessible. Visit betterhelp.com/podcast for 10% off..."
-WHY BAD: It's an ad! Promotional, scripted, selling something. Not authentic content.
+SCENARIO: Financial podcast episode about market crashes
+❌ BAD CLIP (OFF-TOPIC):
+"This episode is brought to you by BetterHelp. Taking care of your mental health is just as important as your financial health..."
+WHY BAD: This is about therapy/mental health, NOT about market crashes. It's OFF-TOPIC = likely an ad.
 
-✅ GOOD CLIP:
-"I lost everything. $2 million gone in 48 hours. And you know what the worst part was? I had to call my wife and tell her we were broke. That conversation... that was when I learned what really matters."
-WHY GOOD: Authentic story, emotional, relatable struggle, complete narrative arc.
+✅ GOOD CLIP (ON-TOPIC):
+"I lost $2 million in the 2008 crash. And you know what I learned? When everyone's panicking and selling, that's exactly when you should be buying. The opposite of what your gut tells you."
+WHY GOOD: Directly about market crashes (the episode topic). Personal story + investment insight.
 
-❌ BAD CLIP (Sounds engaging but isn't):
-"Now I want to tell you about this amazing tool we've been using. It's called Notion, and it's completely changed how we organize our work. You can try it free at notion.com..."
-WHY BAD: Product pitch disguised as content. Still promotional.
+SCENARIO: Tech podcast about AI
+❌ BAD CLIP (OFF-TOPIC):
+"Before we continue, let me tell you about Shopify. Building an online store has never been easier. You can launch your business today at shopify.com/tech..."
+WHY BAD: This is about e-commerce platforms, NOT about AI. It's OFF-TOPIC = likely an ad.
 
-✅ GOOD CLIP:
-"Everyone says 'follow your passion.' That's terrible advice. I followed my passion for 5 years and almost went bankrupt. What actually worked? Following the market, THEN developing passion for what pays."
-WHY GOOD: Counterintuitive insight, challenges common wisdom, based on experience.
+✅ GOOD CLIP (ON-TOPIC):
+"GPT-4 is scary not because it's smart, but because it's convincingly wrong. It'll give you confident, well-written answers that are completely false. That's the real danger."
+WHY GOOD: Directly about AI (the episode topic). Counterintuitive insight about AI risks.
+
+THE PATTERN: If it's not about the episode's core topic, it's probably an ad. Skip it.
 
 SELECTION STRATEGY:
-1. Read the ENTIRE transcript before choosing
-2. Prioritize clips with HIGH hook scores (8-10/10) from GENUINE content
-3. Choose clips from DIFFERENT parts of episode (temporal diversity)
-4. Mix content types (story + insight + quote + debate)
-5. Ensure each clip has a different "flavor" (don't pick 3 similar moments)
-6. Look throughout the episode - great content can be anywhere
+1. **First**: Read ENTIRE transcript and identify the episode's core topic/theme
+2. **Then**: Only consider clips that are deeply connected to that topic
+3. Prioritize clips with HIGH hook scores (8-10/10) that are ON-TOPIC
+4. Choose clips from DIFFERENT parts of episode (temporal diversity)
+5. Mix content types (story + insight + quote + debate) - all about the SAME topic
+6. Ensure each clip has a different "flavor" but stays on-theme
 7. Clips should be 30-90 seconds long (ideal for social media)
-8. When in doubt: Is this authentic conversation or promotional content?
+8. **Key filter**: If it's not about the episode's main topic, skip it (probably an ad)
 
-Return EXACTLY ${maxSuggestions} clips as a JSON object with this structure:
+Return a JSON object with the episode topic and ${maxSuggestions} ON-TOPIC clips:
 {
+  "episodeTopic": "<what is this episode actually about? 1-2 sentences>",
   "clips": [
     {
       "startTime": <seconds>,
@@ -152,14 +176,24 @@ Return EXACTLY ${maxSuggestions} clips as a JSON object with this structure:
       "reason": "<one sentence why this will go viral>",
       "hookScore": <1-10: how attention-grabbing is the opening>,
       "viralPotential": <1-10: overall shareability>,
-      "contentType": "<story|insight|quote|debate|funny>"
+      "contentType": "<story|insight|quote|debate|funny>",
+      "topicRelevance": "<how this clip relates to the episode's main topic>"
     }
   ]
 }
 
 Base timestamps on the segment timing provided. Be precise with times.`
 
-    const userMessage = `Transcript with segments:\n\n${formatTranscriptWithTimestamps(segments)}`
+    // Build user message with metadata context
+    let userMessage = `EPISODE METADATA:\n`
+    if (episodeTitle) {
+      userMessage += `Title: "${episodeTitle}"\n`
+    }
+    if (episodeDescription) {
+      userMessage += `Description: ${episodeDescription}\n`
+    }
+    userMessage += `\nFULL TRANSCRIPT WITH TIMESTAMPS:\n\n${formatTranscriptWithTimestamps(segments)}\n\n`
+    userMessage += `Remember: Pick clips that are DIRECTLY related to the topics mentioned in the title/description above. If a segment talks about something completely different, it's likely an ad.`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini', // Cheaper model, still excellent for this task
@@ -171,10 +205,14 @@ Base timestamps on the segment timing provided. Be precise with times.`
       temperature: 0.7,
     })
 
-    const result = JSON.parse(completion.choices[0].message.content || '{"clips": []}') as { clips: AIClipSuggestion[] }
+    const result = JSON.parse(completion.choices[0].message.content || '{"clips": []}') as { episodeTopic?: string; clips: AIClipSuggestion[] }
     
     // Log what AI selected for debugging
-    console.log(`\n📊 AI Selection Details:`)
+    console.log(`\n📊 AI Analysis:`)
+    if (result.episodeTopic) {
+      console.log(`🎯 Identified Topic: "${result.episodeTopic}"`)
+    }
+    console.log(`\n📹 Clip Selections:`)
     result.clips.forEach((clip, i) => {
       const mins = Math.floor(clip.startTime / 60)
       const secs = Math.floor(clip.startTime % 60)
@@ -182,6 +220,7 @@ Base timestamps on the segment timing provided. Be precise with times.`
       console.log(`  ⏱️  Time: ${mins}:${secs.toString().padStart(2, '0')} - ${formatTime(clip.endTime)} (${(clip.endTime - clip.startTime).toFixed(0)}s)`)
       console.log(`  🎯 Hook: ${clip.hookScore}/10 | Viral: ${clip.viralPotential}/10 | Type: ${clip.contentType}`)
       console.log(`  💡 Why: ${clip.reason}`)
+      console.log(`  🔗 Topic Link: ${clip.topicRelevance}`)
     })
     
     // Enrich with actual segments and filter out ads

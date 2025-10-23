@@ -692,7 +692,9 @@ export default function CanvasPage() {
         body: JSON.stringify({
           transcript: episode.transcript_segments.map(s => s.text).join(' '),
           segments: episode.transcript_segments,
-          maxSuggestions: 3 // Only get top 3
+          maxSuggestions: 3, // Only get top 3
+          episodeTitle: episode.title,
+          episodeDescription: '' // TODO: Add description to CanvasEpisode type
         })
       })
 
