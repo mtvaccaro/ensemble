@@ -61,6 +61,12 @@ export default function CanvasPage() {
   const [selectionShiftHeld, setSelectionShiftHeld] = useState(false)
   const [justCompletedSelection, setJustCompletedSelection] = useState(false)
   
+  // Connection dragging state (drag from clip to reel)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [connectingClipId, setConnectingClipId] = useState<string | null>(null)
+  const [connectionEndPoint, setConnectionEndPoint] = useState({ x: 0, y: 0 })
+  const [hoveredReelId, setHoveredReelId] = useState<string | null>(null)
+  
   // Right panel state
   const [isTranscribing, setIsTranscribing] = useState(false)
   
@@ -380,6 +386,22 @@ export default function CanvasPage() {
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    // Handle connection dragging
+    if (isConnecting) {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      
+      // Convert to canvas coordinates
+      const viewportX = e.clientX - rect.left
+      const viewportY = e.clientY - rect.top
+      
+      const canvasX = (viewportX - canvasOffset.x) / canvasZoom
+      const canvasY = (viewportY - canvasOffset.y) / canvasZoom
+      
+      setConnectionEndPoint({ x: canvasX, y: canvasY })
+      return
+    }
+    
     // Handle selection rectangle
     if (isSelecting) {
       const rect = canvasRef.current?.getBoundingClientRect()
@@ -440,6 +462,35 @@ export default function CanvasPage() {
   }
 
   const handleMouseUp = () => {
+    // Complete connection dragging
+    if (isConnecting && connectingClipId && hoveredReelId) {
+      // Add clip to reel
+      setCanvasItems(items =>
+        items.map(item => {
+          if (item.id === hoveredReelId && item.type === 'reel') {
+            const reel = item as CanvasReel
+            // Only add if not already in the reel
+            if (!reel.clipIds.includes(connectingClipId)) {
+              return {
+                ...reel,
+                clipIds: [...reel.clipIds, connectingClipId]
+              }
+            }
+          }
+          return item
+        })
+      )
+      
+      posthog.capture('clip_connected_to_reel', {
+        clip_id: connectingClipId,
+        reel_id: hoveredReelId
+      })
+    }
+    
+    setIsConnecting(false)
+    setConnectingClipId(null)
+    setHoveredReelId(null)
+    
     // Complete selection rectangle
     if (isSelecting) {
       // Calculate selection rectangle bounds
@@ -1463,6 +1514,44 @@ export default function CanvasPage() {
                   </g>
                 )
               })}
+              
+              {/* Active connection line during drag */}
+              {isConnecting && connectingClipId && (() => {
+                const connectingClip = canvasItems.find(i => i.id === connectingClipId)
+                if (!connectingClip) return null
+                
+                const clipX = connectingClip.position.x + 170 // Center of card
+                const clipY = connectingClip.position.y + 220 // Bottom of clip card
+                
+                return (
+                  <g>
+                    <line
+                      x1={clipX}
+                      y1={clipY}
+                      x2={connectionEndPoint.x}
+                      y2={connectionEndPoint.y}
+                      stroke="#f97316"
+                      strokeWidth={3}
+                      strokeDasharray="8 4"
+                      opacity={0.8}
+                    />
+                    <circle
+                      cx={clipX}
+                      cy={clipY}
+                      r={6}
+                      fill="#f97316"
+                      opacity={0.8}
+                    />
+                    <circle
+                      cx={connectionEndPoint.x}
+                      cy={connectionEndPoint.y}
+                      r={6}
+                      fill={hoveredReelId ? "#22c55e" : "#f97316"}
+                      opacity={0.8}
+                    />
+                  </g>
+                )
+              })()}
             </svg>
 
             {/* Selection Rectangle */}
@@ -1729,6 +1818,20 @@ export default function CanvasPage() {
                             )}
                           </button>
                         </div>
+                        
+                        {/* Connection handle at bottom center - drag to add to reel */}
+                        <div
+                          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-orange-500 border-2 border-white rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shadow-lg cursor-pointer hover:scale-110 z-30 flex items-center justify-center"
+                          onMouseDown={(e) => {
+                            e.stopPropagation()
+                            setIsConnecting(true)
+                            setConnectingClipId(clip.id)
+                            setConnectionEndPoint({ x: item.position.x + 170, y: item.position.y + 220 })
+                          }}
+                          title="Drag to add this clip to a reel"
+                        >
+                          <Plus className="h-3 w-3 text-white" />
+                        </div>
                       </div>
                     </div>
                   )
@@ -1739,10 +1842,22 @@ export default function CanvasPage() {
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
                   
+                  const isHoveredForConnection = isConnecting && hoveredReelId === item.id
+                  
                   return (
                     <div
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
+                      onMouseEnter={() => {
+                        if (isConnecting) {
+                          setHoveredReelId(item.id)
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (isConnecting) {
+                          setHoveredReelId(null)
+                        }
+                      }}
                       onClick={(e) => {
                         e.stopPropagation()
                         // Select the reel
@@ -1753,7 +1868,9 @@ export default function CanvasPage() {
                       className={`absolute cursor-pointer select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
                       } ${
-                        isSelected ? 'ring-4 ring-orange-500 shadow-xl rounded-lg' : 'ring-0 ring-transparent'
+                        isSelected ? 'ring-4 ring-orange-500 shadow-xl rounded-lg' : 
+                        isHoveredForConnection ? 'ring-4 ring-green-500 shadow-xl rounded-lg' : 
+                        'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
