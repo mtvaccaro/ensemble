@@ -170,6 +170,8 @@ export interface ClipSuggestion {
   title: string
   reason: string // Why this is a good clip
   hookScore: number // 1-10 rating
+  viralPotential: number // 1-10 overall shareability
+  contentType: 'story' | 'insight' | 'quote' | 'debate' | 'funny'
   transcript: string
   segments: TranscriptSegment[]
 }

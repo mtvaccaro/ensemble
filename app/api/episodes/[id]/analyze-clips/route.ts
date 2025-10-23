@@ -12,6 +12,8 @@ interface AIClipSuggestion {
   title: string
   reason: string
   hookScore: number
+  viralPotential: number
+  contentType: 'story' | 'insight' | 'quote' | 'debate' | 'funny'
 }
 
 const openai = new OpenAI({
@@ -34,7 +36,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     console.log(`Analyzing episode ${episodeId} for ${maxSuggestions} clip suggestions...`)
 
     // Build prompt for GPT
-    const systemPrompt = `You are an expert podcast clip editor. Analyze this transcript and identify the ${maxSuggestions} BEST moments that would make viral social media clips.
+    const systemPrompt = `You are an expert podcast clip editor specializing in viral social media content. Analyze this transcript and identify the ${maxSuggestions} BEST moments that would explode on TikTok, Instagram Reels, and YouTube Shorts.
 
 CRITICAL: IGNORE ALL ADS AND SPONSORSHIPS
 - Skip any segments mentioning sponsors, promo codes, discounts, websites to visit
@@ -42,21 +44,70 @@ CRITICAL: IGNORE ALL ADS AND SPONSORSHIPS
 - Skip monotone read advertisement scripts
 - Ignore segments promoting products/services unless it's the main topic
 
-Focus ONLY on segments that:
-- Have strong hooks or attention-grabbing openings
-- Are 30-90 seconds long (ideal for social media)
-- Contain complete thoughts that work standalone
-- Are emotionally engaging (funny, surprising, insightful, controversial)
-- Feature genuine conversation, storytelling, or insights
-- Have clear start and end points
-- Are substantive content (not filler or transitions)
+VIRAL CONTENT PATTERNS TO LOOK FOR:
+1. **Strong Hooks (First 3 Seconds)**
+   - Questions that make you stop scrolling: "What if I told you..."
+   - Shocking statements: "This completely changed my mind about..."
+   - Pattern interrupts: "Everyone gets this wrong..."
+   - Controversial takes: "Unpopular opinion..."
 
-STRATEGY:
-1. Skip the first 2-3 minutes (usually ads/intros)
-2. Look for conversational back-and-forth or passionate storytelling
-3. Prefer segments with emotion, laughter, or "aha" moments
-4. Avoid obvious ad keywords: sponsor, promo, discount, code, visit, check out, link in description
-5. Choose clips from different parts of the episode (not all from one section)
+2. **Story Structure**
+   - Mini-stories with setup, conflict, payoff
+   - "I learned this the hard way..." moments
+   - Before/after transformations
+   - Unexpected plot twists
+
+3. **Quote-Worthy Moments**
+   - One-liners that could be tweet-worthy
+   - Memorable analogies or metaphors
+   - Wisdom bombs that make you pause
+   - Hot takes that spark debate
+
+4. **Emotional Resonance**
+   - Vulnerable/authentic moments (not performative)
+   - Genuine laughter or surprise
+   - Relatable struggles or failures
+   - "I thought I was the only one..." feelings
+
+5. **Knowledge Bombs**
+   - Counterintuitive insights: "Actually, the opposite is true..."
+   - Myth-busting: "Everyone thinks X, but really..."
+   - Expert secrets: "Here's what insiders know..."
+   - Simplified complex ideas
+
+AVOID THESE RED FLAGS:
+❌ Slow burn-in (takes >5 seconds to get interesting)
+❌ Requires too much context to understand
+❌ Inside jokes or niche references
+❌ Meandering tangents without payoff
+❌ Low energy or monotone delivery
+❌ Generic advice ("work hard, stay focused")
+❌ Name-dropping without substance
+❌ Mid-sentence starts or awkward cuts
+
+CONTENT QUALITY CHECKLIST:
+- Can someone understand this clip WITHOUT hearing the rest of the episode?
+- Does it hook you in the first 3 seconds?
+- Does it make you feel something (laugh, think, get angry)?
+- Would someone share this with a friend?
+- Does it have a clear beginning and end?
+- Is the idea/story complete in one clip?
+
+EVALUATION CRITERIA (Rate each clip 1-10):
+- Hook Strength: First 3 seconds grab attention
+- Standalone Value: Makes sense without context
+- Shareability: Would someone send this to a friend
+- Emotional Impact: Makes you feel something
+- Replay Value: Worth watching multiple times
+
+SELECTION STRATEGY:
+1. Prioritize clips with HIGH hook scores (8-10/10)
+2. Choose clips from DIFFERENT parts of episode (temporal diversity)
+3. Mix content types (story + insight + quote)
+4. Ensure each clip has a different "flavor" (don't pick 3 similar moments)
+5. Skip first 2-3 minutes (usually ads/intros)
+6. Prefer clips from second half (usually best content after warmup)
+7. Clips should be 30-90 seconds long (ideal for social media)
 
 Return EXACTLY ${maxSuggestions} clips as a JSON object with this structure:
 {
@@ -65,8 +116,10 @@ Return EXACTLY ${maxSuggestions} clips as a JSON object with this structure:
       "startTime": <seconds>,
       "endTime": <seconds>,
       "title": "<catchy 5-8 word title>",
-      "reason": "<one sentence why this is compelling>",
-      "hookScore": <1-10 rating>
+      "reason": "<one sentence why this will go viral>",
+      "hookScore": <1-10: how attention-grabbing is the opening>,
+      "viralPotential": <1-10: overall shareability>,
+      "contentType": "<story|insight|quote|debate|funny>"
     }
   ]
 }
@@ -103,6 +156,8 @@ Base timestamps on the segment timing provided. Be precise with times.`
           title: clip.title,
           reason: clip.reason,
           hookScore: clip.hookScore,
+          viralPotential: clip.viralPotential,
+          contentType: clip.contentType,
           transcript,
           segments: relevantSegments
         }
