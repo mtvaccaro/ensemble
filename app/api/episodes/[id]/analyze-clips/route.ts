@@ -179,20 +179,24 @@ Return a JSON object with the episode topic and ${maxSuggestions} ON-TOPIC clips
   "episodeTopic": "<what is this episode actually about? 1-2 sentences>",
   "clips": [
     {
-      "startTime": <seconds>,
-      "endTime": <seconds>,
+      "startTime": <seconds - where clip begins>,
+      "endTime": <seconds - where clip ends, MUST be 30-90 seconds AFTER startTime>,
       "title": "<catchy 5-8 word title>",
       "reason": "<one sentence why this will go viral>",
       "hookScore": <1-10: how attention-grabbing is the opening>,
       "viralPotential": <1-10: overall shareability>,
       "contentType": "<story|insight|quote|debate|funny>",
       "topicRelevance": "<how this clip relates to the episode's main topic>",
-      "transcriptText": "<MUST INCLUDE: Copy the EXACT transcript text from your selected time range. This proves you read the actual content.>"
+      "transcriptText": "<MUST INCLUDE: Copy the EXACT transcript text from startTime to endTime, word-for-word from the transcript provided.>"
     }
   ]
 }
 
-CRITICAL: You MUST include "transcriptText" with the EXACT words from the transcript between startTime and endTime. If you can't quote the actual text, don't select that clip.
+CRITICAL REQUIREMENTS:
+1. Each clip MUST be 30-90 seconds long (endTime minus startTime = 30-90)
+2. You MUST include "transcriptText" with the EXACT words between startTime and endTime
+3. Copy the transcript text verbatim - proves you read the actual content
+4. DO NOT return clips with startTime = endTime (0 second clips are invalid)
 
 Base timestamps on the segment timing provided. Be precise with times.`
 
@@ -228,6 +232,16 @@ Base timestamps on the segment timing provided. Be precise with times.`
     result.clips.forEach((clip, i) => {
       const mins = Math.floor(clip.startTime / 60)
       const secs = Math.floor(clip.startTime % 60)
+      const duration = clip.endTime - clip.startTime
+      
+      // Validate clip duration
+      if (duration <= 0) {
+        console.log(`\n❌ INVALID Clip ${i + 1}: "${clip.title}"`)
+        console.log(`  🚨 ERROR: startTime (${clip.startTime}s) and endTime (${clip.endTime}s) are the same or invalid!`)
+        console.log(`  🤖 GPT claimed this text: "${clip.transcriptText.substring(0, 150)}..."`)
+        console.log(`  ⚠️  This clip will be SKIPPED - GPT needs to return proper time ranges`)
+        return
+      }
       
       // Get the actual transcript text for this clip
       const clipSegments = segments.filter((s: TranscriptSegment) => 
@@ -236,15 +250,19 @@ Base timestamps on the segment timing provided. Be precise with times.`
       const actualText = clipSegments.map((s: TranscriptSegment) => s.text).join(' ')
       
       console.log(`\nClip ${i + 1}: "${clip.title}"`)
-      console.log(`  ⏱️  Time: ${mins}:${secs.toString().padStart(2, '0')} - ${formatTime(clip.endTime)} (${(clip.endTime - clip.startTime).toFixed(0)}s)`)
+      console.log(`  ⏱️  Time: ${mins}:${secs.toString().padStart(2, '0')} - ${formatTime(clip.endTime)} (${duration.toFixed(0)}s)`)
       console.log(`  🎯 Hook: ${clip.hookScore}/10 | Viral: ${clip.viralPotential}/10 | Type: ${clip.contentType}`)
       console.log(`  💡 Why: ${clip.reason}`)
       console.log(`  🔗 Topic Link: ${clip.topicRelevance}`)
       console.log(`  🤖 GPT CLAIMS TEXT IS: "${clip.transcriptText.substring(0, 150)}${clip.transcriptText.length > 150 ? '...' : ''}"`)
       console.log(`  📝 ACTUAL TEXT IS: "${actualText.substring(0, 150)}${actualText.length > 150 ? '...' : ''}"`)
-      if (actualText.toLowerCase().trim() !== clip.transcriptText.toLowerCase().trim()) {
+      
+      if (!actualText || actualText.trim().length === 0) {
+        console.log(`  ⚠️  WARNING: No transcript found at these timestamps! GPT may have wrong times.`)
+      } else if (actualText.toLowerCase().trim() !== clip.transcriptText.toLowerCase().trim()) {
         console.log(`  ⚠️  WARNING: GPT's text doesn't match actual transcript! GPT may be hallucinating.`)
       }
+      
       // Check if GPT's own claimed text looks like an ad
       if (isLikelyAd(clip.transcriptText)) {
         console.log(`  🚨 GPT's CLAIMED TEXT contains ad language!`)
@@ -253,6 +271,15 @@ Base timestamps on the segment timing provided. Be precise with times.`
     
     // Enrich with actual segments and filter out ads
     const suggestions = result.clips
+      // Filter out invalid 0-duration clips
+      .filter((clip: AIClipSuggestion) => {
+        const duration = clip.endTime - clip.startTime
+        if (duration <= 0) {
+          console.log(`\n🚫 Skipping invalid 0-second clip: "${clip.title}"`)
+          return false
+        }
+        return true
+      })
       .map((clip: AIClipSuggestion) => {
         const relevantSegments = segments.filter((s: TranscriptSegment) => 
           s.start >= clip.startTime && s.end <= clip.endTime
