@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { GripVertical, X, Play, Download, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { GripVertical, X, Play, Download, Loader2, CheckCircle, AlertCircle, Music2, Instagram, Youtube, Linkedin, Twitter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CanvasReel, CanvasClip } from '@/types'
 import { 
@@ -276,30 +276,83 @@ export function ReelPanelContent({
 
         {/* Platform & Format Selection */}
         <div className="space-y-3">
-          {/* Platform */}
+          {/* Platform - Segmented Control */}
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
-              Platform
+              Select Platform
             </label>
-            <select
-              value={platform}
-              onChange={(e) => {
-                setPlatform(e.target.value)
-                // Reset format when platform changes
-                if (e.target.value === 'tiktok') setFormat('vertical')
-                if (e.target.value === 'instagram') setFormat('reels')
-                if (e.target.value === 'youtube') setFormat('shorts')
-                if (e.target.value === 'linkedin') setFormat('square')
-                if (e.target.value === 'twitter') setFormat('horizontal')
-              }}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            >
-              <option value="tiktok">TikTok</option>
-              <option value="instagram">Instagram</option>
-              <option value="youtube">YouTube</option>
-              <option value="linkedin">LinkedIn</option>
-              <option value="twitter">Twitter/X</option>
-            </select>
+            <div className="inline-flex rounded-lg border border-gray-300 bg-white p-1 shadow-sm">
+              <button
+                onClick={() => {
+                  setPlatform('tiktok')
+                  setFormat('vertical')
+                }}
+                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
+                  platform === 'tiktok' 
+                    ? 'bg-orange-600 text-white shadow-sm' 
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+                title="TikTok"
+              >
+                <Music2 className="h-6 w-6" />
+              </button>
+              <button
+                onClick={() => {
+                  setPlatform('instagram')
+                  setFormat('reels')
+                }}
+                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
+                  platform === 'instagram' 
+                    ? 'bg-orange-600 text-white shadow-sm' 
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Instagram"
+              >
+                <Instagram className="h-6 w-6" />
+              </button>
+              <button
+                onClick={() => {
+                  setPlatform('youtube')
+                  setFormat('shorts')
+                }}
+                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
+                  platform === 'youtube' 
+                    ? 'bg-orange-600 text-white shadow-sm' 
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+                title="YouTube"
+              >
+                <Youtube className="h-6 w-6" />
+              </button>
+              <button
+                onClick={() => {
+                  setPlatform('linkedin')
+                  setFormat('square')
+                }}
+                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
+                  platform === 'linkedin' 
+                    ? 'bg-orange-600 text-white shadow-sm' 
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+                title="LinkedIn"
+              >
+                <Linkedin className="h-6 w-6" />
+              </button>
+              <button
+                onClick={() => {
+                  setPlatform('twitter')
+                  setFormat('horizontal')
+                }}
+                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
+                  platform === 'twitter' 
+                    ? 'bg-orange-600 text-white shadow-sm' 
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Twitter/X"
+              >
+                <Twitter className="h-6 w-6" />
+              </button>
+            </div>
           </div>
 
           {/* Format - conditional based on platform */}
