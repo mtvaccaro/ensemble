@@ -34,15 +34,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     console.log(`Analyzing episode ${episodeId} for ${maxSuggestions} clip suggestions...`)
+    console.log(`📝 Transcript: ${segments.length} segments, ~${Math.round(transcript.length / 4)} tokens`)
 
     // Build prompt for GPT
     const systemPrompt = `You are an expert podcast clip editor specializing in viral social media content. Analyze this transcript and identify the ${maxSuggestions} BEST moments that would explode on TikTok, Instagram Reels, and YouTube Shorts.
 
-CRITICAL: IGNORE ALL ADS AND SPONSORSHIPS
-- Skip any segments mentioning sponsors, promo codes, discounts, websites to visit
-- Avoid segments that say "brought to you by", "thanks to our sponsor", "use code", etc.
-- Skip monotone read advertisement scripts
-- Ignore segments promoting products/services unless it's the main topic
+CRITICAL: DISTINGUISH ADS FROM VIRAL CONTENT
+Ads are designed to grab attention but DON'T make good clips because:
+- They're promotional (selling something), not authentic content
+- They mention sponsors, promo codes, discounts, websites
+- They break the natural conversation flow
+- They often sound scripted/rehearsed vs genuine
+
+RED FLAGS FOR ADS:
+- "Brought to you by", "thanks to our sponsor", "use code", "promo", "discount"
+- Mentions of websites, URLs, or "link in description"
+- Product pitches or service promotions
+- Scripted, monotone delivery (not conversational)
+
+INSTEAD, look for GENUINE conversation where:
+- Hosts are speaking naturally and passionately
+- Ideas flow organically (not selling anything)
+- Emotion is authentic (laughter, surprise, vulnerability)
+- Insights come from personal experience, not marketing copy
 
 VIRAL CONTENT PATTERNS TO LOOK FOR:
 1. **Strong Hooks (First 3 Seconds)**
@@ -100,14 +114,33 @@ EVALUATION CRITERIA (Rate each clip 1-10):
 - Emotional Impact: Makes you feel something
 - Replay Value: Worth watching multiple times
 
+EXAMPLES TO LEARN FROM:
+
+❌ BAD CLIP (Even if attention-grabbing):
+"This episode is brought to you by BetterHelp. Mental health is important, and BetterHelp makes therapy accessible. Visit betterhelp.com/podcast for 10% off..."
+WHY BAD: It's an ad! Promotional, scripted, selling something. Not authentic content.
+
+✅ GOOD CLIP:
+"I lost everything. $2 million gone in 48 hours. And you know what the worst part was? I had to call my wife and tell her we were broke. That conversation... that was when I learned what really matters."
+WHY GOOD: Authentic story, emotional, relatable struggle, complete narrative arc.
+
+❌ BAD CLIP (Sounds engaging but isn't):
+"Now I want to tell you about this amazing tool we've been using. It's called Notion, and it's completely changed how we organize our work. You can try it free at notion.com..."
+WHY BAD: Product pitch disguised as content. Still promotional.
+
+✅ GOOD CLIP:
+"Everyone says 'follow your passion.' That's terrible advice. I followed my passion for 5 years and almost went bankrupt. What actually worked? Following the market, THEN developing passion for what pays."
+WHY GOOD: Counterintuitive insight, challenges common wisdom, based on experience.
+
 SELECTION STRATEGY:
-1. Prioritize clips with HIGH hook scores (8-10/10)
-2. Choose clips from DIFFERENT parts of episode (temporal diversity)
-3. Mix content types (story + insight + quote)
-4. Ensure each clip has a different "flavor" (don't pick 3 similar moments)
-5. Skip first 2-3 minutes (usually ads/intros)
-6. Prefer clips from second half (usually best content after warmup)
+1. Read the ENTIRE transcript before choosing
+2. Prioritize clips with HIGH hook scores (8-10/10) from GENUINE content
+3. Choose clips from DIFFERENT parts of episode (temporal diversity)
+4. Mix content types (story + insight + quote + debate)
+5. Ensure each clip has a different "flavor" (don't pick 3 similar moments)
+6. Look throughout the episode - great content can be anywhere
 7. Clips should be 30-90 seconds long (ideal for social media)
+8. When in doubt: Is this authentic conversation or promotional content?
 
 Return EXACTLY ${maxSuggestions} clips as a JSON object with this structure:
 {
@@ -139,6 +172,17 @@ Base timestamps on the segment timing provided. Be precise with times.`
     })
 
     const result = JSON.parse(completion.choices[0].message.content || '{"clips": []}') as { clips: AIClipSuggestion[] }
+    
+    // Log what AI selected for debugging
+    console.log(`\n📊 AI Selection Details:`)
+    result.clips.forEach((clip, i) => {
+      const mins = Math.floor(clip.startTime / 60)
+      const secs = Math.floor(clip.startTime % 60)
+      console.log(`\nClip ${i + 1}: "${clip.title}"`)
+      console.log(`  ⏱️  Time: ${mins}:${secs.toString().padStart(2, '0')} - ${formatTime(clip.endTime)} (${(clip.endTime - clip.startTime).toFixed(0)}s)`)
+      console.log(`  🎯 Hook: ${clip.hookScore}/10 | Viral: ${clip.viralPotential}/10 | Type: ${clip.contentType}`)
+      console.log(`  💡 Why: ${clip.reason}`)
+    })
     
     // Enrich with actual segments and filter out ads
     const suggestions = result.clips
