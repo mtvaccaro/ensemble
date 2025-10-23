@@ -1149,41 +1149,6 @@ export default function CanvasPage() {
 
       {/* Canvas Area */}
       <div className="flex-1 flex flex-col" style={{ overscrollBehavior: 'none' }}>
-        {/* Toolbar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {canvasItems.length} item{canvasItems.length !== 1 ? 's' : ''} on canvas
-              </span>
-              {selectedItemIds.length > 0 && (
-                <span className="text-sm text-blue-600">
-                  · {selectedItemIds.length} selected
-                </span>
-              )}
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {selectedItemIds.length > 0 && (
-              <div className="text-xs text-gray-600 px-3 py-1 bg-gray-100 rounded">
-                {selectedItemIds.length} selected
-              </div>
-            )}
-            <Button
-              onClick={() => {
-                setCanvasItems([])
-                setSelectedItemIds([])
-                posthog.capture('canvas_cleared')
-              }}
-              variant="outline"
-              size="sm"
-            >
-              Clear Canvas
-            </Button>
-          </div>
-        </div>
-
         {/* Canvas */}
         <div
           ref={canvasRef}
@@ -1684,8 +1649,30 @@ export default function CanvasPage() {
         {/* Panel Content */}
         <div className="flex-1 overflow-y-auto">
           {selectedItemIds.length === 0 && (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm p-8 text-center">
-              Select something to see details
+            <div className="flex flex-col items-center justify-center h-full p-8 space-y-6">
+              <div className="text-center space-y-2">
+                <p className="text-sm text-gray-500">
+                  {canvasItems.length === 0 ? 'Canvas is empty' : `${canvasItems.length} item${canvasItems.length !== 1 ? 's' : ''} on canvas`}
+                </p>
+                <p className="text-xs text-gray-400">
+                  Select an item to see details
+                </p>
+              </div>
+              
+              {canvasItems.length > 0 && (
+                <Button
+                  onClick={() => {
+                    setCanvasItems([])
+                    setSelectedItemIds([])
+                    posthog.capture('canvas_cleared')
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                >
+                  Clear Canvas
+                </Button>
+              )}
             </div>
           )}
 
