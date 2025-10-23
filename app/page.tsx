@@ -59,6 +59,7 @@ export default function CanvasPage() {
   const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 })
   const [selectionEnd, setSelectionEnd] = useState({ x: 0, y: 0 })
   const [selectionShiftHeld, setSelectionShiftHeld] = useState(false)
+  const [justCompletedSelection, setJustCompletedSelection] = useState(false)
   
   // Right panel state
   const [isTranscribing, setIsTranscribing] = useState(false)
@@ -474,6 +475,10 @@ export default function CanvasPage() {
       
       setIsSelecting(false)
       setSelectionShiftHeld(false)
+      setJustCompletedSelection(true)
+      
+      // Reset the flag after a brief delay to allow click event to be ignored
+      setTimeout(() => setJustCompletedSelection(false), 10)
       return
     }
     
@@ -667,6 +672,11 @@ export default function CanvasPage() {
   }
 
   const handleCanvasClick = (e: React.MouseEvent) => {
+    // Don't clear selection if we just completed a drag-to-select
+    if (justCompletedSelection) {
+      return
+    }
+    
     // Only deselect and close panel if clicking directly on canvas background
     // Check if the click target is the canvas or the transform container
     const target = e.target as HTMLElement
