@@ -38,6 +38,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     console.log(`📝 Transcript: ${segments.length} segments, ~${Math.round(transcript.length / 4)} tokens`)
     if (episodeTitle) console.log(`📌 Title: "${episodeTitle}"`)
     if (episodeDescription) console.log(`📄 Description: "${episodeDescription.substring(0, 100)}${episodeDescription.length > 100 ? '...' : ''}"`)
+    
+    // Log samples of transcript for debugging
+    console.log(`\n🔍 Transcript Samples:`)
+    console.log(`  First 30s: "${segments.filter((s: TranscriptSegment) => s.start < 30).map((s: TranscriptSegment) => s.text).join(' ').substring(0, 150)}..."`)
+    const midPoint = segments[Math.floor(segments.length / 2)]
+    console.log(`  Middle (~${Math.floor(midPoint.start / 60)}m): "${segments.filter((s: TranscriptSegment) => Math.abs(s.start - midPoint.start) < 15).map((s: TranscriptSegment) => s.text).join(' ').substring(0, 150)}..."`)
+    const lastSegments = segments.slice(-5)
+    console.log(`  Last 30s: "${lastSegments.map((s: TranscriptSegment) => s.text).join(' ').substring(0, 150)}..."`)
 
     // Build prompt for GPT
     const systemPrompt = `You are an expert podcast clip editor specializing in viral social media content. Analyze this transcript and identify the ${maxSuggestions} BEST moments that would explode on TikTok, Instagram Reels, and YouTube Shorts.
@@ -216,11 +224,19 @@ Base timestamps on the segment timing provided. Be precise with times.`
     result.clips.forEach((clip, i) => {
       const mins = Math.floor(clip.startTime / 60)
       const secs = Math.floor(clip.startTime % 60)
+      
+      // Get the actual transcript text for this clip
+      const clipSegments = segments.filter((s: TranscriptSegment) => 
+        s.start >= clip.startTime && s.end <= clip.endTime
+      )
+      const clipText = clipSegments.map((s: TranscriptSegment) => s.text).join(' ')
+      
       console.log(`\nClip ${i + 1}: "${clip.title}"`)
       console.log(`  ⏱️  Time: ${mins}:${secs.toString().padStart(2, '0')} - ${formatTime(clip.endTime)} (${(clip.endTime - clip.startTime).toFixed(0)}s)`)
       console.log(`  🎯 Hook: ${clip.hookScore}/10 | Viral: ${clip.viralPotential}/10 | Type: ${clip.contentType}`)
       console.log(`  💡 Why: ${clip.reason}`)
       console.log(`  🔗 Topic Link: ${clip.topicRelevance}`)
+      console.log(`  📝 ACTUAL TEXT: "${clipText.substring(0, 200)}${clipText.length > 200 ? '...' : ''}"`)
     })
     
     // Enrich with actual segments and filter out ads
@@ -249,7 +265,8 @@ Base timestamps on the segment timing provided. Be precise with times.`
       .filter(suggestion => {
         const isAd = isLikelyAd(suggestion.transcript)
         if (isAd) {
-          console.log(`🚫 Filtered out ad clip: "${suggestion.title}"`)
+          console.log(`\n🚫 FILTERED AS AD: "${suggestion.title}"`)
+          console.log(`   Text: "${suggestion.transcript.substring(0, 150)}..."`)
         }
         return !isAd
       })
