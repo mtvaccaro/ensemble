@@ -109,6 +109,9 @@ export async function exportClipToVideo(
     
     // Get the final video buffer
     const buffer = (output.target as BufferTarget).buffer
+    if (!buffer) {
+      throw new Error('Failed to generate video buffer')
+    }
     return new Blob([buffer], { type: 'video/mp4' })
     
   } catch (error) {
@@ -208,6 +211,9 @@ export async function exportReelToVideo(
     onProgress?.(1.0)
     
     const buffer = (output.target as BufferTarget).buffer
+    if (!buffer) {
+      throw new Error('Failed to generate video buffer')
+    }
     return new Blob([buffer], { type: 'video/mp4' })
     
   } catch (error) {
