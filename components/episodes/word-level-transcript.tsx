@@ -15,6 +15,7 @@ interface WordLevelTranscriptProps {
   startTime?: number | null
   endTime?: number | null
   searchQuery?: string
+  onSearchInfoChange?: (info: { matchCount: number; currentIndex: number; goToNext: () => void; goToPrev: () => void }) => void
 }
 
 export function WordLevelTranscript({ 
@@ -22,11 +23,26 @@ export function WordLevelTranscript({
   onSelectionChange,
   startTime,
   endTime,
-  searchQuery = ''
+  searchQuery = '',
+  onSearchInfoChange
 }: WordLevelTranscriptProps) {
   const [selectionStart, setSelectionStart] = useState<WordSelection | null>(null)
   const [selectionEnd, setSelectionEnd] = useState<WordSelection | null>(null)
   const [hoverWord, setHoverWord] = useState<WordSelection | null>(null)
+  
+  // ESC key to cancel selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectionStart && !selectionEnd) {
+        setSelectionStart(null)
+        setHoverWord(null)
+        onSelectionChange(null)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectionStart, selectionEnd, onSelectionChange])
 
   // Speaker color palette - each speaker gets a unique color
   const getSpeakerColor = (speaker: string | null): string => {
@@ -229,30 +245,68 @@ export function WordLevelTranscript({
     return null
   }
 
-  // Find matches in consolidated blocks
-  const { highlightedBlocks, matchCount } = useMemo(() => {
-    if (!searchQuery) {
-      return {
-        highlightedBlocks: consolidatedSpeakerBlocks,
-        matchCount: 0
-      }
-    }
-
-    const query = searchQuery.toLowerCase()
-    let count = 0
+  // Find all matching words with their locations
+  const searchMatches = useMemo(() => {
+    if (!searchQuery) return []
     
-    const highlighted = consolidatedSpeakerBlocks.map(block => {
-      const blockText = block.words.map(w => w.word.text).join(' ').toLowerCase()
-      const hasMatch = blockText.includes(query)
-      if (hasMatch) count++
-      return {
-        ...block,
-        hasMatch
-      }
+    const query = searchQuery.toLowerCase()
+    const matches: Array<{ blockIdx: number; wordIdx: number; text: string }> = []
+    
+    consolidatedSpeakerBlocks.forEach((block, blockIdx) => {
+      block.words.forEach((wordData, wordIdx) => {
+        if (wordData.word.text.toLowerCase().includes(query)) {
+          matches.push({ blockIdx, wordIdx, text: wordData.word.text })
+        }
+      })
     })
-
-    return { highlightedBlocks: highlighted, matchCount: count }
+    
+    return matches
   }, [consolidatedSpeakerBlocks, searchQuery])
+  
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
+  
+  // Reset match index when search changes
+  useEffect(() => {
+    setCurrentMatchIndex(0)
+  }, [searchQuery])
+  
+  // Navigate to next/previous match
+  const goToNextMatch = () => {
+    if (searchMatches.length > 0) {
+      setCurrentMatchIndex((prev) => (prev + 1) % searchMatches.length)
+    }
+  }
+  
+  const goToPrevMatch = () => {
+    if (searchMatches.length > 0) {
+      setCurrentMatchIndex((prev) => (prev - 1 + searchMatches.length) % searchMatches.length)
+    }
+  }
+  
+  // Check if a word is a search match
+  const isSearchMatch = (blockIdx: number, wordIdx: number): 'current' | 'other' | null => {
+    if (!searchQuery || searchMatches.length === 0) return null
+    
+    const currentMatch = searchMatches[currentMatchIndex]
+    if (currentMatch && currentMatch.blockIdx === blockIdx && currentMatch.wordIdx === wordIdx) {
+      return 'current'
+    }
+    
+    const isMatch = searchMatches.some(m => m.blockIdx === blockIdx && m.wordIdx === wordIdx)
+    return isMatch ? 'other' : null
+  }
+  
+  // Notify parent of search info changes
+  useEffect(() => {
+    if (onSearchInfoChange) {
+      onSearchInfoChange({
+        matchCount: searchMatches.length,
+        currentIndex: currentMatchIndex,
+        goToNext: goToNextMatch,
+        goToPrev: goToPrevMatch
+      })
+    }
+  }, [searchMatches.length, currentMatchIndex, onSearchInfoChange])
 
   const formatTimestamp = (milliseconds: number): string => {
     const totalSeconds = milliseconds / 1000
@@ -273,17 +327,11 @@ export function WordLevelTranscript({
     <div className="space-y-4">
       {/* Word-level Transcript - Consolidated by Speaker */}
       <div className="space-y-6 px-4">
-        {highlightedBlocks.map((block, blockIdx) => {
-          const hasMatch = 'hasMatch' in block && block.hasMatch
+        {consolidatedSpeakerBlocks.map((block, blockIdx) => {
           const speakerColor = getSpeakerColor(block.speaker)
 
           return (
-            <div
-              key={blockIdx}
-              className={`
-                ${hasMatch ? 'bg-yellow-50 border-l-2 border-yellow-400 pl-3 -ml-1' : ''}
-              `}
-            >
+            <div key={blockIdx}>
               {/* Speaker label */}
               {block.speaker && (
                 <div className="flex items-center gap-2 mb-2">
@@ -300,11 +348,13 @@ export function WordLevelTranscript({
               <div className="text-sm leading-[1.8] text-gray-900">
                 {block.words.map(({ word, segmentId, wordIndex }, idx) => {
                   const state = isWordInSelection(segmentId, wordIndex)
+                  const searchState = isSearchMatch(blockIdx, idx)
                   
                   let bgClass = ''
                   let textClass = 'text-gray-900'
                   let extraClasses = 'hover:bg-gray-100'
                   
+                  // Selection states take priority
                   if (state === 'start' || state === 'end') {
                     bgClass = 'bg-blue-500'
                     textClass = 'text-white'
@@ -316,6 +366,16 @@ export function WordLevelTranscript({
                   } else if (state === 'preview') {
                     bgClass = 'bg-blue-100'
                     textClass = 'text-blue-800'
+                    extraClasses = 'px-0.5 -mx-0.5 rounded'
+                  } 
+                  // Search highlighting (only if not selected)
+                  else if (searchState === 'current') {
+                    bgClass = 'bg-orange-400'
+                    textClass = 'text-white'
+                    extraClasses = 'font-semibold px-1 -mx-0.5 rounded'
+                  } else if (searchState === 'other') {
+                    bgClass = 'bg-yellow-200'
+                    textClass = 'text-gray-900'
                     extraClasses = 'px-0.5 -mx-0.5 rounded'
                   }
                   

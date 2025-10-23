@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { FileText, Loader2, Scissors, RotateCcw, Clock, Search, X } from 'lucide-react'
+import { FileText, Loader2, Scissors, RotateCcw, Clock, Search, X, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TranscriptSegment, CanvasEpisode, CanvasClip } from '@/types'
 import { SearchableTranscript } from '@/components/episodes/searchable-transcript'
@@ -34,6 +34,12 @@ export function EpisodePanelContent({
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchInfo, setSearchInfo] = useState<{
+    matchCount: number
+    currentIndex: number
+    goToNext: () => void
+    goToPrev: () => void
+  } | null>(null)
   
   const hasTranscript = episode.transcript_segments && episode.transcript_segments.length > 0
   
@@ -317,9 +323,37 @@ export function EpisodePanelContent({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search transcript..."
-              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
+              className="w-full pl-10 pr-32 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white placeholder:text-gray-500"
             />
-            {searchQuery && (
+            {searchQuery && searchInfo && searchInfo.matchCount > 0 && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <span className="text-xs text-gray-600 font-medium">
+                  {searchInfo.currentIndex + 1}/{searchInfo.matchCount}
+                </span>
+                <button
+                  onClick={searchInfo.goToPrev}
+                  className="p-1 hover:bg-gray-100 rounded"
+                  title="Previous match"
+                >
+                  <ChevronUp className="h-3 w-3 text-gray-600" />
+                </button>
+                <button
+                  onClick={searchInfo.goToNext}
+                  className="p-1 hover:bg-gray-100 rounded"
+                  title="Next match"
+                >
+                  <ChevronDown className="h-3 w-3 text-gray-600" />
+                </button>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="p-1 hover:bg-gray-100 rounded ml-1"
+                  title="Clear search"
+                >
+                  <X className="h-3 w-3 text-gray-400" />
+                </button>
+              </div>
+            )}
+            {searchQuery && (!searchInfo || searchInfo.matchCount === 0) && (
               <button
                 onClick={() => setSearchQuery('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-gray-100 rounded p-1"
@@ -367,6 +401,7 @@ export function EpisodePanelContent({
             startTime={manualStartTime}
             endTime={manualEndTime}
             searchQuery={searchQuery}
+            onSearchInfoChange={setSearchInfo}
           />
         ) : (
           <SearchableTranscript
