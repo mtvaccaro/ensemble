@@ -1136,11 +1136,9 @@ export default function CanvasPage() {
             )}
             <Button
               onClick={() => {
-                if (confirm('Clear entire canvas?')) {
-                  setCanvasItems([])
-                  setSelectedItemIds([])
-                  posthog.capture('canvas_cleared')
-                }
+                setCanvasItems([])
+                setSelectedItemIds([])
+                posthog.capture('canvas_cleared')
               }}
               variant="outline"
               size="sm"
@@ -1278,10 +1276,8 @@ export default function CanvasPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (confirm('Remove this episode from canvas?')) {
-                              setCanvasItems(canvasItems.filter(i => i.id !== item.id))
-                              setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
-                            }
+                            setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                            setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
                           }}
                           className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
                           title="Remove from canvas"
@@ -1391,10 +1387,8 @@ export default function CanvasPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (confirm('Remove this clip from canvas?')) {
-                              setCanvasItems(canvasItems.filter(i => i.id !== item.id))
-                              setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
-                            }
+                            setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                            setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
                           }}
                           className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
                           title="Remove from canvas"
@@ -1494,10 +1488,8 @@ export default function CanvasPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (confirm('Delete this Reel?')) {
-                              setCanvasItems(canvasItems.filter(i => i.id !== item.id))
-                              setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
-                            }
+                            setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                            setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
                           }}
                           className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
                           title="Delete Reel"
@@ -1680,10 +1672,8 @@ export default function CanvasPage() {
                     
                     // Delete reel if no clips left
                     if (updatedReel.clipIds.length === 0) {
-                      if (confirm('Reel is empty. Delete it?')) {
-                        setCanvasItems(canvasItems.filter(item => item.id !== reel.id))
-                        setSelectedItemIds([])
-                      }
+                      setCanvasItems(canvasItems.filter(item => item.id !== reel.id))
+                      setSelectedItemIds([])
                     } else {
                       setCanvasItems(canvasItems.map(item => 
                         item.id === reel.id ? updatedReel : item

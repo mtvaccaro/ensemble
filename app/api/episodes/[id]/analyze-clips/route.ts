@@ -7,15 +7,13 @@ interface RouteParams {
 }
 
 interface AIClipSuggestion {
-  startTime: number
-  endTime: number
   title: string
   reason: string
   hookScore: number
   viralPotential: number
   contentType: 'story' | 'insight' | 'quote' | 'debate' | 'funny'
   topicRelevance: string
-  transcriptText: string // EXACT text GPT claims is at this timestamp - validates it actually read the content
+  transcriptText: string // FULL clip text (30-120s) - we search for this to find timestamps
 }
 
 const openai = new OpenAI({
@@ -179,24 +177,29 @@ Return a JSON object with the episode topic and ${maxSuggestions} ON-TOPIC clips
   "episodeTopic": "<what is this episode actually about? 1-2 sentences>",
   "clips": [
     {
-      "startTime": <seconds - where clip begins>,
-      "endTime": <seconds - where clip ends, MUST be 30-90 seconds AFTER startTime>,
       "title": "<catchy 5-8 word title>",
       "reason": "<one sentence why this will go viral>",
       "hookScore": <1-10: how attention-grabbing is the opening>,
       "viralPotential": <1-10: overall shareability>,
       "contentType": "<story|insight|quote|debate|funny>",
       "topicRelevance": "<how this clip relates to the episode's main topic>",
-      "transcriptText": "<MUST INCLUDE: Copy the EXACT transcript text from startTime to endTime, word-for-word from the transcript provided.>"
+      "transcriptText": "<CRITICAL: Copy the COMPLETE clip text word-for-word from the transcript. Include 30-120 seconds worth of text - not just 1-2 sentences! This FULL text is how we locate the clip.>"
     }
   ]
 }
 
-CRITICAL REQUIREMENTS:
-1. Each clip MUST be 30-90 seconds long (endTime minus startTime = 30-90)
-2. You MUST include "transcriptText" with the EXACT words between startTime and endTime
-3. Copy the transcript text verbatim - proves you read the actual content
-4. DO NOT return clips with startTime = endTime (0 second clips are invalid)
+CRITICAL REQUIREMENTS FOR transcriptText:
+1. **MUST be 30-120 seconds of transcript text** - not a snippet or sample!
+2. Copy word-for-word from the transcript timestamps you're providing
+3. Include the ENTIRE clip from start to finish
+4. This full text is used to search the transcript and find exact boundaries
+5. DO NOT summarize or paraphrase - copy verbatim
+
+Example GOOD transcriptText (60+ seconds):
+"If you think about what happens during stock market crashes, like in 2008, everyone typically loses money because stocks are going down. But what trend following can do is if stocks are going down, they start betting that stocks will keep going down. So they're actually making money during the crash while everyone else is losing. That's what makes it such a powerful strategy in volatile markets..."
+
+Example BAD transcriptText (too short):
+"If you think about what happens during stock market crashes..." ← NOT ENOUGH!
 
 Base timestamps on the segment timing provided. Be precise with times.`
 
@@ -230,53 +233,25 @@ Base timestamps on the segment timing provided. Be precise with times.`
     }
     console.log(`\n📹 Clip Selections:`)
     result.clips.forEach((clip, i) => {
-      const mins = Math.floor(clip.startTime / 60)
-      const secs = Math.floor(clip.startTime % 60)
-      const duration = clip.endTime - clip.startTime
-      
-      // Validate clip duration
-      if (duration <= 0) {
-        console.log(`\n❌ INVALID Clip ${i + 1}: "${clip.title}"`)
-        console.log(`  🚨 ERROR: startTime (${clip.startTime}s) and endTime (${clip.endTime}s) are the same or invalid!`)
-        console.log(`  🤖 GPT claimed this text: "${clip.transcriptText.substring(0, 150)}..."`)
-        console.log(`  ⚠️  This clip will be SKIPPED - GPT needs to return proper time ranges`)
-        return
-      }
-      
-      // Get the actual transcript text for this clip
-      const clipSegments = segments.filter((s: TranscriptSegment) => 
-        s.start >= clip.startTime && s.end <= clip.endTime
-      )
-      const actualText = clipSegments.map((s: TranscriptSegment) => s.text).join(' ')
-      
       console.log(`\nClip ${i + 1}: "${clip.title}"`)
-      console.log(`  ⏱️  Time: ${mins}:${secs.toString().padStart(2, '0')} - ${formatTime(clip.endTime)} (${duration.toFixed(0)}s)`)
       console.log(`  🎯 Hook: ${clip.hookScore}/10 | Viral: ${clip.viralPotential}/10 | Type: ${clip.contentType}`)
       console.log(`  💡 Why: ${clip.reason}`)
       console.log(`  🔗 Topic Link: ${clip.topicRelevance}`)
-      console.log(`  🤖 GPT CLAIMS TEXT IS: "${clip.transcriptText.substring(0, 150)}${clip.transcriptText.length > 150 ? '...' : ''}"`)
-      console.log(`  📝 ACTUAL TEXT IS: "${actualText.substring(0, 150)}${actualText.length > 150 ? '...' : ''}"`)
+      console.log(`  📝 Text length: ${clip.transcriptText.length} chars (~${Math.round(clip.transcriptText.split(/\s+/).length / 3)} seconds if spoken)`)
       
-      if (!actualText || actualText.trim().length === 0) {
-        console.log(`  ⚠️  WARNING: No transcript found at these timestamps! GPT may have wrong times.`)
-      } else if (actualText.toLowerCase().trim() !== clip.transcriptText.toLowerCase().trim()) {
-        console.log(`  ⚠️  WARNING: GPT's text doesn't match actual transcript! GPT may be hallucinating.`)
-      }
-      
-      // Check if GPT's own claimed text looks like an ad
+      // Check if GPT's claimed text looks like an ad
       if (isLikelyAd(clip.transcriptText)) {
-        console.log(`  🚨 GPT's CLAIMED TEXT contains ad language!`)
+        console.log(`  🚨 WARNING: Text contains ad language!`)
       }
     })
     
-    // Enrich with actual segments - search for GPT's claimed text instead of trusting timestamps
+    // Search for each clip's text in the transcript to find exact timestamps
     const suggestions = result.clips
       .map((clip: AIClipSuggestion) => {
         console.log(`\n🔍 Searching for clip: "${clip.title}"`)
-        console.log(`   GPT claimed timestamps: ${formatTime(clip.startTime)} - ${formatTime(clip.endTime)}`)
-        console.log(`   Searching for text: "${clip.transcriptText.substring(0, 100)}..."`)
+        console.log(`   Text to find: "${clip.transcriptText.substring(0, 100)}..."`)
         
-        // Try to find where GPT's claimed text actually appears in the transcript
+        // Find where this text actually appears in the transcript
         const found = findTextInTranscript(clip.transcriptText, segments)
         
         if (!found) {
@@ -284,10 +259,29 @@ Base timestamps on the segment timing provided. Be precise with times.`
           return null
         }
         
-        console.log(`   ✅ Found at: ${formatTime(found.startTime)} - ${formatTime(found.endTime)}`)
+        const duration = found.endTime - found.startTime
+        console.log(`   ✅ Found at: ${formatTime(found.startTime)} - ${formatTime(found.endTime)} (${duration.toFixed(0)}s)`)
         
-        if (Math.abs(found.startTime - clip.startTime) > 30) {
-          console.log(`   ⚠️  Corrected GPT's timestamps by ${Math.abs(found.startTime - clip.startTime).toFixed(0)}s!`)
+        // Validate duration (hard cap at 2 minutes)
+        if (duration > 120) {
+          console.log(`   ⚠️  Clip is ${duration.toFixed(0)}s - trimming to 2 minutes max`)
+          // Trim segments to 2 minutes
+          const maxEndTime = found.startTime + 120
+          const trimmedSegments = found.segments.filter(s => s.end <= maxEndTime)
+          const transcript = trimmedSegments.map((s: TranscriptSegment) => s.text).join(' ')
+          
+          return {
+            startTime: found.startTime,
+            endTime: trimmedSegments[trimmedSegments.length - 1].end,
+            duration: trimmedSegments[trimmedSegments.length - 1].end - found.startTime,
+            title: clip.title,
+            reason: clip.reason,
+            hookScore: clip.hookScore,
+            viralPotential: clip.viralPotential,
+            contentType: clip.contentType,
+            transcript,
+            segments: trimmedSegments
+          }
         }
         
         const transcript = found.segments.map((s: TranscriptSegment) => s.text).join(' ')
@@ -295,7 +289,7 @@ Base timestamps on the segment timing provided. Be precise with times.`
         return {
           startTime: found.startTime,
           endTime: found.endTime,
-          duration: found.endTime - found.startTime,
+          duration,
           title: clip.title,
           reason: clip.reason,
           hookScore: clip.hookScore,
