@@ -331,28 +331,67 @@ Base timestamps on the segment timing provided. Be precise with times.`
 
 // Search for GPT's claimed text in the actual transcript and return correct timestamps
 function findTextInTranscript(searchText: string, segments: TranscriptSegment[]): { startTime: number; endTime: number; segments: TranscriptSegment[] } | null {
-  // Clean the search text for comparison
-  const cleanSearch = searchText.toLowerCase().trim()
+  // Clean the search text for comparison (remove extra whitespace but keep structure)
+  const cleanSearch = searchText.toLowerCase().replace(/\s+/g, ' ').trim()
+  
+  // We need at least 100 chars to have a meaningful search
+  if (cleanSearch.length < 100) {
+    console.log(`   ⚠️  Search text too short (${cleanSearch.length} chars) - need at least 100`)
+    return null
+  }
   
   // Try to find the text across consecutive segments
   for (let i = 0; i < segments.length; i++) {
     let combinedText = ''
     const matchingSegments: TranscriptSegment[] = []
     
-    // Look ahead to combine segments
-    for (let j = i; j < segments.length && j < i + 50; j++) {
+    // Look ahead to combine segments (up to 100 segments = ~5 minutes of speech)
+    for (let j = i; j < segments.length && j < i + 100; j++) {
       combinedText += ' ' + segments[j].text
       matchingSegments.push(segments[j])
       
-      const cleanCombined = combinedText.toLowerCase().trim()
+      const cleanCombined = combinedText.toLowerCase().replace(/\s+/g, ' ').trim()
       
-      // Check if we found the text (allow some flexibility with partial matches)
-      if (cleanCombined.includes(cleanSearch.substring(0, Math.min(50, cleanSearch.length)))) {
-        // Found it! Return the time range
+      // Check if we've accumulated enough text to contain the search string
+      // Use at least 70% of the search text to match (allow some transcription variance)
+      const searchPrefix = cleanSearch.substring(0, Math.floor(cleanSearch.length * 0.7))
+      
+      if (cleanCombined.includes(searchPrefix)) {
+        // Found it! Now find where exactly it starts and ends
+        const matchIndex = cleanCombined.indexOf(searchPrefix)
+        
+        // Count how many characters we need to skip to reach the match
+        let charCount = 0
+        let startSegmentIndex = 0
+        
+        for (let k = 0; k < matchingSegments.length; k++) {
+          const segmentLength = matchingSegments[k].text.length + 1 // +1 for space
+          if (charCount + segmentLength > matchIndex) {
+            startSegmentIndex = k
+            break
+          }
+          charCount += segmentLength
+        }
+        
+        // Now figure out how many segments we actually need for the full quote
+        // Estimate: ~3 words per second, ~5 chars per word = 15 chars/second
+        const estimatedDuration = cleanSearch.length / 15
+        const estimatedSegments = Math.ceil(estimatedDuration / 2) // ~2 second segments
+        const endSegmentIndex = Math.min(
+          matchingSegments.length - 1,
+          startSegmentIndex + Math.max(estimatedSegments, 10) // At least 10 segments (~20s minimum)
+        )
+        
+        const finalSegments = matchingSegments.slice(startSegmentIndex, endSegmentIndex + 1)
+        
+        if (finalSegments.length === 0) {
+          continue // Skip this match
+        }
+        
         return {
-          startTime: matchingSegments[0].start,
-          endTime: matchingSegments[matchingSegments.length - 1].end,
-          segments: matchingSegments
+          startTime: finalSegments[0].start,
+          endTime: finalSegments[finalSegments.length - 1].end,
+          segments: finalSegments
         }
       }
     }
