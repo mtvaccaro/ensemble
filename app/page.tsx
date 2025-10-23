@@ -1261,8 +1261,8 @@ export default function CanvasPage() {
                           setSelectedItemIds([item.id])
                         }
                       }}
-                      className={`absolute cursor-pointer select-none group ${
-                        isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+                      className={`absolute cursor-pointer select-none group transition-all duration-150 ${
+                        isSelected ? 'ring-4 ring-blue-500 shadow-xl scale-[1.02]' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
@@ -1372,8 +1372,8 @@ export default function CanvasPage() {
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
                       onClick={(e) => e.stopPropagation()}
-                      className={`absolute cursor-move select-none group ${
-                        isSelected ? 'ring-2 ring-purple-500 ring-offset-2' : ''
+                      className={`absolute cursor-move select-none group transition-all duration-150 ${
+                        isSelected ? 'ring-4 ring-purple-500 shadow-xl scale-[1.02]' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
@@ -1473,8 +1473,8 @@ export default function CanvasPage() {
                           setSelectedItemIds([item.id])
                         }
                       }}
-                      className={`absolute cursor-pointer select-none group ${
-                        isSelected ? 'ring-2 ring-orange-500 ring-offset-2' : ''
+                      className={`absolute cursor-pointer select-none group transition-all duration-150 ${
+                        isSelected ? 'ring-4 ring-orange-500 shadow-xl scale-[1.02]' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
