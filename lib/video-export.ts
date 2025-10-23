@@ -6,8 +6,7 @@ import {
   Mp4OutputFormat, 
   BufferTarget,
   CanvasSource,
-  AudioBufferSource,
-  QUALITY_HIGH
+  AudioBufferSource
 } from 'mediabunny'
 
 export interface ClipExportData {
@@ -30,7 +29,7 @@ const DEFAULT_OPTIONS: Required<VideoExportOptions> = {
   width: 1080,
   height: 1080,
   frameRate: 30,
-  videoBitrate: QUALITY_HIGH
+  videoBitrate: 5000000 // 5 Mbps - high quality for 1080x1080
 }
 
 /**
