@@ -55,7 +55,6 @@ export default function CanvasPage() {
   
   // Right panel state
   const [panelType, setPanelType] = useState<'episode' | 'export' | null>(null)
-  const [selectedEpisode, setSelectedEpisode] = useState<CanvasEpisode | null>(null)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [, setClipsToExport] = useState<CanvasClip[]>([])
   
@@ -530,17 +529,10 @@ export default function CanvasPage() {
   //   }
   // }
 
-  // Unused - kept for potential future use
-  // const handleOpenEpisode = (episode: CanvasEpisode) => {
-  //   setSelectedEpisode(episode)
-  //   setPanelType('episode')
-  // }
-
   const handleClosePanel = () => {
     setPanelType(null)
     // Small delay before clearing state to allow panel to animate out
     setTimeout(() => {
-      setSelectedEpisode(null)
       setClipsToExport([])
     }, 300)
   }
@@ -589,15 +581,6 @@ export default function CanvasPage() {
           })
         )
 
-        // Update selected episode if it matches
-        if (selectedEpisode && selectedEpisode.episodeId === episodeId) {
-          setSelectedEpisode({
-            ...selectedEpisode,
-            transcript: data.transcript,
-            transcript_segments: data.segments
-          })
-        }
-
         posthog.capture('canvas_episode_transcribed', {
           episode_id: episodeId,
           segment_count: data.segments?.length || 0,
@@ -620,19 +603,35 @@ export default function CanvasPage() {
   }
 
   const handleTranscribe = async (episodeId: string) => {
-    if (!selectedEpisode) return
+    // Find the episode from canvas items
+    const episode = canvasItems.find(
+      item => item.type === 'episode' && (item as CanvasEpisode).episodeId === episodeId
+    ) as CanvasEpisode | undefined
+    
+    if (!episode) {
+      console.error('Episode not found on canvas:', episodeId)
+      return
+    }
     
     setIsTranscribing(true)
-    await transcribeEpisode(episodeId, selectedEpisode.audioUrl, selectedEpisode.title)
+    await transcribeEpisode(episodeId, episode.audioUrl, episode.title)
     setIsTranscribing(false)
   }
 
   const handleCreateClip = (clipData: Omit<CanvasClip, 'id' | 'createdAt' | 'updatedAt' | 'position'>) => {
-    if (!selectedEpisode) return
+    // Find the parent episode from canvas items
+    const episode = canvasItems.find(
+      item => item.type === 'episode' && (item as CanvasEpisode).episodeId === clipData.episodeId
+    ) as CanvasEpisode | undefined
+    
+    if (!episode) {
+      console.error('Parent episode not found on canvas:', clipData.episodeId)
+      return
+    }
 
     // Find all existing clips from this episode
     const existingClips = canvasItems.filter(
-      item => item.type === 'clip' && (item as CanvasClip).episodeId === selectedEpisode.episodeId
+      item => item.type === 'clip' && (item as CanvasClip).episodeId === episode.episodeId
     ) as CanvasClip[]
 
     // Smart positioning: place clips in a row below the episode
@@ -643,8 +642,8 @@ export default function CanvasPage() {
     
     // Calculate position for new clip
     const clipIndex = existingClips.length
-    const xPosition = selectedEpisode.position.x + (clipIndex * (clipWidth + horizontalSpacing))
-    const yPosition = selectedEpisode.position.y + verticalOffset
+    const xPosition = episode.position.x + (clipIndex * (clipWidth + horizontalSpacing))
+    const yPosition = episode.position.y + verticalOffset
     
     // Constrain to canvas bounds
     const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - clipWidth, xPosition))
@@ -665,7 +664,7 @@ export default function CanvasPage() {
     posthog.capture('clip_created_on_canvas', {
       clip_title: clipData.title,
       clip_duration: clipData.duration,
-      source_episode: selectedEpisode.episodeId,
+      source_episode: episode.episodeId,
       clip_index: clipIndex
     })
 

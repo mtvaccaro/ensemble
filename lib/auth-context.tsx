@@ -1,10 +1,19 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { User } from '@supabase/supabase-js'
-import { supabase } from './supabase'
-import { getUserProfile, UserProfile } from './auth'
-import posthog from 'posthog-js'
+import React, { createContext, useContext, useState } from 'react'
+
+// localStorage mode - no authentication required
+// This is a stub AuthContext for components that still reference auth
+
+interface User {
+  id: string
+  email?: string
+}
+
+interface UserProfile {
+  id: string
+  email?: string
+}
 
 interface AuthContextType {
   user: User | null
@@ -16,57 +25,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        const { profile } = await getUserProfile()
-        setProfile(profile)
-      }
-      
-      setLoading(false)
-    }
-
-    getInitialSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: string, session: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        if (event === 'SIGNED_IN' && session?.user) {
-          posthog.identify(session.user.id, {
-            email: session.user.email
-          })
-          posthog.capture('user-signed-in')
-        }
-        setUser(session?.user ?? null)
-        
-        if (session?.user) {
-          const { profile } = await getUserProfile()
-          setProfile(profile)
-        } else {
-          setProfile(null)
-        }
-        
-        setLoading(false)
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
+  // In localStorage mode, there's no user authentication
+  const [user] = useState<User | null>(null)
+  const [profile] = useState<UserProfile | null>(null)
+  const [loading] = useState(false)
 
   const signOut = async () => {
-    posthog.capture('user-signed-out')
-    posthog.reset()
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
+    // No-op in localStorage mode
   }
 
   const value = {
@@ -90,3 +55,6 @@ export function useAuth() {
   }
   return context
 }
+
+// Export types for compatibility
+export type { User, UserProfile }

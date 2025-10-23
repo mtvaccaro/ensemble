@@ -285,7 +285,7 @@ export default function PodcastEpisodesPageWithTranscription() {
                   <div className="flex items-center space-x-3 mb-4">
                     <Button
                       onClick={() => handlePlayPause(episode.id, episode.audio_url)}
-                      variant={playingEpisode === episode.id ? "outline" : "default"}
+                      variant={playingEpisode === episode.id ? "outline" : "primary"}
                       size="sm"
                     >
                       {playingEpisode === episode.id ? (
@@ -316,6 +316,7 @@ export default function PodcastEpisodesPageWithTranscription() {
                     <TranscriptionButton
                       episodeId={episode.id}
                       episodeTitle={episode.title}
+                      audioUrl={episode.audio_url}
                       initialStatus={episode.transcription_status}
                       initialTranscript={episode.transcript}
                       onTranscriptionComplete={(transcript) => 
