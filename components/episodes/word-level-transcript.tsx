@@ -245,23 +245,74 @@ export function WordLevelTranscript({
     return null
   }
 
-  // Find all matching words with their locations
+  // Find all matching words with their locations (supports phrase search)
   const searchMatches = useMemo(() => {
     if (!searchQuery) return []
     
-    const query = searchQuery.toLowerCase()
+    const query = searchQuery.toLowerCase().trim()
     const matches: Array<{ blockIdx: number; wordIdx: number; text: string }> = []
     
     consolidatedSpeakerBlocks.forEach((block, blockIdx) => {
-      block.words.forEach((wordData, wordIdx) => {
-        if (wordData.word.text.toLowerCase().includes(query)) {
-          matches.push({ blockIdx, wordIdx, text: wordData.word.text })
+      // Build full text for this block with word positions
+      const blockText = block.words.map(w => w.word.text).join(' ').toLowerCase()
+      
+      // Find all phrase matches in the block text
+      let searchIndex = 0
+      while (searchIndex < blockText.length) {
+        const matchIndex = blockText.indexOf(query, searchIndex)
+        if (matchIndex === -1) break
+        
+        // Calculate which words are part of this match
+        let charCount = 0
+        let matchStartWord = -1
+        let matchEndWord = -1
+        
+        for (let i = 0; i < block.words.length; i++) {
+          const wordText = block.words[i].word.text.toLowerCase()
+          const wordStart = charCount
+          const wordEnd = charCount + wordText.length
+          
+          // Check if this word overlaps with the match
+          if (matchStartWord === -1 && wordEnd > matchIndex) {
+            matchStartWord = i
+          }
+          if (matchStartWord !== -1 && wordStart < matchIndex + query.length) {
+            matchEndWord = i
+          }
+          
+          charCount += wordText.length + 1 // +1 for space
         }
-      })
+        
+        // Add all words in the matched phrase
+        if (matchStartWord !== -1 && matchEndWord !== -1) {
+          for (let i = matchStartWord; i <= matchEndWord; i++) {
+            matches.push({ 
+              blockIdx, 
+              wordIdx: i, 
+              text: block.words[i].word.text,
+              phraseStart: i === matchStartWord,
+              phraseEnd: i === matchEndWord
+            })
+          }
+        }
+        
+        searchIndex = matchIndex + 1
+      }
     })
     
     return matches
   }, [consolidatedSpeakerBlocks, searchQuery])
+  
+  // Group matches by phrase (first word of each phrase)
+  const phraseMatches = useMemo(() => {
+    const phrases: Array<{ blockIdx: number; wordIdx: number }> = []
+    searchMatches.forEach((match: any) => {
+      if (match.phraseStart) {
+        phrases.push({ blockIdx: match.blockIdx, wordIdx: match.wordIdx })
+      }
+    })
+    return phrases
+  }, [searchMatches])
   
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
   
@@ -270,16 +321,16 @@ export function WordLevelTranscript({
     setCurrentMatchIndex(0)
   }, [searchQuery])
   
-  // Navigate to next/previous match
+  // Navigate to next/previous match (navigate by phrase, not by word)
   const goToNextMatch = () => {
-    if (searchMatches.length > 0) {
-      setCurrentMatchIndex((prev) => (prev + 1) % searchMatches.length)
+    if (phraseMatches.length > 0) {
+      setCurrentMatchIndex((prev) => (prev + 1) % phraseMatches.length)
     }
   }
   
   const goToPrevMatch = () => {
-    if (searchMatches.length > 0) {
-      setCurrentMatchIndex((prev) => (prev - 1 + searchMatches.length) % searchMatches.length)
+    if (phraseMatches.length > 0) {
+      setCurrentMatchIndex((prev) => (prev - 1 + phraseMatches.length) % phraseMatches.length)
     }
   }
   
@@ -287,26 +338,46 @@ export function WordLevelTranscript({
   const isSearchMatch = (blockIdx: number, wordIdx: number): 'current' | 'other' | null => {
     if (!searchQuery || searchMatches.length === 0) return null
     
-    const currentMatch = searchMatches[currentMatchIndex]
-    if (currentMatch && currentMatch.blockIdx === blockIdx && currentMatch.wordIdx === wordIdx) {
-      return 'current'
+    // Check if this word is part of the current phrase match
+    const currentPhrase = phraseMatches[currentMatchIndex]
+    if (currentPhrase) {
+      // Find the start word of current phrase in searchMatches
+      const phraseStartIdx = searchMatches.findIndex(
+        (m: any) => m.blockIdx === currentPhrase.blockIdx && 
+                   m.wordIdx === currentPhrase.wordIdx && 
+                   m.phraseStart
+      )
+      
+      if (phraseStartIdx !== -1) {
+        // Find all consecutive words in this phrase (until we hit phraseEnd)
+        for (let i = phraseStartIdx; i < searchMatches.length; i++) {
+          const match: any = searchMatches[i]
+          if (match.blockIdx === blockIdx && match.wordIdx === wordIdx) {
+            return 'current'
+          }
+          if (match.phraseEnd) {
+            break
+          }
+        }
+      }
     }
     
-    const isMatch = searchMatches.some(m => m.blockIdx === blockIdx && m.wordIdx === wordIdx)
+    // Check if word is in any other match
+    const isMatch = searchMatches.some((m: any) => m.blockIdx === blockIdx && m.wordIdx === wordIdx)
     return isMatch ? 'other' : null
   }
   
-  // Notify parent of search info changes
+  // Notify parent of search info changes (use phrase count, not word count)
   useEffect(() => {
     if (onSearchInfoChange) {
       onSearchInfoChange({
-        matchCount: searchMatches.length,
+        matchCount: phraseMatches.length,
         currentIndex: currentMatchIndex,
         goToNext: goToNextMatch,
         goToPrev: goToPrevMatch
       })
     }
-  }, [searchMatches.length, currentMatchIndex, onSearchInfoChange])
+  }, [phraseMatches.length, currentMatchIndex, onSearchInfoChange, goToNextMatch, goToPrevMatch])
 
   const formatTimestamp = (milliseconds: number): string => {
     const totalSeconds = milliseconds / 1000

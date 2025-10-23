@@ -323,7 +323,7 @@ export function EpisodePanelContent({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search transcript..."
-              className="w-full pl-10 pr-32 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white placeholder:text-gray-500"
+              className="w-full pl-10 pr-32 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900 placeholder:text-gray-500"
             />
             {searchQuery && searchInfo && searchInfo.matchCount > 0 && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
