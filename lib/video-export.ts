@@ -9,6 +9,13 @@ import {
   AudioBufferSource
 } from 'mediabunny'
 
+export interface TranscriptSegment {
+  id: number
+  start: number
+  end: number
+  text: string
+}
+
 export interface ClipExportData {
   title: string
   audioUrl: string
@@ -16,6 +23,7 @@ export interface ClipExportData {
   startTime: number
   endTime: number
   duration: number
+  segments?: TranscriptSegment[]
 }
 
 export interface VideoExportOptions {
@@ -23,13 +31,15 @@ export interface VideoExportOptions {
   height?: number
   frameRate?: number
   videoBitrate?: number
+  includeCaptions?: boolean
 }
 
 const DEFAULT_OPTIONS: Required<VideoExportOptions> = {
   width: 1080,
   height: 1080,
   frameRate: 30,
-  videoBitrate: 5000000 // 5 Mbps - high quality for 1080x1080
+  videoBitrate: 5000000, // 5 Mbps - high quality for 1080x1080
+  includeCaptions: false
 }
 
 /**
@@ -37,9 +47,10 @@ const DEFAULT_OPTIONS: Required<VideoExportOptions> = {
  */
 export async function exportClipToVideo(
   clip: ClipExportData,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  exportOptions?: Partial<VideoExportOptions>
 ): Promise<Blob> {
-  const options = { ...DEFAULT_OPTIONS }
+  const options = { ...DEFAULT_OPTIONS, ...exportOptions }
   
   onProgress?.(0.1) // Starting
 
@@ -93,10 +104,39 @@ export async function exportClipToVideo(
     const totalFrames = Math.ceil(durationSeconds * options.frameRate)
     const frameDuration = 1 / options.frameRate
     
-    // Add video frames (static image for each frame)
+    // Prepare caption segments relative to clip start time
+    const captionSegments = options.includeCaptions && clip.segments
+      ? clip.segments.map(seg => ({
+          ...seg,
+          start: seg.start - clip.startTime,
+          end: seg.end - clip.startTime
+        })).filter(seg => seg.start < durationSeconds && seg.end > 0)
+      : []
+    
+    // Store original canvas image data for redrawing
+    const ctx = canvas.getContext('2d')
+    const originalImageData = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null
+    
+    // Add video frames with captions
     for (let i = 0; i < totalFrames; i++) {
       const timestamp = i * frameDuration
+      
+      // Restore original image if using captions (to clear previous caption)
+      if (options.includeCaptions && ctx && originalImageData) {
+        ctx.putImageData(originalImageData, 0, 0)
+        
+        // Find active caption for this timestamp
+        const activeSegment = captionSegments.find(seg => 
+          timestamp >= seg.start && timestamp < seg.end
+        )
+        
+        if (activeSegment) {
+          drawCaptionOnCanvas(ctx, activeSegment.text, options.width, options.height)
+        }
+      }
+      
       await videoSource.add(timestamp, frameDuration)
+      
       if (i % 10 === 0) {
         const progress = 0.7 + (0.25 * (i / totalFrames))
         onProgress?.(progress)
@@ -125,9 +165,10 @@ export async function exportClipToVideo(
  */
 export async function exportReelToVideo(
   clips: ClipExportData[],
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  exportOptions?: Partial<VideoExportOptions>
 ): Promise<Blob> {
-  const options = { ...DEFAULT_OPTIONS }
+  const options = { ...DEFAULT_OPTIONS, ...exportOptions }
   
   if (clips.length === 0) {
     throw new Error('No clips provided')
@@ -196,9 +237,45 @@ export async function exportReelToVideo(
     const totalFrames = Math.ceil(totalDuration * options.frameRate)
     const frameDuration = 1 / options.frameRate
     
-    // Add video frames
+    // Build concatenated caption timeline if enabled
+    let captionSegments: Array<{ start: number; end: number; text: string }> = []
+    if (options.includeCaptions) {
+      let timeOffset = 0
+      for (const clip of clips) {
+        if (clip.segments) {
+          const clipSegments = clip.segments.map(seg => ({
+            start: (seg.start - clip.startTime) + timeOffset,
+            end: (seg.end - clip.startTime) + timeOffset,
+            text: seg.text
+          })).filter(seg => seg.start >= 0 && seg.end <= timeOffset + clip.duration)
+          
+          captionSegments.push(...clipSegments)
+        }
+        timeOffset += clip.duration
+      }
+    }
+    
+    // Store original canvas image data for redrawing
+    const ctx = canvas.getContext('2d')
+    const originalImageData = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null
+    
+    // Add video frames with captions
     for (let i = 0; i < totalFrames; i++) {
       const timestamp = i * frameDuration
+      
+      // Restore original image if using captions (to clear previous caption)
+      if (options.includeCaptions && ctx && originalImageData) {
+        ctx.putImageData(originalImageData, 0, 0)
+        
+        const activeSegment = captionSegments.find(seg => 
+          timestamp >= seg.start && timestamp < seg.end
+        )
+        
+        if (activeSegment) {
+          drawCaptionOnCanvas(ctx, activeSegment.text, options.width, options.height)
+        }
+      }
+      
       await videoSource.add(timestamp, frameDuration)
       if (i % 10 === 0) {
         const progress = 0.6 + (0.35 * (i / totalFrames))
@@ -388,6 +465,76 @@ async function createDefaultImage(): Promise<string> {
   }
   
   return canvas.toDataURL('image/jpeg', 0.9)
+}
+
+/**
+ * Draw caption text on canvas with subtitle styling
+ */
+function drawCaptionOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  width: number,
+  height: number
+): void {
+  // Save current state
+  ctx.save()
+  
+  // Caption styling
+  const fontSize = Math.floor(width * 0.045) // ~48px for 1080x1080
+  const padding = Math.floor(width * 0.04) // ~43px for 1080x1080
+  const lineHeight = fontSize * 1.3
+  const maxWidth = width - (padding * 2)
+  const bottomMargin = Math.floor(height * 0.12) // ~130px for 1080x1080
+  
+  // Set font
+  ctx.font = `bold ${fontSize}px Arial, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'bottom'
+  
+  // Word wrap
+  const words = text.split(' ')
+  const lines: string[] = []
+  let currentLine = words[0]
+  
+  for (let i = 1; i < words.length; i++) {
+    const testLine = currentLine + ' ' + words[i]
+    const metrics = ctx.measureText(testLine)
+    if (metrics.width > maxWidth) {
+      lines.push(currentLine)
+      currentLine = words[i]
+    } else {
+      currentLine = testLine
+    }
+  }
+  lines.push(currentLine)
+  
+  // Limit to 2 lines max
+  const displayLines = lines.slice(-2)
+  
+  // Draw each line from bottom up
+  const totalHeight = displayLines.length * lineHeight
+  let y = height - bottomMargin
+  
+  for (let i = displayLines.length - 1; i >= 0; i--) {
+    const line = displayLines[i]
+    const x = width / 2
+    
+    // Draw background/shadow for readability
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)'
+    ctx.lineWidth = Math.floor(fontSize * 0.25)
+    ctx.lineJoin = 'round'
+    ctx.miterLimit = 2
+    ctx.strokeText(line, x, y)
+    
+    // Draw text
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillText(line, x, y)
+    
+    y -= lineHeight
+  }
+  
+  // Restore state
+  ctx.restore()
 }
 
 /**

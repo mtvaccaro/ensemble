@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 
 // Augment Window interface for drag and drop
 declare global {
@@ -11,7 +11,7 @@ declare global {
     }
   }
 }
-import { Search, Scissors, Download, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film, X, Plus, Sparkles } from 'lucide-react'
+import { Search, Scissors, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, RotateCcw, Loader2, Film, X, Plus, Sparkles, Upload, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem, ClipSuggestion } from '@/types'
@@ -46,6 +46,7 @@ export default function CanvasPage() {
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [dragDelta, setDragDelta] = useState({ x: 0, y: 0 }) // Current drag offset for visual feedback
   
   // Canvas view state (pan/zoom)
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 })
@@ -54,15 +55,16 @@ export default function CanvasPage() {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   
   // Right panel state
-  const [panelType, setPanelType] = useState<'episode' | 'export' | null>(null)
   const [isTranscribing, setIsTranscribing] = useState(false)
-  const [, setClipsToExport] = useState<CanvasClip[]>([])
   
   // Track which episodes are currently transcribing (by episodeId)
   const [transcribingEpisodes, setTranscribingEpisodes] = useState<Set<string>>(new Set())
   
   // Track which episode is generating AI clips
   const [generatingClipsFor, setGeneratingClipsFor] = useState<string | null>(null)
+  
+  // Store uploaded audio files by episodeId for transcription
+  const uploadedFilesRef = useRef<Map<string, File>>(new Map())
   
   // Search panel state
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
@@ -97,17 +99,33 @@ export default function CanvasPage() {
     if (savedRightWidth) setRightPanelWidth(parseInt(savedRightWidth))
   }, [])
 
-  // Handle Escape key to close panel
+  // Handle Delete/Backspace key to remove selected items
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && panelType !== null) {
-        handleClosePanel()
+    const handleDelete = (e: KeyboardEvent) => {
+      // Check if Delete or Backspace was pressed
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItemIds.length > 0) {
+        // Don't delete if user is typing in an input field
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+          return
+        }
+
+        e.preventDefault()
+        
+        // Remove selected items from canvas
+        setCanvasItems(items => items.filter(item => !selectedItemIds.includes(item.id)))
+        setSelectedItemIds([])
+        
+        posthog.capture('canvas_items_deleted', {
+          count: selectedItemIds.length,
+          method: 'keyboard'
+        })
       }
     }
 
-    window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
-  }, [panelType])
+    window.addEventListener('keydown', handleDelete)
+    return () => window.removeEventListener('keydown', handleDelete)
+  }, [selectedItemIds])
 
   // Handle right panel resizing
   useEffect(() => {
@@ -243,7 +261,7 @@ export default function CanvasPage() {
     const y = (clientY - canvasOffset.y) / canvasZoom
     
     // Constrain to canvas bounds
-    const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 280, x))
+    const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 340, x))
     const constrainedY = Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, y))
 
     // Check if we already have a transcript for this episode
@@ -365,7 +383,7 @@ export default function CanvasPage() {
       return
     }
 
-    // Handle item dragging
+    // Handle item dragging - only update visual delta, not state
     if (!draggedItemId || dragStartPositions.size === 0) return
 
     const rect = canvasRef.current?.getBoundingClientRect()
@@ -390,31 +408,37 @@ export default function CanvasPage() {
     const deltaX = newX - draggedStartPos.x
     const deltaY = newY - draggedStartPos.y
 
-    // Update positions of all items that were selected when drag started
-    setCanvasItems(items =>
-      items.map(item => {
-        const startPos = dragStartPositions.get(item.id)
-        if (!startPos) return item // This item wasn't part of the drag
-        
-        // Calculate new position based on the stored start position
-        const newPosX = startPos.x + deltaX
-        const newPosY = startPos.y + deltaY
-        
-        // Constrain to canvas bounds
-        const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 280, newPosX))
-        const constrainedY = Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, newPosY))
-        
-        return {
-          ...item,
-          position: { x: constrainedX, y: constrainedY }
-        }
-      })
-    )
+    // Only update the visual delta, not the actual positions (for performance)
+    setDragDelta({ x: deltaX, y: deltaY })
   }
 
   const handleMouseUp = () => {
+    // Apply final positions if we were dragging
+    if (draggedItemId && dragStartPositions.size > 0 && (dragDelta.x !== 0 || dragDelta.y !== 0)) {
+      setCanvasItems(items =>
+        items.map(item => {
+          const startPos = dragStartPositions.get(item.id)
+          if (!startPos) return item // This item wasn't part of the drag
+          
+          // Calculate final position based on the stored start position + delta
+          const newPosX = startPos.x + dragDelta.x
+          const newPosY = startPos.y + dragDelta.y
+          
+          // Constrain to canvas bounds
+          const constrainedX = Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 340, newPosX))
+          const constrainedY = Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, newPosY))
+          
+          return {
+            ...item,
+            position: { x: constrainedX, y: constrainedY }
+          }
+        })
+      )
+    }
+    
     setDraggedItemId(null)
     setDragStartPositions(new Map())
+    setDragDelta({ x: 0, y: 0 })
     setIsPanning(false)
   }
 
@@ -529,7 +553,7 @@ export default function CanvasPage() {
     // Calculate bounding box of all items
     const positions = canvasItems.map(item => item.position)
     const minX = Math.min(...positions.map(p => p.x))
-    const maxX = Math.max(...positions.map(p => p.x + 280))
+    const maxX = Math.max(...positions.map(p => p.x + 340))
     const minY = Math.min(...positions.map(p => p.y))
     const maxY = Math.max(...positions.map(p => p.y + 200))
     
@@ -561,7 +585,6 @@ export default function CanvasPage() {
       // If clicking on empty space (not on any card)
       if (target === canvasRef.current || (target.hasAttribute('data-canvas-content') && target === e.target)) {
         setSelectedItemIds([])
-        handleClosePanel()
         setIsSearchExpanded(false) // Collapse search when clicking canvas
       }
     }
@@ -580,29 +603,38 @@ export default function CanvasPage() {
   //   }
   // }
 
-  const handleClosePanel = () => {
-    setPanelType(null)
-    // Small delay before clearing state to allow panel to animate out
-    setTimeout(() => {
-      setClipsToExport([])
-    }, 300)
-  }
-
   const transcribeEpisode = async (episodeId: string, audioUrl: string, title: string) => {
     // Add to transcribing set
     setTranscribingEpisodes(prev => new Set(prev).add(episodeId))
     
     try {
-      const response = await fetch(`/api/episodes/${episodeId}/transcribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          audioUrl,
-          episodeTitle: title
+      // Check if this is an uploaded file
+      const audioFile = uploadedFilesRef.current.get(episodeId)
+      
+      let response
+      if (audioFile) {
+        // Use FormData for uploaded files
+        const formData = new FormData()
+        formData.append('audio', audioFile)
+        formData.append('title', title)
+        
+        response = await fetch(`/api/episodes/${episodeId}/transcribe`, {
+          method: 'POST',
+          body: formData
         })
-      })
+      } else {
+        // Use JSON for podcast episodes with URLs
+        response = await fetch(`/api/episodes/${episodeId}/transcribe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            audioUrl,
+            episodeTitle: title
+          })
+        })
+      }
 
       if (response.ok) {
         const data = await response.json()
@@ -638,11 +670,35 @@ export default function CanvasPage() {
           saved_to_cache: true,
           auto_transcribed: true
         })
+        
+        // Clean up uploaded file from memory
+        if (uploadedFilesRef.current.has(episodeId)) {
+          uploadedFilesRef.current.delete(episodeId)
+          console.log('🗑️ Cleaned up uploaded file from memory')
+        }
       } else {
-        console.error('Transcription failed for:', title)
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ Transcription failed for:', title)
+        console.error('Error details:', errorData.details || errorData.error)
+        
+        // Show user-friendly error
+        alert(`Transcription failed: ${errorData.details || errorData.error}\n\nEpisode: ${title}`)
+        
+        posthog.capture('canvas_transcription_failed', {
+          episode_id: episodeId,
+          episode_title: title,
+          error: errorData.details || errorData.error
+        })
       }
     } catch (error) {
-      console.error('Transcription error:', error)
+      console.error('❌ Transcription error:', error)
+      alert(`Transcription error: ${error instanceof Error ? error.message : 'Network error'}\n\nEpisode: ${title}`)
+      
+      posthog.capture('canvas_transcription_error', {
+        episode_id: episodeId,
+        episode_title: title,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
     } finally {
       // Remove from transcribing set
       setTranscribingEpisodes(prev => {
@@ -686,7 +742,7 @@ export default function CanvasPage() {
     ) as CanvasClip[]
 
     // Smart positioning: place clips in a row below the episode
-    const clipWidth = 280
+    const clipWidth = 340
     const clipHeight = 200
     const horizontalSpacing = 20
     const verticalOffset = 250 // Space below episode
@@ -778,7 +834,7 @@ export default function CanvasPage() {
         }
 
         // Position clips below the episode, spread horizontally
-        const clipWidth = 280
+        const clipWidth = 340
         const horizontalSpacing = 20
         const clipIndex = existingClips.length + index
         const xOffset = clipIndex * (clipWidth + horizontalSpacing)
@@ -858,7 +914,7 @@ export default function CanvasPage() {
       clipIds: selectedClips.map(clip => clip.id),
       totalDuration,
       position: {
-        x: Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 280, avgX)),
+        x: Math.max(CANVAS_MIN_X, Math.min(CANVAS_MAX_X - 340, avgX)),
         y: Math.max(CANVAS_MIN_Y, Math.min(CANVAS_MAX_Y - 200, avgY + 300)) // Below clips
       },
       createdAt: new Date().toISOString(),
@@ -875,14 +931,68 @@ export default function CanvasPage() {
     })
   }
 
-  const handleExportClip = (clip: CanvasClip) => {
-    setClipsToExport([clip])
-    setPanelType('export')
-    posthog.capture('export_panel_opened', {
-      clip_count: 1,
-      source: 'single_clip'
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Only accept audio files
+    if (!file.type.startsWith('audio/')) {
+      alert('Please upload an audio file (MP3, WAV, etc.)')
+      return
+    }
+
+    // Create blob URL for the audio file (for playback)
+    const audioUrl = URL.createObjectURL(file)
+    
+    // Extract filename without extension for title
+    const fileName = file.name.replace(/\.[^/.]+$/, '')
+    
+    // Create audio element to get duration
+    const audio = new Audio()
+    audio.src = audioUrl
+    
+    audio.addEventListener('loadedmetadata', () => {
+      const duration = Math.floor(audio.duration)
+      const episodeId = `upload-${Date.now()}`
+      
+      // Store the File object for transcription
+      uploadedFilesRef.current.set(episodeId, file)
+      
+      // Create new canvas episode from uploaded file
+      const newItem: CanvasEpisode = {
+        id: `canvas-episode-upload-${Date.now()}-${Math.random()}`,
+        type: 'episode',
+        episodeId: episodeId,
+        podcastId: 'uploaded-file',
+        title: fileName,
+        audioUrl: audioUrl,
+        imageUrl: undefined, // No image for uploaded files
+        duration: duration,
+        position: { 
+          x: 100, 
+          y: 100 
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+
+      setCanvasItems(prev => [...prev, newItem])
+      
+      posthog.capture('audio_file_uploaded', {
+        file_name: fileName,
+        file_size: file.size,
+        duration: duration
+      })
+
+      // Auto-transcribe the uploaded file
+      console.log('🎙️ Starting auto-transcription for uploaded file:', fileName)
+      transcribeEpisode(episodeId, audioUrl, fileName)
     })
+
+    // Reset file input
+    e.target.value = ''
   }
+
 
   // Unused - kept for potential future use
   // const handleExportSelected = () => {
@@ -914,8 +1024,8 @@ export default function CanvasPage() {
     return `${minutes}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Calculate connector lines from clips to their parent episodes
-  const getConnectorLines = () => {
+  // Memoize connector lines calculation - include dragDelta for live updates during drag
+  const connectorLines = useMemo(() => {
     const lines: Array<{ 
       type: 'episode-to-clip' | 'clip-to-reel',
       sourceId: string;
@@ -939,11 +1049,21 @@ export default function CanvasPage() {
         if (parentEpisode) {
           // Calculate connection points
           // From bottom center of episode to top center of clip
-          const episodeX = parentEpisode.position.x + 140 // Half of episode width (280/2)
-          const episodeY = parentEpisode.position.y + 200 // Bottom of episode card
+          let episodeX = parentEpisode.position.x + 170 // Half of episode width (340/2)
+          let episodeY = parentEpisode.position.y + 110 // Bottom of episode card (adjusted for compact height)
           
-          const clipX = clip.position.x + 140 // Half of clip width (280/2)
-          const clipY = clip.position.y // Top of clip card
+          let clipX = clip.position.x + 170 // Half of clip width (340/2)
+          let clipY = clip.position.y // Top of clip card
+          
+          // Apply drag delta if items are being dragged
+          if (dragStartPositions.has(parentEpisode.id)) {
+            episodeX += dragDelta.x
+            episodeY += dragDelta.y
+          }
+          if (dragStartPositions.has(clip.id)) {
+            clipX += dragDelta.x
+            clipY += dragDelta.y
+          }
           
           lines.push({
             type: 'episode-to-clip',
@@ -965,11 +1085,21 @@ export default function CanvasPage() {
           const clip = canvasItems.find(c => c.id === clipId) as CanvasClip | undefined
           if (clip) {
             // From bottom center of clip to top center of reel
-            const clipX = clip.position.x + 140
-            const clipY = clip.position.y + 200 // Bottom of clip card
+            let clipX = clip.position.x + 170
+            let clipY = clip.position.y + 200 // Bottom of clip card
             
-            const reelX = reel.position.x + 140
-            const reelY = reel.position.y // Top of reel card
+            let reelX = reel.position.x + 170
+            let reelY = reel.position.y // Top of reel card
+            
+            // Apply drag delta if items are being dragged
+            if (dragStartPositions.has(clip.id)) {
+              clipX += dragDelta.x
+              clipY += dragDelta.y
+            }
+            if (dragStartPositions.has(reel.id)) {
+              reelX += dragDelta.x
+              reelY += dragDelta.y
+            }
             
             lines.push({
               type: 'clip-to-reel',
@@ -987,14 +1117,19 @@ export default function CanvasPage() {
     })
     
     return lines
-  }
+  }, [canvasItems, dragDelta, dragStartPositions])
 
   return (
     <div className="flex h-screen bg-gray-50" style={{ overscrollBehavior: 'none' }}>
       {/* Floating Search Card - Top Left */}
       <div className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-xl">
+        {/* Header - Always Visible */}
+        <div className="px-3 pt-3 pb-2 border-b border-gray-200">
+          <h2 className="text-lg font-bold text-gray-900">Clipper</h2>
+        </div>
+
         {/* Search Input (Always Visible) */}
-        <div className="p-3">
+        <div className="p-3 space-y-2">
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -1015,6 +1150,29 @@ export default function CanvasPage() {
               {isSearching ? '...' : 'Go'}
             </Button>
           </form>
+
+          {/* File Upload Button */}
+          <div className="relative">
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="audio-upload"
+            />
+            <label htmlFor="audio-upload">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                onClick={() => document.getElementById('audio-upload')?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                Upload MP3
+              </Button>
+            </label>
+          </div>
         </div>
 
         {/* Expanded Results (Collapsible) */}
@@ -1168,7 +1326,7 @@ export default function CanvasPage() {
                 zIndex: 0
               }}
             >
-              {getConnectorLines().map((line, index) => {
+              {connectorLines.map((line, index) => {
                 const isSelected = selectedItemIds.includes(line.sourceId) || selectedItemIds.includes(line.targetId)
                 const lightColor = line.type === 'episode-to-clip' ? '#d8b4fe' : '#fed7aa' // purple or orange light
                 return (
@@ -1225,6 +1383,7 @@ export default function CanvasPage() {
                 if (item.type === 'episode') {
                   const episode = item as CanvasEpisode
                   const isSelected = selectedItemIds.includes(item.id)
+                  const isDragging = dragStartPositions.has(item.id)
                   
                   return (
                     <div
@@ -1237,14 +1396,17 @@ export default function CanvasPage() {
                           setSelectedItemIds([item.id])
                         }
                       }}
-                      className={`absolute cursor-pointer select-none group transition-all duration-150 ${
+                      className={`absolute cursor-pointer select-none group ${
+                        isDragging ? '' : 'transition-all duration-150'
+                      } ${
                         isSelected ? 'ring-4 ring-blue-500 shadow-xl' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
-                        width: '280px',
-                        zIndex: isSelected ? 20 : 10
+                        width: '340px',
+                        zIndex: isSelected ? 20 : 10,
+                        transform: isDragging ? `translate(${dragDelta.x}px, ${dragDelta.y}px)` : 'none'
                       }}
                     >
                       <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow relative">
@@ -1262,45 +1424,85 @@ export default function CanvasPage() {
                         </button>
                         
                         <div className="flex items-start gap-3">
-                          {episode.imageUrl && (
-                            <img
-                              src={episode.imageUrl}
-                              alt={episode.title}
-                              className="w-16 h-16 rounded object-cover"
-                            />
+                          {episode.imageUrl ? (
+                            <div className="relative w-16 h-16 flex-shrink-0 group/play">
+                              <img
+                                src={episode.imageUrl}
+                                alt={episode.title}
+                                className="w-full h-full rounded object-cover"
+                              />
+                              {/* Play/Pause button overlay */}
+                              <button
+                                className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded transition-all opacity-0 group-hover/play:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
+                                  if (isThisPlaying) {
+                                    setPauseTrigger(Date.now())
+                                  } else {
+                                    setSelectedItemIds([item.id])
+                                    setPlayTrigger(Date.now())
+                                  }
+                                }}
+                                title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
+                              >
+                                {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
+                                  <Pause className="h-6 w-6 text-white drop-shadow-lg" />
+                                ) : (
+                                  <Play className="h-6 w-6 text-white drop-shadow-lg ml-0.5" />
+                                )}
+                              </button>
+                            </div>
+                          ) : (
+                            // Generic music icon for uploaded files without image
+                            <div className="relative w-16 h-16 flex-shrink-0 group/play bg-gradient-to-br from-blue-500 to-purple-600 rounded flex items-center justify-center">
+                              <Music className="h-8 w-8 text-white" />
+                              {/* Play/Pause button overlay */}
+                              <button
+                                className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded transition-all opacity-0 group-hover/play:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
+                                  if (isThisPlaying) {
+                                    setPauseTrigger(Date.now())
+                                  } else {
+                                    setSelectedItemIds([item.id])
+                                    setPlayTrigger(Date.now())
+                                  }
+                                }}
+                                title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
+                              >
+                                {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
+                                  <Pause className="h-6 w-6 text-white drop-shadow-lg" />
+                                ) : (
+                                  <Play className="h-6 w-6 text-white drop-shadow-lg ml-0.5" />
+                                )}
+                              </button>
+                            </div>
                           )}
                           <div className="flex-1 min-w-0">
                             <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
                               {episode.title}
                             </h3>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {formatDuration(episode.duration)}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs text-gray-500">
+                                {formatDuration(episode.duration)}
+                              </p>
+                              
+                              {/* Transcript status badge */}
+                              {transcribingEpisodes.has(episode.episodeId) ? (
+                                <div className="inline-flex bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded-full items-center gap-1">
+                                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                  <span>Transcribing</span>
+                                </div>
+                              ) : episode.transcript_segments && episode.transcript_segments.length > 0 ? (
+                                <div className="inline-flex bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded-full items-center gap-1">
+                                  <FileText className="h-2.5 w-2.5" />
+                                  <span>Ready</span>
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                        
-                        {/* Play/Pause button */}
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-center">
-                          <button
-                            className="bg-purple-600 hover:bg-purple-700 rounded-full p-2 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                              if (isThisPlaying) {
-                                setPauseTrigger(Date.now())
-                              } else {
-                                setSelectedItemIds([item.id])
-                                setPlayTrigger(Date.now())
-                              }
-                            }}
-                            title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
-                          >
-                            {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
-                              <Pause className="h-4 w-4 text-white" />
-                            ) : (
-                              <Play className="h-4 w-4 text-white ml-0.5" />
-                            )}
-                          </button>
                         </div>
                         
                         {/* AI Clip Generator Button - hanging off bottom-right */}
@@ -1321,19 +1523,6 @@ export default function CanvasPage() {
                             )}
                           </button>
                         )}
-                        
-                        {/* Transcript status badge */}
-                        {transcribingEpisodes.has(episode.episodeId) ? (
-                          <div className="absolute top-2 right-8 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            <span>Transcribing...</span>
-                          </div>
-                        ) : episode.transcript_segments && episode.transcript_segments.length > 0 ? (
-                          <div className="absolute top-2 right-8 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                            <FileText className="h-3 w-3" />
-                            <span>Ready</span>
-                          </div>
-                        ) : null}
                       </div>
                     </div>
                   )
@@ -1342,20 +1531,24 @@ export default function CanvasPage() {
                 if (item.type === 'clip') {
                   const clip = item as CanvasClip
                   const isSelected = selectedItemIds.includes(item.id)
+                  const isDragging = dragStartPositions.has(item.id)
                   
                   return (
                     <div
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
                       onClick={(e) => e.stopPropagation()}
-                      className={`absolute cursor-move select-none group transition-all duration-150 ${
+                      className={`absolute cursor-move select-none group ${
+                        isDragging ? '' : 'transition-all duration-150'
+                      } ${
                         isSelected ? 'ring-4 ring-purple-500 shadow-xl' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
-                        width: '280px',
-                        zIndex: isSelected ? 20 : 10
+                        width: '340px',
+                        zIndex: isSelected ? 20 : 10,
+                        transform: isDragging ? `translate(${dragDelta.x}px, ${dragDelta.y}px)` : 'none'
                       }}
                     >
                       <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-lg border-2 border-purple-300 p-4 hover:shadow-xl transition-shadow relative">
@@ -1415,19 +1608,6 @@ export default function CanvasPage() {
                               <Play className="h-4 w-4 text-white ml-0.5" />
                             )}
                           </button>
-                          
-                          {/* Export button */}
-                          <Button 
-                            size="sm" 
-                            className="flex-1 text-xs bg-purple-600 hover:bg-purple-700"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleExportClip(clip)
-                            }}
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            Export
-                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1437,6 +1617,7 @@ export default function CanvasPage() {
                 if (item.type === 'reel') {
                   const reel = item as CanvasReel
                   const isSelected = selectedItemIds.includes(item.id)
+                  const isDragging = dragStartPositions.has(item.id)
                   
                   return (
                     <div
@@ -1449,14 +1630,17 @@ export default function CanvasPage() {
                           setSelectedItemIds([item.id])
                         }
                       }}
-                      className={`absolute cursor-pointer select-none group transition-all duration-150 ${
+                      className={`absolute cursor-pointer select-none group ${
+                        isDragging ? '' : 'transition-all duration-150'
+                      } ${
                         isSelected ? 'ring-4 ring-orange-500 shadow-xl' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
-                        width: '280px',
-                        zIndex: isSelected ? 20 : 10
+                        width: '340px',
+                        zIndex: isSelected ? 20 : 10,
+                        transform: isDragging ? `translate(${dragDelta.x}px, ${dragDelta.y}px)` : 'none'
                       }}
                     >
                       <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg shadow-lg border-2 border-orange-400 p-4 hover:shadow-xl transition-shadow relative">
@@ -1528,20 +1712,6 @@ export default function CanvasPage() {
                               <Play className="h-4 w-4 text-white ml-0.5" />
                             )}
                           </button>
-                          
-                          {/* Export button */}
-                          <Button 
-                            size="sm" 
-                            className="flex-1 text-xs bg-orange-600 hover:bg-orange-700"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              // TODO: Handle reel export (will open panel with clip list)
-                              setSelectedItemIds([item.id])
-                            }}
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            Export
-                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1555,7 +1725,7 @@ export default function CanvasPage() {
           </div>
           
           {/* Floating Zoom Controls - Bottom Right */}
-          <div className="absolute bottom-4 right-4 flex flex-col gap-1 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-1">
+          <div className="absolute bottom-4 right-4 flex flex-col gap-1 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-1 z-40">
             <button
               onClick={handleZoomIn}
               className="p-2 hover:bg-gray-100 rounded transition-colors group"
@@ -1579,6 +1749,15 @@ export default function CanvasPage() {
               <Maximize2 className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
             </button>
           </div>
+
+          {/* Contextual Audio Player */}
+          <ContextualPlayer
+            selectedItems={canvasItems.filter(item => selectedItemIds.includes(item.id))}
+            allItems={canvasItems}
+            playTrigger={playTrigger}
+            pauseTrigger={pauseTrigger}
+            onPlayingChange={setIsPlaying}
+          />
         </div>
       </div>
 
@@ -1595,17 +1774,48 @@ export default function CanvasPage() {
         />
         {/* Panel Header */}
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-semibold text-gray-900">
-            {selectedItemIds.length === 0 && 'Canvas'}
-            {selectedItemIds.length === 1 && (() => {
-              const selectedItem = canvasItems.find(item => item.id === selectedItemIds[0])
-              if (selectedItem?.type === 'episode') return 'Episode'
-              if (selectedItem?.type === 'clip') return 'Clip'
-              if (selectedItem?.type === 'reel') return 'Reel'
-              return 'Selection'
-            })()}
-            {selectedItemIds.length > 1 && `${selectedItemIds.length} Items Selected`}
-          </h3>
+          {selectedItemIds.length === 0 && (
+            <h3 className="text-sm font-semibold text-gray-900">Canvas</h3>
+          )}
+          {selectedItemIds.length === 1 && (() => {
+            const selectedItem = canvasItems.find(item => item.id === selectedItemIds[0])
+            if (selectedItem?.type === 'episode') {
+              const episode = selectedItem as CanvasEpisode
+              return (
+                <div className="flex items-center gap-3">
+                  {episode.imageUrl ? (
+                    <img
+                      src={episode.imageUrl}
+                      alt={episode.title}
+                      className="w-12 h-12 rounded object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <Music className="h-6 w-6 text-white" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">
+                      {episode.title}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {formatDuration(episode.duration)}
+                    </p>
+                  </div>
+                </div>
+              )
+            }
+            if (selectedItem?.type === 'clip') {
+              return <h3 className="text-sm font-semibold text-gray-900">Clip</h3>
+            }
+            if (selectedItem?.type === 'reel') {
+              return <h3 className="text-sm font-semibold text-gray-900">Reel</h3>
+            }
+            return <h3 className="text-sm font-semibold text-gray-900">Selection</h3>
+          })()}
+          {selectedItemIds.length > 1 && (
+            <h3 className="text-sm font-semibold text-gray-900">{selectedItemIds.length} Items Selected</h3>
+          )}
         </div>
 
         {/* Panel Content */}
@@ -1744,15 +1954,6 @@ export default function CanvasPage() {
           )}
         </div>
       </div>
-
-      {/* Contextual Audio Player */}
-      <ContextualPlayer
-        selectedItems={canvasItems.filter(item => selectedItemIds.includes(item.id))}
-        allItems={canvasItems}
-        playTrigger={playTrigger}
-        pauseTrigger={pauseTrigger}
-        onPlayingChange={setIsPlaying}
-      />
     </div>
   )
 }
