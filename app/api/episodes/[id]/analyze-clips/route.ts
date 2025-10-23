@@ -331,37 +331,61 @@ Base timestamps on the segment timing provided. Be precise with times.`
 
 // Safety filter to detect ads that AI might have missed
 function isLikelyAd(text: string): boolean {
+  const lowerText = text.toLowerCase()
+  
+  // DEAD GIVEAWAY patterns - if any of these appear, it's 100% an ad
+  const deadGiveaways = [
+    // Legal disclaimers (financial ads)
+    'not suitable for all investors',
+    'risk of losing more than',
+    'past performance does not guarantee',
+    'consult your financial advisor',
+    'investment involves risk',
+    
+    // Direct sponsorship
+    'brought to you by',
+    'thanks to our sponsor',
+    'today\'s episode is sponsored',
+    
+    // Promo codes
+    'promo code',
+    'use code',
+    'enter code',
+    'discount code',
+    
+    // Marketing value propositions
+    'see what adding',
+    'see how you can',
+    'learn how to',
+    'find out how',
+    'discover how',
+    
+    // Specific company CTAs (financial ad red flags)
+    'visit your online broker',
+    'capitalize on around-the-clock',
+    'balance your trading strategy',
+    'manage risk and capture opportunities',
+  ]
+  
+  // Check for dead giveaways first
+  if (deadGiveaways.some(phrase => lowerText.includes(phrase))) {
+    return true
+  }
+  
+  // General ad keywords (need 2+ to confirm)
   const adKeywords = [
-    // Direct sponsorship mentions
-    'sponsor', 'brought to you by', 'thanks to our sponsor',
-    'today\'s episode is brought', 'this episode is sponsored',
-    
-    // Promo codes and offers
-    'promo code', 'discount', 'use code', 'enter code', 'promocode',
-    'coupon', 'special offer', 'limited time', 'save 10%', 'save 20%',
-    'get 10%', 'get 20%', 'get 30%', 'percent off',
-    
-    // Call to action
+    'sponsor', 'discount', 'coupon', 'special offer', 'limited time',
+    'save 10%', 'save 20%', 'get 10%', 'get 20%', 'get 30%', 'percent off',
     'visit', 'check out', 'go to', 'head over to', 'head to',
     'link in description', 'link in the show notes',
     'sign up', 'free trial', 'try it free', 'start your free',
-    
-    // URLs and websites
-    'www.', '.com/', '.io/', '.co/',
-    'slash', 'forward slash' // as in "visit example.com/podcast"
+    'www.', '.com/', '.io/', '.co/', 'slash podcast', 'forward slash'
   ]
   
-  const lowerText = text.toLowerCase()
-  
-  // Check for multiple ad indicators (stronger signal)
   const matchCount = adKeywords.filter(keyword => lowerText.includes(keyword)).length
   
-  // If 2+ ad keywords appear, it's definitely an ad
+  // If 2+ general ad keywords appear, it's an ad
   if (matchCount >= 2) return true
-  
-  // Single strong keywords
-  const strongAdKeywords = ['promo code', 'sponsor', 'brought to you by', 'use code', 'discount']
-  if (strongAdKeywords.some(keyword => lowerText.includes(keyword))) return true
   
   return false
 }
