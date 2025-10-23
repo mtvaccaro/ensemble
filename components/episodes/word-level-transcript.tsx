@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Search, X, Info } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { TranscriptSegment, TranscriptWord } from '@/types'
 
 interface WordSelection {
@@ -271,19 +271,8 @@ export function WordLevelTranscript({
 
   return (
     <div className="space-y-4">
-      {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <div className="flex gap-2">
-          <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div className="text-xs text-blue-800">
-            <span className="font-semibold">Word-level precision:</span> Click any word to set start point, click another to set end point. 
-            Click again to reset. Hover to preview selection.
-          </div>
-        </div>
-      </div>
-
       {/* Search Bar */}
-      <div className="sticky top-0 bg-white border-b pb-3 z-10">
+      <div className="sticky top-0 bg-white border-b pb-3 z-10 px-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -311,7 +300,7 @@ export function WordLevelTranscript({
       </div>
 
       {/* Word-level Transcript - Consolidated by Speaker */}
-      <div className="space-y-6 pr-1">
+      <div className="space-y-6 px-4">
         {highlightedBlocks.map((block, blockIdx) => {
           const hasMatch = 'hasMatch' in block && block.hasMatch
           const speakerColor = getSpeakerColor(block.speaker)
@@ -326,7 +315,7 @@ export function WordLevelTranscript({
               {/* Speaker label */}
               {block.speaker && (
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-xs font-semibold ${speakerColor} uppercase tracking-wide`}>
+                  <span className={`text-[11px] font-semibold ${speakerColor} uppercase tracking-wide`}>
                     Speaker {block.speaker}
                   </span>
                   <span className="text-[10px] text-gray-400 font-mono">
@@ -336,7 +325,7 @@ export function WordLevelTranscript({
               )}
               
               {/* Flowing natural text with clickable words */}
-              <div className="text-[15px] leading-[1.8] text-gray-900">
+              <div className="text-sm leading-[1.8] text-gray-900">
                 {block.words.map(({ word, segmentId, wordIndex }, idx) => {
                   const state = isWordInSelection(segmentId, wordIndex)
                   
@@ -389,7 +378,7 @@ export function WordLevelTranscript({
 
       {/* No results */}
       {searchQuery && matchCount === 0 && (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 px-4">
           <Search className="h-12 w-12 mx-auto mb-3 text-gray-300" />
           <p className="text-sm">No matches found for <span className="font-semibold">&quot;{searchQuery}&quot;</span></p>
           <p className="text-xs mt-1">Try a different search term</p>
@@ -397,7 +386,7 @@ export function WordLevelTranscript({
       )}
 
       {/* Stats footer */}
-      <div className="border-t pt-3 text-xs text-gray-500">
+      <div className="border-t pt-3 text-xs text-gray-500 px-4">
         {consolidatedSpeakerBlocks.reduce((sum, block) => sum + block.words.length, 0)} words • {consolidatedSpeakerBlocks.length} speaker {consolidatedSpeakerBlocks.length === 1 ? 'block' : 'blocks'}
         {searchQuery && ` • ${matchCount} search results`}
       </div>
