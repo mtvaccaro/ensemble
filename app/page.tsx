@@ -58,6 +58,7 @@ export default function CanvasPage() {
   const [isSelecting, setIsSelecting] = useState(false)
   const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 })
   const [selectionEnd, setSelectionEnd] = useState({ x: 0, y: 0 })
+  const [selectionShiftHeld, setSelectionShiftHeld] = useState(false)
   
   // Right panel state
   const [isTranscribing, setIsTranscribing] = useState(false)
@@ -460,14 +461,19 @@ export default function CanvasPage() {
         .map(item => item.id)
       
       // Update selection (respect shift key for additive selection)
-      setSelectedItemIds(prev => {
-        // If we didn't select anything new, clear selection
-        if (selectedIds.length === 0) return []
-        // Otherwise add to existing if shift was held (tracked in mousedown)
-        return [...prev, ...selectedIds.filter(id => !prev.includes(id))]
-      })
+      if (selectionShiftHeld) {
+        // Add to existing selection
+        setSelectedItemIds(prev => {
+          const uniqueNew = selectedIds.filter(id => !prev.includes(id))
+          return [...prev, ...uniqueNew]
+        })
+      } else {
+        // Replace selection
+        setSelectedItemIds(selectedIds)
+      }
       
       setIsSelecting(false)
+      setSelectionShiftHeld(false)
       return
     }
     
@@ -530,8 +536,9 @@ export default function CanvasPage() {
       setIsSelecting(true)
       setSelectionStart({ x: canvasX, y: canvasY })
       setSelectionEnd({ x: canvasX, y: canvasY })
+      setSelectionShiftHeld(e.shiftKey)
       
-      // Clear selection if not holding shift
+      // Clear selection immediately if not holding shift
       if (!e.shiftKey) {
         setSelectedItemIds([])
       }
