@@ -1162,29 +1162,6 @@ export default function CanvasPage() {
                 </span>
               )}
             </div>
-            
-            {/* Zoom Controls */}
-            <div className="flex items-center gap-1 border-l pl-4">
-              <Button onClick={handleZoomOut} variant="outline" size="sm" title="Zoom out">
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-              <span className="text-xs text-gray-600 w-12 text-center font-mono">
-                {Math.round(canvasZoom * 100)}%
-              </span>
-              <Button onClick={handleZoomIn} variant="outline" size="sm" title="Zoom in">
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              <Button onClick={handleFitToView} variant="outline" size="sm" title="Fit to view" disabled={canvasItems.length === 0}>
-                <Maximize2 className="h-4 w-4" />
-              </Button>
-              <Button onClick={handleResetView} variant="outline" size="sm" title="Reset view">
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="text-xs text-gray-500 border-l pl-4">
-              Two-finger drag to pan · ⌘+Scroll to zoom
-            </div>
           </div>
           
           <div className="flex items-center gap-2">
@@ -1649,6 +1626,32 @@ export default function CanvasPage() {
               left: 0
             }}
           />
+          
+          {/* Floating Zoom Controls - Bottom Right */}
+          <div className="absolute bottom-4 right-4 flex flex-col gap-1 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-1">
+            <button
+              onClick={handleZoomIn}
+              className="p-2 hover:bg-gray-100 rounded transition-colors group"
+              title="Zoom in"
+            >
+              <ZoomIn className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
+            </button>
+            <button
+              onClick={handleZoomOut}
+              className="p-2 hover:bg-gray-100 rounded transition-colors group"
+              title="Zoom out"
+            >
+              <ZoomOut className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
+            </button>
+            <button
+              onClick={handleFitToView}
+              disabled={canvasItems.length === 0}
+              className="p-2 hover:bg-gray-100 rounded transition-colors group disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Fit to view"
+            >
+              <Maximize2 className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
+            </button>
+          </div>
         </div>
       </div>
 
