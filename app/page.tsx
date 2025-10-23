@@ -1262,13 +1262,13 @@ export default function CanvasPage() {
                         }
                       }}
                       className={`absolute cursor-pointer select-none group transition-all duration-150 ${
-                        isSelected ? 'ring-4 ring-blue-500 shadow-xl scale-[1.02]' : 'ring-0 ring-transparent'
+                        isSelected ? 'ring-4 ring-blue-500 shadow-xl' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
                         width: '280px',
-                        zIndex: 10
+                        zIndex: isSelected ? 20 : 10
                       }}
                     >
                       <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow relative">
@@ -1373,13 +1373,13 @@ export default function CanvasPage() {
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
                       onClick={(e) => e.stopPropagation()}
                       className={`absolute cursor-move select-none group transition-all duration-150 ${
-                        isSelected ? 'ring-4 ring-purple-500 shadow-xl scale-[1.02]' : 'ring-0 ring-transparent'
+                        isSelected ? 'ring-4 ring-purple-500 shadow-xl' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
                         width: '280px',
-                        zIndex: 10
+                        zIndex: isSelected ? 20 : 10
                       }}
                     >
                       <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-lg border-2 border-purple-300 p-4 hover:shadow-xl transition-shadow relative">
@@ -1474,13 +1474,13 @@ export default function CanvasPage() {
                         }
                       }}
                       className={`absolute cursor-pointer select-none group transition-all duration-150 ${
-                        isSelected ? 'ring-4 ring-orange-500 shadow-xl scale-[1.02]' : 'ring-0 ring-transparent'
+                        isSelected ? 'ring-4 ring-orange-500 shadow-xl' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
                         width: '280px',
-                        zIndex: 10
+                        zIndex: isSelected ? 20 : 10
                       }}
                     >
                       <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg shadow-lg border-2 border-orange-400 p-4 hover:shadow-xl transition-shadow relative">
