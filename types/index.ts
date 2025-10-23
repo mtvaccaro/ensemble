@@ -16,12 +16,21 @@ export const TranscriptionStatus = {
 
 export type TranscriptionStatusType = typeof TranscriptionStatus[keyof typeof TranscriptionStatus]
 
+export interface TranscriptWord {
+  text: string
+  start: number  // milliseconds for precision
+  end: number    // milliseconds for precision
+  confidence: number
+  speaker?: string | null
+}
+
 export interface TranscriptSegment {
   id: number
   seek: number
   start: number
   end: number
   text: string
+  words?: TranscriptWord[]  // Word-level timestamps for precise editing
   tokens: number[]
   temperature: number
   avg_logprob: number

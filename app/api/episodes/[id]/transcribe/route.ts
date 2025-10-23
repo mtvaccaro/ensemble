@@ -74,15 +74,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       console.log('📄 Full text length:', transcript.text?.length || 0, 'characters')
       console.log('⏱️  Audio duration:', transcript.audio_duration, 'seconds')
 
-      // Convert AssemblyAI words to segments format (similar to Whisper)
-      // Group words into ~5-second segments for compatibility with existing UI
+      // Convert AssemblyAI words to segments format with word-level precision
+      // Group words into ~5-second segments for UI, but preserve word-level timestamps
       const segments = []
       if (transcript.words && transcript.words.length > 0) {
-        let currentSegment: { id: number; start: number; end: number; text: string } = {
+        let currentSegment: { 
+          id: number; 
+          start: number; 
+          end: number; 
+          text: string;
+          words: Array<{ text: string; start: number; end: number; confidence: number }>
+        } = {
           id: 0,
-          start: transcript.words[0].start / 1000, // Convert ms to seconds
+          start: transcript.words[0].start / 1000, // Convert ms to seconds for segment timing
           end: transcript.words[0].end / 1000,
-          text: ''
+          text: '',
+          words: []
         }
         
         for (let i = 0; i < transcript.words.length; i++) {
@@ -90,23 +97,33 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           const wordStart = word.start / 1000
           const wordEnd = word.end / 1000
           
+          // Add word to current segment with millisecond precision
+          currentSegment.words.push({
+            text: word.text,
+            start: word.start,  // Keep in milliseconds for precision
+            end: word.end,      // Keep in milliseconds for precision
+            confidence: word.confidence || 1.0
+          })
+          
           // Start new segment if we've exceeded 5 seconds or have 50 words
-          if ((wordStart - currentSegment.start > 5) || (currentSegment.text.split(' ').length >= 50)) {
+          if ((wordStart - currentSegment.start > 5) || (currentSegment.words.length >= 50)) {
+            currentSegment.text = currentSegment.words.map(w => w.text).join(' ')
             segments.push({ ...currentSegment })
             currentSegment = {
               id: segments.length,
               start: wordStart,
               end: wordEnd,
-              text: word.text
+              text: '',
+              words: []
             }
           } else {
-            currentSegment.text += (currentSegment.text ? ' ' : '') + word.text
             currentSegment.end = wordEnd
           }
         }
         
         // Push final segment
-        if (currentSegment.text) {
+        if (currentSegment.words.length > 0) {
+          currentSegment.text = currentSegment.words.map(w => w.text).join(' ')
           segments.push(currentSegment)
         }
       }
