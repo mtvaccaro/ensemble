@@ -370,29 +370,39 @@ export function EpisodePanelContent({
       <div className="flex-1 px-2 pt-4 overflow-y-auto" style={{ paddingBottom: selectedRange ? (selectedRange.isWordLevel ? '220px' : '140px') : '0' }}>
         {!hasTranscript ? (
           <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">
-              No Transcript Available
-            </h4>
-            <p className="text-sm text-gray-600 mb-4">
-              Transcribe this episode to create clips
-            </p>
-            <Button
-              onClick={() => onTranscribe?.(episode.episodeId)}
-              disabled={isTranscribing}
-            >
-              {isTranscribing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Transcribing...
-                </>
-              ) : (
-                <>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Transcribe Episode
-                </>
-              )}
-            </Button>
+            {isTranscribing ? (
+              // Loading skeleton while transcription is in progress
+              <div className="space-y-4 px-4">
+                <div className="flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    Transcribing Episode...
+                  </h4>
+                  <p className="text-xs text-gray-600">
+                    This usually takes 20-60 seconds
+                  </p>
+                </div>
+                {/* Skeleton lines */}
+                <div className="space-y-2 pt-4">
+                  <div className="h-3 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-5/6 mx-auto"></div>
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-4/6 mx-auto"></div>
+                </div>
+              </div>
+            ) : (
+              // No transcript and not transcribing (shouldn't happen with auto-transcribe)
+              <div>
+                <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                  No Transcript Available
+                </h4>
+                <p className="text-sm text-gray-600">
+                  Transcript will be generated automatically
+                </p>
+              </div>
+            )}
           </div>
         ) : useWordLevel && hasWordLevelData ? (
           <WordLevelTranscript

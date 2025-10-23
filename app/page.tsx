@@ -54,6 +54,11 @@ export default function CanvasPage() {
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   
+  // Selection rectangle state (drag to multi-select)
+  const [isSelecting, setIsSelecting] = useState(false)
+  const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 })
+  const [selectionEnd, setSelectionEnd] = useState({ x: 0, y: 0 })
+  
   // Right panel state
   const [isTranscribing, setIsTranscribing] = useState(false)
   
@@ -295,6 +300,10 @@ export default function CanvasPage() {
     }
 
     setCanvasItems([...canvasItems, newItem])
+    
+    // Auto-select the newly dropped episode
+    setSelectedItemIds([newItem.id])
+    
     posthog.capture('episode_added_to_canvas', {
       episode_title: episode.title,
       podcast_id: podcast.id,
@@ -369,6 +378,22 @@ export default function CanvasPage() {
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    // Handle selection rectangle
+    if (isSelecting) {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      
+      // Convert to canvas coordinates
+      const viewportX = e.clientX - rect.left
+      const viewportY = e.clientY - rect.top
+      
+      const canvasX = (viewportX - canvasOffset.x) / canvasZoom
+      const canvasY = (viewportY - canvasOffset.y) / canvasZoom
+      
+      setSelectionEnd({ x: canvasX, y: canvasY })
+      return
+    }
+    
     // Handle canvas panning
     if (isPanning) {
       const deltaX = e.clientX - panStart.x
@@ -413,6 +438,39 @@ export default function CanvasPage() {
   }
 
   const handleMouseUp = () => {
+    // Complete selection rectangle
+    if (isSelecting) {
+      // Calculate selection rectangle bounds
+      const left = Math.min(selectionStart.x, selectionEnd.x)
+      const right = Math.max(selectionStart.x, selectionEnd.x)
+      const top = Math.min(selectionStart.y, selectionEnd.y)
+      const bottom = Math.max(selectionStart.y, selectionEnd.y)
+      
+      // Find items that intersect with the selection rectangle
+      const selectedIds = canvasItems
+        .filter(item => {
+          const itemLeft = item.position.x
+          const itemRight = item.position.x + 340 // Card width
+          const itemTop = item.position.y
+          const itemBottom = item.position.y + (item.type === 'episode' ? 180 : 220) // Approx card heights
+          
+          // Check for intersection
+          return !(right < itemLeft || left > itemRight || bottom < itemTop || top > itemBottom)
+        })
+        .map(item => item.id)
+      
+      // Update selection (respect shift key for additive selection)
+      setSelectedItemIds(prev => {
+        // If we didn't select anything new, clear selection
+        if (selectedIds.length === 0) return []
+        // Otherwise add to existing if shift was held (tracked in mousedown)
+        return [...prev, ...selectedIds.filter(id => !prev.includes(id))]
+      })
+      
+      setIsSelecting(false)
+      return
+    }
+    
     // Apply final positions if we were dragging
     if (draggedItemId && dragStartPositions.size > 0 && (dragDelta.x !== 0 || dragDelta.y !== 0)) {
       setCanvasItems(items =>
@@ -448,6 +506,29 @@ export default function CanvasPage() {
       e.preventDefault()
       setIsPanning(true)
       setPanStart({ x: e.clientX, y: e.clientY })
+      return
+    }
+    
+    // Left click on canvas background (not on items) starts selection rectangle
+    if (e.button === 0 && e.target === e.currentTarget) {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      
+      // Convert to canvas coordinates
+      const viewportX = e.clientX - rect.left
+      const viewportY = e.clientY - rect.top
+      
+      const canvasX = (viewportX - canvasOffset.x) / canvasZoom
+      const canvasY = (viewportY - canvasOffset.y) / canvasZoom
+      
+      setIsSelecting(true)
+      setSelectionStart({ x: canvasX, y: canvasY })
+      setSelectionEnd({ x: canvasX, y: canvasY })
+      
+      // Clear selection if not holding shift
+      if (!e.shiftKey) {
+        setSelectedItemIds([])
+      }
     }
   }
 
@@ -973,6 +1054,9 @@ export default function CanvasPage() {
 
       setCanvasItems(prev => [...prev, newItem])
       
+      // Auto-select the newly uploaded file
+      setSelectedItemIds([newItem.id])
+      
       posthog.capture('audio_file_uploaded', {
         file_name: fileName,
         file_size: file.size,
@@ -1358,6 +1442,24 @@ export default function CanvasPage() {
               })}
             </svg>
 
+            {/* Selection Rectangle */}
+            {isSelecting && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: `${Math.min(selectionStart.x, selectionEnd.x)}px`,
+                  top: `${Math.min(selectionStart.y, selectionEnd.y)}px`,
+                  width: `${Math.abs(selectionEnd.x - selectionStart.x)}px`,
+                  height: `${Math.abs(selectionEnd.y - selectionStart.y)}px`,
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  border: '2px solid rgb(59, 130, 246)',
+                  borderRadius: '4px',
+                  pointerEvents: 'none',
+                  zIndex: 999
+                }}
+              />
+            )}
+
             {canvasItems.length === 0 ? (
               <div 
                 className="flex items-center justify-center pointer-events-none"
@@ -1394,7 +1496,7 @@ export default function CanvasPage() {
                       className={`absolute cursor-pointer select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
                       } ${
-                        isSelected ? 'ring-4 ring-blue-500 shadow-xl' : 'ring-0 ring-transparent'
+                        isSelected ? 'ring-4 ring-blue-500 shadow-xl rounded-lg' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
@@ -1536,7 +1638,7 @@ export default function CanvasPage() {
                       className={`absolute cursor-move select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
                       } ${
-                        isSelected ? 'ring-4 ring-purple-500 shadow-xl' : 'ring-0 ring-transparent'
+                        isSelected ? 'ring-4 ring-purple-500 shadow-xl rounded-lg' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
@@ -1628,7 +1730,7 @@ export default function CanvasPage() {
                       className={`absolute cursor-pointer select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
                       } ${
-                        isSelected ? 'ring-4 ring-orange-500 shadow-xl' : 'ring-0 ring-transparent'
+                        isSelected ? 'ring-4 ring-orange-500 shadow-xl rounded-lg' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
