@@ -28,6 +28,24 @@ export function WordLevelTranscript({
   const [selectionEnd, setSelectionEnd] = useState<WordSelection | null>(null)
   const [hoverWord, setHoverWord] = useState<WordSelection | null>(null)
 
+  // Speaker color palette - each speaker gets a unique color
+  const getSpeakerColor = (speaker: string | null): string => {
+    if (!speaker) return 'text-gray-600'
+    const colors = [
+      'text-blue-600',
+      'text-purple-600',
+      'text-green-600',
+      'text-orange-600',
+      'text-pink-600',
+      'text-cyan-600',
+      'text-indigo-600',
+      'text-rose-600'
+    ]
+    // Use speaker ID to consistently assign color
+    const speakerNum = parseInt(speaker.replace(/\D/g, ''), 10) || 0
+    return colors[speakerNum % colors.length]
+  }
+
   // Reset selection when parent passes new times
   useEffect(() => {
     if (startTime === null || endTime === null) {
@@ -35,6 +53,53 @@ export function WordLevelTranscript({
       setSelectionEnd(null)
     }
   }, [startTime, endTime])
+
+  // Consolidate segments by speaker - merge consecutive segments from same speaker
+  const consolidatedSpeakerBlocks = useMemo(() => {
+    const blocks: Array<{
+      speaker: string | null
+      words: Array<{ word: TranscriptWord; segmentId: number; wordIndex: number }>
+      startTimestamp: number
+    }> = []
+
+    let currentSpeaker: string | null = null
+    let currentBlock: Array<{ word: TranscriptWord; segmentId: number; wordIndex: number }> = []
+    let blockStartTime = 0
+
+    segments.forEach(segment => {
+      segment.words?.forEach((word, idx) => {
+        if (word.speaker !== currentSpeaker && currentBlock.length > 0) {
+          // Speaker changed, save current block
+          blocks.push({
+            speaker: currentSpeaker,
+            words: currentBlock,
+            startTimestamp: blockStartTime
+          })
+          currentBlock = []
+          currentSpeaker = word.speaker || null
+          blockStartTime = word.start
+        }
+        
+        if (currentBlock.length === 0) {
+          currentSpeaker = word.speaker || null
+          blockStartTime = word.start
+        }
+        
+        currentBlock.push({ word, segmentId: segment.id, wordIndex: idx })
+      })
+    })
+
+    // Add final block
+    if (currentBlock.length > 0) {
+      blocks.push({
+        speaker: currentSpeaker,
+        words: currentBlock,
+        startTimestamp: blockStartTime
+      })
+    }
+
+    return blocks
+  }, [segments])
 
   const handleWordClick = (segmentId: number, wordIndex: number, word: TranscriptWord) => {
     if (!selectionStart) {
@@ -164,11 +229,11 @@ export function WordLevelTranscript({
     return null
   }
 
-  // Find matches and highlight segments
-  const { highlightedSegments, matchCount } = useMemo(() => {
+  // Find matches in consolidated blocks
+  const { highlightedBlocks, matchCount } = useMemo(() => {
     if (!searchQuery) {
       return {
-        highlightedSegments: segments,
+        highlightedBlocks: consolidatedSpeakerBlocks,
         matchCount: 0
       }
     }
@@ -176,15 +241,18 @@ export function WordLevelTranscript({
     const query = searchQuery.toLowerCase()
     let count = 0
     
-    const highlighted = segments.map(segment => ({
-      ...segment,
-      hasMatch: segment.text.toLowerCase().includes(query)
-    }))
+    const highlighted = consolidatedSpeakerBlocks.map(block => {
+      const blockText = block.words.map(w => w.word.text).join(' ').toLowerCase()
+      const hasMatch = blockText.includes(query)
+      if (hasMatch) count++
+      return {
+        ...block,
+        hasMatch
+      }
+    })
 
-    count = highlighted.filter(s => s.hasMatch).length
-
-    return { highlightedSegments: highlighted, matchCount: count }
-  }, [segments, searchQuery])
+    return { highlightedBlocks: highlighted, matchCount: count }
+  }, [consolidatedSpeakerBlocks, searchQuery])
 
   const formatTimestamp = (milliseconds: number): string => {
     const totalSeconds = milliseconds / 1000
@@ -242,102 +310,78 @@ export function WordLevelTranscript({
         </div>
       </div>
 
-      {/* Word-level Transcript - Flowing Text */}
-      <div className="space-y-4 pr-1 leading-relaxed">
-        {highlightedSegments.map((segment) => {
-          if (!segment.words || segment.words.length === 0) return null
-
-          const hasMatch = 'hasMatch' in segment && segment.hasMatch
-          
-          // Group words by speaker
-          const speakerGroups: Array<{ speaker: string | null; words: Array<{ word: TranscriptWord; wordIndex: number }> }> = []
-          let currentSpeaker = segment.words[0]?.speaker || null
-          let currentGroup: Array<{ word: TranscriptWord; wordIndex: number }> = []
-          
-          segment.words.forEach((word, wordIndex) => {
-            if (word.speaker !== currentSpeaker && currentGroup.length > 0) {
-              speakerGroups.push({ speaker: currentSpeaker, words: currentGroup })
-              currentGroup = []
-              currentSpeaker = word.speaker || null
-            }
-            currentGroup.push({ word, wordIndex })
-          })
-          
-          if (currentGroup.length > 0) {
-            speakerGroups.push({ speaker: currentSpeaker, words: currentGroup })
-          }
+      {/* Word-level Transcript - Consolidated by Speaker */}
+      <div className="space-y-6 pr-1">
+        {highlightedBlocks.map((block, blockIdx) => {
+          const hasMatch = 'hasMatch' in block && block.hasMatch
+          const speakerColor = getSpeakerColor(block.speaker)
 
           return (
             <div
-              key={segment.id}
+              key={blockIdx}
               className={`
                 ${hasMatch ? 'bg-yellow-50 border-l-2 border-yellow-400 pl-3 -ml-1' : ''}
               `}
             >
-              {speakerGroups.map((group, groupIndex) => (
-                <div key={`${segment.id}-${groupIndex}`} className="mb-3">
-                  {/* Speaker label (if speaker changes or first group) */}
-                  {group.speaker && (groupIndex === 0 || group.speaker !== speakerGroups[groupIndex - 1]?.speaker) && (
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                        Speaker {group.speaker}
-                      </span>
-                      <span className="text-[10px] text-gray-400 font-mono">
-                        {formatTimestampSimple(group.words[0].word.start)}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Flowing text with clickable words */}
-                  <div className="text-[15px] leading-relaxed">
-                    {group.words.map(({ word, wordIndex }, idx) => {
-                      const state = isWordInSelection(segment.id, wordIndex)
-                      
-                      let bgClass = 'hover:bg-blue-50'
-                      let textClass = 'text-gray-900'
-                      let borderClass = ''
-                      let extraClasses = ''
-                      
-                      if (state === 'start' || state === 'end') {
-                        bgClass = 'bg-blue-500'
-                        textClass = 'text-white'
-                        borderClass = 'border-b-2 border-blue-700'
-                        extraClasses = 'font-semibold'
-                      } else if (state === 'selected') {
-                        bgClass = 'bg-blue-200'
-                        textClass = 'text-blue-900'
-                      } else if (state === 'preview') {
-                        bgClass = 'bg-blue-100'
-                        textClass = 'text-blue-800'
-                      }
-                      
-                      // Highlight low confidence words
-                      if (word.confidence < 0.7 && state === null) {
-                        textClass = 'text-orange-600'
-                      }
-                      
-                      return (
-                        <span key={idx}>
-                          <button
-                            onClick={() => handleWordClick(segment.id, wordIndex, word)}
-                            onMouseEnter={() => setHoverWord({ segmentId: segment.id, wordIndex, timestamp: word.start })}
-                            onMouseLeave={() => setHoverWord(null)}
-                            className={`
-                              px-0.5 py-0.5 rounded transition-all cursor-pointer inline
-                              ${bgClass} ${textClass} ${borderClass} ${extraClasses}
-                            `}
-                            title={`${formatTimestamp(word.start)} - ${formatTimestamp(word.end)} (${Math.round(word.confidence * 100)}% confident)${word.speaker ? ` • Speaker ${word.speaker}` : ''}`}
-                          >
-                            {word.text}
-                          </button>
-                          {/* Add space after each word */}
-                          {' '}
-                        </span>
-                      )
-                    })}
-                  </div>
+              {/* Speaker label */}
+              {block.speaker && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-sm font-semibold ${speakerColor} uppercase tracking-wide`}>
+                    Speaker {block.speaker}
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-mono">
+                    {formatTimestampSimple(block.startTimestamp)}
+                  </span>
                 </div>
-              ))}
+              )}
+              
+              {/* Flowing natural text with clickable words */}
+              <div className="text-[15px] leading-[1.8] text-gray-900">
+                {block.words.map(({ word, segmentId, wordIndex }, idx) => {
+                  const state = isWordInSelection(segmentId, wordIndex)
+                  
+                  let bgClass = ''
+                  let textClass = 'text-gray-900'
+                  let extraClasses = 'hover:bg-gray-100'
+                  
+                  if (state === 'start' || state === 'end') {
+                    bgClass = 'bg-blue-500'
+                    textClass = 'text-white'
+                    extraClasses = 'font-semibold px-1 -mx-0.5 rounded'
+                  } else if (state === 'selected') {
+                    bgClass = 'bg-blue-200'
+                    textClass = 'text-blue-900'
+                    extraClasses = 'px-0.5 -mx-0.5 rounded'
+                  } else if (state === 'preview') {
+                    bgClass = 'bg-blue-100'
+                    textClass = 'text-blue-800'
+                    extraClasses = 'px-0.5 -mx-0.5 rounded'
+                  }
+                  
+                  // Highlight low confidence words with orange
+                  if (word.confidence < 0.7 && state === null) {
+                    textClass = 'text-orange-600'
+                  }
+                  
+                  return (
+                    <span key={idx}>
+                      <button
+                        onClick={() => handleWordClick(segmentId, wordIndex, word)}
+                        onMouseEnter={() => setHoverWord({ segmentId, wordIndex, timestamp: word.start })}
+                        onMouseLeave={() => setHoverWord(null)}
+                        className={`
+                          transition-colors cursor-pointer inline
+                          ${bgClass} ${textClass} ${extraClasses}
+                        `}
+                        title={`${formatTimestamp(word.start)} - ${formatTimestamp(word.end)} (${Math.round(word.confidence * 100)}% confident)${word.speaker ? ` • Speaker ${word.speaker}` : ''}`}
+                      >
+                        {word.text}
+                      </button>
+                      {' '}
+                    </span>
+                  )
+                })}
+              </div>
             </div>
           )
         })}
@@ -354,7 +398,7 @@ export function WordLevelTranscript({
 
       {/* Stats footer */}
       <div className="border-t pt-3 text-xs text-gray-500">
-        {segments.reduce((sum, seg) => sum + (seg.words?.length || 0), 0)} words • {segments.length} segments
+        {consolidatedSpeakerBlocks.reduce((sum, block) => sum + block.words.length, 0)} words • {consolidatedSpeakerBlocks.length} speaker {consolidatedSpeakerBlocks.length === 1 ? 'block' : 'blocks'}
         {searchQuery && ` • ${matchCount} search results`}
       </div>
     </div>
