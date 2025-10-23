@@ -1579,19 +1579,6 @@ export default function CanvasPage() {
           )}
           </div>
           
-          {/* Canvas boundary indicator */}
-          <div 
-            className="absolute pointer-events-none border-2 border-dashed border-gray-300"
-            style={{
-              transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${canvasZoom})`,
-              transformOrigin: '0 0',
-              width: `${CANVAS_MAX_X}px`,
-              height: `${CANVAS_MAX_Y}px`,
-              top: 0,
-              left: 0
-            }}
-          />
-          
           {/* Floating Zoom Controls - Bottom Right */}
           <div className="absolute bottom-4 right-4 flex flex-col gap-1 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-1">
             <button
