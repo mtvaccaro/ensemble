@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { FileText, Loader2, Scissors, RotateCcw, Clock } from 'lucide-react'
+import { FileText, Loader2, Scissors, RotateCcw, Clock, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TranscriptSegment, CanvasEpisode, CanvasClip } from '@/types'
 import { SearchableTranscript } from '@/components/episodes/searchable-transcript'
@@ -31,6 +31,9 @@ export function EpisodePanelContent({
   const [manualStartInput, setManualStartInput] = useState('')
   const [manualEndInput, setManualEndInput] = useState('')
   const [selectedText, setSelectedText] = useState('')
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
   
   const hasTranscript = episode.transcript_segments && episode.transcript_segments.length > 0
   
@@ -273,8 +276,8 @@ export function EpisodePanelContent({
     <div className="relative h-full flex flex-col">
       {/* Toggle between word-level and segment-level (only if word data available) */}
       {hasTranscript && hasWordLevelData && (
-        <div className="px-3 pt-3 pb-2 border-b bg-gray-50">
-          <div className="flex items-center justify-between">
+        <div className="px-3 pt-3 pb-2 bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-medium text-gray-700">Selection Mode:</span>
             <div className="flex gap-2">
               <button
@@ -304,6 +307,27 @@ export function EpisodePanelContent({
                 Segment-level
               </button>
             </div>
+          </div>
+          
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search transcript..."
+              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-gray-100 rounded p-1"
+                title="Clear search"
+              >
+                <X className="h-3 w-3 text-gray-400" />
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -342,6 +366,7 @@ export function EpisodePanelContent({
             onSelectionChange={handleWordLevelSelection}
             startTime={manualStartTime}
             endTime={manualEndTime}
+            searchQuery={searchQuery}
           />
         ) : (
           <SearchableTranscript

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Search, X } from 'lucide-react'
 import { TranscriptSegment, TranscriptWord } from '@/types'
 
 interface WordSelection {
@@ -15,15 +14,16 @@ interface WordLevelTranscriptProps {
   onSelectionChange: (selection: { startTime: number; endTime: number; text: string } | null) => void
   startTime?: number | null
   endTime?: number | null
+  searchQuery?: string
 }
 
 export function WordLevelTranscript({ 
   segments, 
   onSelectionChange,
   startTime,
-  endTime
+  endTime,
+  searchQuery = ''
 }: WordLevelTranscriptProps) {
-  const [searchQuery, setSearchQuery] = useState('')
   const [selectionStart, setSelectionStart] = useState<WordSelection | null>(null)
   const [selectionEnd, setSelectionEnd] = useState<WordSelection | null>(null)
   const [hoverWord, setHoverWord] = useState<WordSelection | null>(null)
@@ -271,34 +271,6 @@ export function WordLevelTranscript({
 
   return (
     <div className="space-y-4">
-      {/* Search Bar */}
-      <div className="sticky top-0 bg-white border-b pb-3 z-10 px-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search transcript... (e.g., 'AI', 'revenue', topic)"
-            className="w-full pl-10 pr-20 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-          />
-          {searchQuery && (
-            <>
-              <div className="absolute right-10 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium">
-                {matchCount} {matchCount === 1 ? 'match' : 'matches'}
-              </div>
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-gray-100 rounded p-1"
-                title="Clear search"
-              >
-                <X className="h-3 w-3 text-gray-400" />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
       {/* Word-level Transcript - Consolidated by Speaker */}
       <div className="space-y-6 px-4">
         {highlightedBlocks.map((block, blockIdx) => {
@@ -347,11 +319,6 @@ export function WordLevelTranscript({
                     extraClasses = 'px-0.5 -mx-0.5 rounded'
                   }
                   
-                  // Highlight low confidence words with orange
-                  if (word.confidence < 0.7 && state === null) {
-                    textClass = 'text-orange-600'
-                  }
-                  
                   return (
                     <span key={idx}>
                       <button
@@ -376,19 +343,9 @@ export function WordLevelTranscript({
         })}
       </div>
 
-      {/* No results */}
-      {searchQuery && matchCount === 0 && (
-        <div className="text-center py-12 text-gray-500 px-4">
-          <Search className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-sm">No matches found for <span className="font-semibold">&quot;{searchQuery}&quot;</span></p>
-          <p className="text-xs mt-1">Try a different search term</p>
-        </div>
-      )}
-
       {/* Stats footer */}
       <div className="border-t pt-3 text-xs text-gray-500 px-4">
         {consolidatedSpeakerBlocks.reduce((sum, block) => sum + block.words.length, 0)} words • {consolidatedSpeakerBlocks.length} speaker {consolidatedSpeakerBlocks.length === 1 ? 'block' : 'blocks'}
-        {searchQuery && ` • ${matchCount} search results`}
       </div>
     </div>
   )
