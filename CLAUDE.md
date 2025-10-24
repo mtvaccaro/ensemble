@@ -62,39 +62,105 @@ Implement episode listing, audio playback, OpenAI Whisper transcription, and epi
 
 ## Development Workflow & Git Best Practices
 
+⚠️ **PRODUCTION APP WITH ACTIVE USERS** - Follow these workflows strictly!
+
+### Branch Structure
+- **`main`** → Production (ensemblestud.io) - STABLE ONLY
+- **`staging`** → Staging environment for final testing before production
+- **`feature/*`** → Feature branches with Vercel preview deployments
+
 ### Version Control Rules
-1. **NEVER push directly to `main`**
-2. **ALWAYS create a dev branch** for new features:
-   ```bash
-   git checkout -b feature/feature-name
-   ```
-3. **Work on the branch** until feature is complete and tested
-4. **Open a PR** and review before merging to main
-5. **Keep main stable** - only merge working, tested code
+1. **NEVER push directly to `main`** - Users depend on it!
+2. **ALWAYS create a feature branch** for any changes
+3. **Test on Vercel preview** before merging
+4. **Merge to `staging`** first for final QA (optional)
+5. **Merge to `main`** only when fully tested
 
 ### Feature Branch Naming
-- `feature/transcription` - New features
-- `fix/audio-playback` - Bug fixes
-- `refactor/remove-supabase` - Code refactoring
-- `docs/update-readme` - Documentation
+- `feature/new-feature-name` - New features
+- `fix/bug-description` - Bug fixes
+- `hotfix/critical-issue` - Urgent production fixes
+- `refactor/what-changed` - Code refactoring
+- `docs/update-name` - Documentation
 
-### Workflow Example
+### Standard Feature Workflow
 ```bash
-# Start new feature
+# 1. Start new feature from main
 git checkout main
 git pull origin main
-git checkout -b feature/transcription
+git checkout -b feature/new-feature
 
-# Work on feature, commit often
+# 2. Work on feature, commit often
 git add .
-git commit -m "Add OpenAI Whisper integration"
+git commit -m "feat: add new feature"
 
-# Push and open PR when ready
-git push origin feature/transcription
-# Then open PR on GitHub/GitLab
+# 3. Push to GitHub
+git push origin feature/new-feature
+
+# 4. Vercel auto-creates preview: ensemble-abc123-feature-new-feature.vercel.app
+# 5. Test thoroughly on preview URL
+# 6. Open PR using the template (checks all boxes)
+# 7. Review PR, verify tests pass
+# 8. Merge to main → auto-deploys to production
+```
+
+### Staging Environment Workflow (for major changes)
+```bash
+# 1. Create feature branch as usual
+git checkout -b feature/major-change
+
+# 2. Test on Vercel preview
+# 3. Merge to staging first
+git checkout staging
+git merge feature/major-change
+git push origin staging
+
+# 4. Test on staging deployment
+# 5. If stable, merge staging → main
+git checkout main
+git merge staging
+git push origin main
+```
+
+### Hotfix Workflow (urgent production bugs)
+```bash
+# 1. Create hotfix branch from main
+git checkout main
+git checkout -b hotfix/critical-bug
+
+# 2. Fix the issue
+git commit -m "hotfix: fix critical bug"
+
+# 3. Quick test on preview
+git push origin hotfix/critical-bug
+
+# 4. Fast-track merge to main
+# 5. Merge back to staging to keep in sync
+git checkout staging
+git merge main
+git push origin staging
+```
+
+### Testing Checklist (Required before merging to main)
+- ✅ Tested on Vercel preview URL
+- ✅ No console errors/warnings
+- ✅ Core features work (search, transcribe, clip, export)
+- ✅ No TypeScript/lint errors (`npm run build`)
+- ✅ Mobile responsive (if UI changes)
+- ✅ PR template checklist completed
+
+### Rollback Plan (if production breaks)
+```bash
+# Option 1: Git revert
+git revert HEAD
+git push origin main
+
+# Option 2: Vercel Dashboard
+# Deployments → Find last working deployment → "Promote to Production"
 ```
 
 ### Development Tools
-- Claude (planning/architecture) + Cursor (implementation)
-- Test locally at localhost:3000
-- No deployment needed for localStorage mode
+- **Local**: `localhost:3000` - Initial development
+- **Preview**: Vercel auto-preview - Feature testing
+- **Staging**: `staging` branch - Final QA (optional)
+- **Production**: `main` branch → ensemblestud.io - Live users
