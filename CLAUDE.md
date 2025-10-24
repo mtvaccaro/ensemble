@@ -123,6 +123,8 @@ git push origin main
 ```
 
 ### Hotfix Workflow (urgent production bugs)
+⚠️ **CRITICAL: Even "urgent" hotfixes MUST be tested on preview before merging to main!**
+
 ```bash
 # 1. Create hotfix branch from main
 git checkout main
@@ -131,15 +133,25 @@ git checkout -b hotfix/critical-bug
 # 2. Fix the issue
 git commit -m "hotfix: fix critical bug"
 
-# 3. Quick test on preview
+# 3. Push to GitHub (Vercel auto-creates preview)
 git push origin hotfix/critical-bug
 
-# 4. Fast-track merge to main
-# 5. Merge back to staging to keep in sync
+# 4. ⚠️ TEST ON PREVIEW URL FIRST - DO NOT SKIP THIS!
+#    Wait for preview deployment: ensemble-git-hotfix-critical-bug-...vercel.app
+#    Verify the fix works and doesn't break anything
+
+# 5. ONLY AFTER TESTING: Merge to main
+git checkout main
+git merge hotfix/critical-bug --no-ff -m "Merge hotfix: ..."
+git push origin main
+
+# 6. Merge back to staging to keep in sync
 git checkout staging
 git merge main
 git push origin staging
 ```
+
+**NO EXCEPTIONS:** All code changes require preview testing, even hotfixes!
 
 ### Testing Checklist (Required before merging to main)
 - ✅ Tested on Vercel preview URL
