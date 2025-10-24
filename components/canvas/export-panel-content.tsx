@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, Video, Loader2, AlertCircle, CheckCircle, Music2, Instagram, Youtube, Linkedin, Twitter } from 'lucide-react'
+import { Download, Loader2, AlertCircle, CheckCircle, Music2, Instagram, Youtube, Linkedin, Twitter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CanvasClip } from '@/types'
 import { 
@@ -126,21 +126,8 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const totalDuration = clips.reduce((sum, clip) => sum + clip.duration, 0)
-
   return (
     <div className="p-6 space-y-6">
-      {/* Summary */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-1">
-          {clips.length > 1 ? 'Export Reel to MP4' : 'Export Clip to MP4'}
-        </h3>
-        <p className="text-sm text-gray-600">
-          {clips.length} clip{clips.length !== 1 ? 's' : ''} · {formatDuration(totalDuration)} · {dimensions.width}x{dimensions.height}
-          {clips.length > 1 && ' (concatenated)'}
-        </p>
-      </div>
-
       {/* Platform & Format Selection */}
       <div className="space-y-4">
         {/* Platform - Segmented Control */}
@@ -222,21 +209,44 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
           </div>
         </div>
 
-        {/* Format - conditional based on platform */}
+        {/* Format - conditional based on platform (Radio buttons) */}
         {platform === 'instagram' && (
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Format
             </label>
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-              <option value="reels">Reels / Stories (9:16)</option>
-              <option value="square">Feed Square (1:1)</option>
-              <option value="portrait">Feed Portrait (4:5)</option>
-            </select>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="reels"
+                  checked={format === 'reels'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Reels / Stories (9:16)</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="square"
+                  checked={format === 'square'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Feed Square (1:1)</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="portrait"
+                  checked={format === 'portrait'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Feed Portrait (4:5)</span>
+              </label>
+            </div>
           </div>
         )}
 
@@ -245,14 +255,28 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Format
             </label>
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-              <option value="shorts">Shorts (9:16)</option>
-              <option value="standard">Standard (16:9)</option>
-            </select>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="shorts"
+                  checked={format === 'shorts'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Shorts (9:16)</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="standard"
+                  checked={format === 'standard'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Standard (16:9)</span>
+              </label>
+            </div>
           </div>
         )}
 
@@ -261,15 +285,38 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Format
             </label>
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-              <option value="square">Square (1:1)</option>
-              <option value="horizontal">Horizontal (16:9)</option>
-              <option value="vertical">Vertical (9:16)</option>
-            </select>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="square"
+                  checked={format === 'square'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Square (1:1)</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="horizontal"
+                  checked={format === 'horizontal'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Horizontal (16:9)</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="vertical"
+                  checked={format === 'vertical'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Vertical (9:16)</span>
+              </label>
+            </div>
           </div>
         )}
 
@@ -278,14 +325,28 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
             <label className="block text-sm font-medium text-gray-900 mb-2">
               Format
             </label>
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-              <option value="horizontal">Horizontal (16:9)</option>
-              <option value="square">Square (1:1)</option>
-            </select>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="horizontal"
+                  checked={format === 'horizontal'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Horizontal (16:9)</span>
+              </label>
+              <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  value="square"
+                  checked={format === 'square'}
+                  onChange={(e) => setFormat(e.target.value)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900">Square (1:1)</span>
+              </label>
+            </div>
           </div>
         )}
       </div>
@@ -307,57 +368,30 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
         </div>
       )}
 
-      {/* Clip List */}
+      {/* Export Options - Reduced size */}
       <div>
-        <label className="block text-sm font-medium text-gray-900 mb-3">
-          {clips.length > 1 ? `Clips (in order)` : 'Clip to Export'}
-        </label>
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {clips.map((clip, index) => (
-            <div key={clip.id} className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-              <div className="bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold">
-                {index + 1}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-gray-900 truncate text-sm">{clip.title}</div>
-                <div className="text-xs text-gray-600">{formatDuration(clip.duration)}</div>
-              </div>
-              <Video className="h-5 w-5 text-purple-600 flex-shrink-0" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Export Options */}
-      <div>
-        <label className="block text-sm font-medium text-gray-900 mb-2">
+        <label className="block text-xs font-medium text-gray-700 mb-2">
           Export Options
         </label>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
             <input
               type="checkbox"
               checked={includeCaptions}
               onChange={(e) => setIncludeCaptions(e.target.checked)}
-              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+              className="w-3.5 h-3.5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
             />
-            <div className="flex-1">
-              <div className="text-sm font-medium text-gray-900">Include Captions</div>
-              <div className="text-xs text-gray-500">Add transcript as subtitles on video</div>
-            </div>
+            <span className="text-xs text-gray-900">Include Captions</span>
           </label>
           
-          <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+          <label className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
             <input
               type="checkbox"
               checked={includeWaveform}
               onChange={(e) => setIncludeWaveform(e.target.checked)}
-              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+              className="w-3.5 h-3.5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
             />
-            <div className="flex-1">
-              <div className="text-sm font-medium text-gray-900">Include Waveform</div>
-              <div className="text-xs text-gray-500">Add animated audio bars at bottom</div>
-            </div>
+            <span className="text-xs text-gray-900">Include Waveform</span>
           </label>
         </div>
       </div>
