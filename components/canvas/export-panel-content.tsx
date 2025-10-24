@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, Video, Loader2, AlertCircle, CheckCircle, Music2, Instagram, Youtube, Linkedin, Twitter } from 'lucide-react'
+import { Download, Loader2, AlertCircle, CheckCircle, Music2, Instagram, Youtube, Linkedin, Twitter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CanvasClip } from '@/types'
 import { 

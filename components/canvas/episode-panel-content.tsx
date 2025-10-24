@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { FileText, Loader2, Scissors, RotateCcw, Clock, Search, X, ChevronUp, ChevronDown } from 'lucide-react'
+import { FileText, Loader2, Scissors, RotateCcw, Search, X, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TranscriptSegment, CanvasEpisode, CanvasClip } from '@/types'
 import { SearchableTranscript } from '@/components/episodes/searchable-transcript'
@@ -27,8 +27,6 @@ export function EpisodePanelContent({
   const [useWordLevel, setUseWordLevel] = useState(true)
   const [manualStartTime, setManualStartTime] = useState<number | null>(null)
   const [manualEndTime, setManualEndTime] = useState<number | null>(null)
-  const [manualStartInput, setManualStartInput] = useState('')
-  const [manualEndInput, setManualEndInput] = useState('')
   const [selectedText, setSelectedText] = useState('')
   
   // Search state
@@ -152,23 +150,6 @@ export function EpisodePanelContent({
     }
   }
   
-  // Handle manual time input changes
-  const handleManualStartChange = (value: string) => {
-    setManualStartInput(value)
-    const parsed = parseTimeInput(value)
-    if (parsed !== null) {
-      setManualStartTime(parsed)
-    }
-  }
-  
-  const handleManualEndChange = (value: string) => {
-    setManualEndInput(value)
-    const parsed = parseTimeInput(value)
-    if (parsed !== null) {
-      setManualEndTime(parsed)
-    }
-  }
-
   const handleCreateClip = () => {
     // Use manual times if available (word-level), otherwise use segment times
     let startTime: number
@@ -425,24 +406,33 @@ export function EpisodePanelContent({
       </div>
 
       {/* Fixed action buttons at bottom (only when range is selected) */}
-      {selectedRange && (
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg">
-          <div className="space-y-3">
-            {/* Clip metadata - Duration, Start, End as read-only labels */}
-            <div className="grid grid-cols-3 gap-2 text-center pb-2 border-b border-gray-200">
-              <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Duration</div>
-                <div className="text-xs font-semibold text-gray-900">{formatDuration(selectedRange.duration)}</div>
+      {selectedRange && (() => {
+        // Compute start/end times based on selection type
+        const startTime = useWordLevel 
+          ? (manualStartTime ?? 0)
+          : (startSegment?.start ?? 0)
+        const endTime = useWordLevel
+          ? (manualEndTime ?? 0)
+          : (endSegment?.end ?? 0)
+        
+        return (
+          <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg">
+            <div className="space-y-3">
+              {/* Clip metadata - Duration, Start, End as read-only labels */}
+              <div className="grid grid-cols-3 gap-2 text-center pb-2 border-b border-gray-200">
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Duration</div>
+                  <div className="text-xs font-semibold text-gray-900">{formatDuration(selectedRange.duration)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Start</div>
+                  <div className="text-xs font-mono text-gray-900">{formatDuration(startTime)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">End</div>
+                  <div className="text-xs font-mono text-gray-900">{formatDuration(endTime)}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Start</div>
-                <div className="text-xs font-mono text-gray-900">{formatDuration(selectedRange.startTime)}</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">End</div>
-                <div className="text-xs font-mono text-gray-900">{formatDuration(selectedRange.endTime)}</div>
-              </div>
-            </div>
             
             {/* Action buttons stacked */}
             <div className="flex flex-col gap-2">
@@ -466,7 +456,8 @@ export function EpisodePanelContent({
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
