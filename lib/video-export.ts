@@ -119,22 +119,22 @@ export async function exportClipToVideo(
     const ctx = canvas.getContext('2d')
     const originalImageData = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null
     
-    // Extract waveform data if enabled
-    const waveformData = options.includeWaveform && audioBuffer 
-      ? extractWaveformData(audioBuffer)
+    // Extract time-based amplitude data if waveform enabled
+    const amplitudeData = options.includeWaveform && audioBuffer 
+      ? extractTimeBasedAmplitude(audioBuffer, durationSeconds, options.frameRate)
       : null
     
-    // Add video frames with captions and waveform
+    // Add video frames with captions and reactive visualizer
     for (let i = 0; i < totalFrames; i++) {
       const timestamp = i * frameDuration
       
-      // Restore original image (to clear previous frame's captions/waveform)
+      // Restore original image (to clear previous frame's captions/visualizer)
       if ((options.includeCaptions || options.includeWaveform) && ctx && originalImageData) {
         ctx.putImageData(originalImageData, 0, 0)
         
-        // Draw waveform bars
-        if (options.includeWaveform && waveformData) {
-          drawWaveformBars(ctx, waveformData, timestamp, durationSeconds, options.width, options.height)
+        // Draw reactive audio visualizer
+        if (options.includeWaveform && amplitudeData) {
+          drawReactiveVisualizer(ctx, amplitudeData, i, options.width, options.height)
         }
         
         // Find active caption for this timestamp
@@ -273,22 +273,22 @@ export async function exportReelToVideo(
     const ctx = canvas.getContext('2d')
     const originalImageData = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null
     
-    // Extract waveform data if enabled
-    const waveformData = options.includeWaveform && concatenatedAudio 
-      ? extractWaveformData(concatenatedAudio)
+    // Extract time-based amplitude data if waveform enabled
+    const amplitudeData = options.includeWaveform && concatenatedAudio 
+      ? extractTimeBasedAmplitude(concatenatedAudio, totalDuration, options.frameRate)
       : null
     
-    // Add video frames with captions and waveform
+    // Add video frames with captions and reactive visualizer
     for (let i = 0; i < totalFrames; i++) {
       const timestamp = i * frameDuration
       
-      // Restore original image (to clear previous frame's captions/waveform)
+      // Restore original image (to clear previous frame's captions/visualizer)
       if ((options.includeCaptions || options.includeWaveform) && ctx && originalImageData) {
         ctx.putImageData(originalImageData, 0, 0)
         
-        // Draw waveform bars
-        if (options.includeWaveform && waveformData) {
-          drawWaveformBars(ctx, waveformData, timestamp, totalDuration, options.width, options.height)
+        // Draw reactive audio visualizer
+        if (options.includeWaveform && amplitudeData) {
+          drawReactiveVisualizer(ctx, amplitudeData, i, options.width, options.height)
         }
         
         // Find active caption for this timestamp
@@ -495,28 +495,35 @@ async function createDefaultImage(): Promise<string> {
 }
 
 /**
- * Extract amplitude data from audio buffer for waveform visualization
- * Returns an array of amplitude values normalized to 0-1
+ * Extract time-based amplitude data from audio buffer for reactive visualization
+ * Returns amplitude values at regular intervals (one per frame)
  */
-function extractWaveformData(audioBuffer: AudioBuffer, numBars: number = 32): number[] {
-  const channelData = audioBuffer.getChannelData(0) // Use first channel (mono or left channel)
-  const samples = channelData.length
-  const samplesPerBar = Math.floor(samples / numBars)
+function extractTimeBasedAmplitude(audioBuffer: AudioBuffer, duration: number, frameRate: number): number[] {
+  const channelData = audioBuffer.getChannelData(0)
+  const sampleRate = audioBuffer.sampleRate
+  const totalFrames = Math.ceil(duration * frameRate)
   const amplitudes: number[] = []
   
-  for (let i = 0; i < numBars; i++) {
-    const start = i * samplesPerBar
-    const end = start + samplesPerBar
-    let sum = 0
+  // Window size for smoothing (20ms worth of samples)
+  const windowSize = Math.floor(sampleRate * 0.02)
+  
+  for (let frame = 0; frame < totalFrames; frame++) {
+    const timestamp = frame / frameRate
+    const sampleIndex = Math.floor(timestamp * sampleRate)
     
-    // Calculate RMS (Root Mean Square) for this segment
-    for (let j = start; j < end && j < samples; j++) {
-      sum += channelData[j] * channelData[j]
+    // Calculate RMS over a small window for smoother visualization
+    let sum = 0
+    let count = 0
+    
+    for (let i = 0; i < windowSize && (sampleIndex + i) < channelData.length; i++) {
+      const sample = channelData[sampleIndex + i]
+      sum += sample * sample
+      count++
     }
     
-    const rms = Math.sqrt(sum / samplesPerBar)
-    // Normalize and apply some gain for better visibility
-    const normalized = Math.min(1, rms * 5)
+    const rms = count > 0 ? Math.sqrt(sum / count) : 0
+    // Apply gain and normalize to 0-1 range
+    const normalized = Math.min(1, rms * 8)
     amplitudes.push(normalized)
   }
   
@@ -524,75 +531,63 @@ function extractWaveformData(audioBuffer: AudioBuffer, numBars: number = 32): nu
 }
 
 /**
- * Draw reactive waveform bars on canvas
+ * Draw reactive audio visualizer bars (all bars react to current audio amplitude)
  */
-function drawWaveformBars(
+function drawReactiveVisualizer(
   ctx: CanvasRenderingContext2D,
-  waveformData: number[],
-  timestamp: number,
-  duration: number,
+  amplitudeData: number[],
+  frameIndex: number,
   width: number,
   height: number
 ): void {
   ctx.save()
   
-  const numBars = waveformData.length
-  const barWidth = Math.floor(width / numBars * 0.7) // 70% width with gaps
-  const gap = Math.floor(width / numBars * 0.3) // 30% gap
-  const maxBarHeight = height * 0.25 // Bars can take up 25% of height
-  const baseY = height - (height * 0.08) // Position near bottom
-  const minBarHeight = 4 // Minimum visible height
+  // Get current amplitude for this frame
+  const currentAmplitude = frameIndex < amplitudeData.length ? amplitudeData[frameIndex] : 0
   
-  // Calculate which bars should be active based on playback progress
-  const progress = timestamp / duration
-  const activeBarIndex = Math.floor(progress * numBars)
+  // Visualizer config
+  const numBars = 64 // Number of bars to display
+  const totalBarWidth = width * 0.8 // Use 80% of width
+  const barWidth = Math.floor(totalBarWidth / numBars * 0.85) // 85% width, 15% gap
+  const gap = Math.floor(totalBarWidth / numBars * 0.15)
+  const startX = (width - totalBarWidth) / 2 // Center horizontally
+  const centerY = height / 2 // Center vertically
+  const maxBarHeight = height * 0.35 // Max 35% of video height
+  const minBarHeight = 8 // Minimum bar height
   
+  // Create variation in bar heights for visual interest (frequency-like spread)
+  // Each bar has a base height multiplier based on position (higher in middle, lower at edges)
   for (let i = 0; i < numBars; i++) {
-    const amplitude = waveformData[i]
-    const x = i * (barWidth + gap) + gap / 2
+    const x = startX + i * (barWidth + gap)
     
-    // Smooth animation: bars ahead of playhead are dimmed
-    let barHeight: number
-    let opacity: number
+    // Create a frequency distribution curve (higher in middle, lower at edges)
+    const normalizedPos = (i / (numBars - 1)) * 2 - 1 // -1 to 1
+    const frequencyMultiplier = 1 - Math.pow(normalizedPos, 2) * 0.5 // Parabola: 1 in middle, 0.5 at edges
     
-    if (i <= activeBarIndex) {
-      // Active bar - full height based on amplitude
-      barHeight = Math.max(minBarHeight, amplitude * maxBarHeight)
-      opacity = 0.9
-    } else if (i === activeBarIndex + 1) {
-      // Next bar - slight preview
-      barHeight = Math.max(minBarHeight, amplitude * maxBarHeight * 0.3)
-      opacity = 0.3
-    } else {
-      // Future bars - minimal height
-      barHeight = minBarHeight
-      opacity = 0.2
-    }
+    // Add some randomness per bar for natural look (but consistent per bar)
+    const barSeed = Math.sin(i * 1.5) * 0.3 + 0.85 // 0.55 to 1.15
     
-    // Add some bounce effect for active bars
-    if (i === activeBarIndex) {
-      const bounce = 1 + Math.sin(timestamp * 8) * 0.1 // Subtle pulse
-      barHeight *= bounce
-    }
+    // Calculate bar height based on current amplitude
+    const amplitudeHeight = currentAmplitude * maxBarHeight * frequencyMultiplier * barSeed
+    const barHeight = Math.max(minBarHeight, amplitudeHeight)
     
-    // Draw bar with gradient
-    const gradient = ctx.createLinearGradient(x, baseY, x, baseY - barHeight)
-    gradient.addColorStop(0, `rgba(249, 115, 22, ${opacity})`) // Orange base
-    gradient.addColorStop(1, `rgba(251, 146, 60, ${opacity})`) // Lighter orange top
+    // Draw bar (centered vertically, growing up and down)
+    const halfHeight = barHeight / 2
     
-    ctx.fillStyle = gradient
+    // Solid orange color
+    ctx.fillStyle = 'rgba(249, 115, 22, 0.95)' // Orange-500
     ctx.fillRect(
       x,
-      baseY - barHeight,
+      centerY - halfHeight,
       barWidth,
       barHeight
     )
     
-    // Add subtle glow for active bars
-    if (i <= activeBarIndex) {
-      ctx.shadowColor = 'rgba(249, 115, 22, 0.5)'
-      ctx.shadowBlur = 8
-      ctx.fillRect(x, baseY - barHeight, barWidth, barHeight)
+    // Add subtle glow for more prominent bars
+    if (currentAmplitude > 0.3 && frequencyMultiplier > 0.7) {
+      ctx.shadowColor = 'rgba(249, 115, 22, 0.4)'
+      ctx.shadowBlur = 12
+      ctx.fillRect(x, centerY - halfHeight, barWidth, barHeight)
       ctx.shadowBlur = 0
     }
   }
