@@ -219,8 +219,8 @@ export function EpisodePanelContent({
 
   return (
     <div className="relative h-full flex flex-col">
-      {/* Toggle between word-level and segment-level (only if word data available) */}
-      {hasTranscript && hasWordLevelData && (
+      {/* Toggle between word-level and segment-level - Hidden for POC (keeping logic for future free/premium tiers) */}
+      {hasTranscript && hasWordLevelData && false && (
         <div className="px-3 pt-3 pb-2 bg-gray-50">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-medium text-gray-700">Selection Mode:</span>
@@ -253,6 +253,11 @@ export function EpisodePanelContent({
               </button>
             </div>
           </div>
+        </div>
+      )}
+      
+      {hasTranscript && hasWordLevelData && (
+        <div className="px-3 pt-3 pb-2 bg-gray-50">
           
           {/* Search Bar */}
           <div className="relative">
