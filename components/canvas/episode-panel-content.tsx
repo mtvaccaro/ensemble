@@ -93,8 +93,6 @@ export function EpisodePanelContent({
     setHoveredSegment(null)
     setManualStartTime(null)
     setManualEndTime(null)
-    setManualStartInput('')
-    setManualEndInput('')
     setSelectedText('')
   }
   
@@ -104,49 +102,10 @@ export function EpisodePanelContent({
       setManualStartTime(selection.startTime)
       setManualEndTime(selection.endTime)
       setSelectedText(selection.text)
-      setManualStartInput(formatTimeInput(selection.startTime))
-      setManualEndInput(formatTimeInput(selection.endTime))
     } else {
       setManualStartTime(null)
       setManualEndTime(null)
       setSelectedText('')
-    }
-  }
-  
-  // Format time for input fields (MM:SS.mmm)
-  const formatTimeInput = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    const ms = Math.floor((seconds % 1) * 1000)
-    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`
-  }
-  
-  // Parse time input (MM:SS.mmm or MM:SS or SS.mmm)
-  const parseTimeInput = (input: string): number | null => {
-    if (!input) return null
-    
-    try {
-      const parts = input.split(':')
-      let seconds = 0
-      
-      if (parts.length === 2) {
-        // MM:SS.mmm format
-        const mins = parseInt(parts[0])
-        const secsParts = parts[1].split('.')
-        const secs = parseInt(secsParts[0])
-        const ms = secsParts[1] ? parseInt(secsParts[1].padEnd(3, '0')) : 0
-        seconds = mins * 60 + secs + ms / 1000
-      } else if (parts.length === 1) {
-        // SS.mmm or SS format
-        const secsParts = parts[0].split('.')
-        const secs = parseInt(secsParts[0])
-        const ms = secsParts[1] ? parseInt(secsParts[1].padEnd(3, '0')) : 0
-        seconds = secs + ms / 1000
-      }
-      
-      return isNaN(seconds) ? null : seconds
-    } catch {
-      return null
     }
   }
   
