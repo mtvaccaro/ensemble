@@ -176,6 +176,21 @@ export default function CanvasPage() {
       setIsSearchExpanded(true)
     }
   }, [searchResults, selectedPodcast])
+  
+  // Collapse search panel when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      // Check if click is outside the search panel
+      const searchPanel = document.querySelector('[data-search-panel]')
+      if (isSearchExpanded && searchPanel && !searchPanel.contains(target)) {
+        setIsSearchExpanded(false)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isSearchExpanded])
 
   // Save canvas state whenever it changes
   useEffect(() => {
@@ -1171,7 +1186,7 @@ export default function CanvasPage() {
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
+    const secs = Math.floor(seconds % 60)
     
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
@@ -1277,7 +1292,10 @@ export default function CanvasPage() {
   return (
     <div className="flex h-screen bg-gray-50" style={{ overscrollBehavior: 'none' }}>
       {/* Floating Search Card - Top Left */}
-      <div className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-xl">
+      <div 
+        data-search-panel
+        className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-xl"
+      >
         {/* Header - Always Visible */}
         <div className="px-3 pt-3 pb-2 border-b border-gray-200">
           <img 
@@ -1584,7 +1602,7 @@ export default function CanvasPage() {
                 style={{ 
                   left: isSearchExpanded ? '320px' : '64px',
                   right: `${rightPanelWidth}px`,
-                  zIndex: 1
+                  zIndex: 10
                 }}
               >
                 <div className="text-center">

@@ -126,21 +126,8 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const totalDuration = clips.reduce((sum, clip) => sum + clip.duration, 0)
-
   return (
     <div className="p-6 space-y-6">
-      {/* Summary */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-1">
-          {clips.length > 1 ? 'Export Reel to MP4' : 'Export Clip to MP4'}
-        </h3>
-        <p className="text-sm text-gray-600">
-          {clips.length} clip{clips.length !== 1 ? 's' : ''} · {formatDuration(totalDuration)} · {dimensions.width}x{dimensions.height}
-          {clips.length > 1 && ' (concatenated)'}
-        </p>
-      </div>
-
       {/* Platform & Format Selection */}
       <div className="space-y-4">
         {/* Platform - Segmented Control */}
