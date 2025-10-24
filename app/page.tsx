@@ -20,6 +20,7 @@ import { EpisodePanelContent } from '@/components/canvas/episode-panel-content'
 import { ExportPanelContent } from '@/components/canvas/export-panel-content'
 import { ReelPanelContent } from '@/components/canvas/reel-panel-content'
 import { ContextualPlayer } from '@/components/canvas/contextual-player'
+import { SourceCard } from '@/components/canvas/source-card'
 import posthog from 'posthog-js'
 
 interface EpisodeResult {
@@ -1613,151 +1614,92 @@ export default function CanvasPage() {
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
                   const isTranscribing = transcribingEpisodes.has(episode.episodeId)
+                  const hasTranscript = episode.transcript_segments && episode.transcript_segments.length > 0
                   
                   return (
                     <div
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Just select the episode (panel is always visible)
-                        if (!e.shiftKey) {
-                          setSelectedItemIds([item.id])
-                        }
-                      }}
-                      className={`absolute cursor-pointer select-none group ${
+                      className={`absolute select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
-                      } ${
-                        isTranscribing ? 'transcribing-gradient shadow-xl' : 
-                        isSelected ? 'ring-4 ring-blue-500 shadow-xl rounded-lg' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
-                        width: '340px',
+                        width: '361px',
                         zIndex: isSelected ? 20 : 10,
                         transform: isDragging ? `translate(${dragDelta.x}px, ${dragDelta.y}px)` : 'none'
                       }}
                     >
-                      <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow relative">
-                        {/* Floating X delete button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setCanvasItems(canvasItems.filter(i => i.id !== item.id))
-                            setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
-                          title="Remove from canvas"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        
-                        <div className="flex items-start gap-3">
-                          {episode.imageUrl ? (
-                            <div className="relative w-16 h-16 flex-shrink-0 group/play">
-                              <img
-                                src={episode.imageUrl}
-                                alt={episode.title}
-                                className="w-full h-full rounded object-cover"
-                              />
-                              {/* Play/Pause button overlay */}
-                              <button
-                                className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded transition-all opacity-0 group-hover/play:opacity-100"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                                  if (isThisPlaying) {
-                                    setPauseTrigger(Date.now())
-                                  } else {
-                                    setSelectedItemIds([item.id])
-                                    setPlayTrigger(Date.now())
-                                  }
-                                }}
-                                title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
-                              >
-                                {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
-                                  <Pause className="h-6 w-6 text-white drop-shadow-lg" />
-                                ) : (
-                                  <Play className="h-6 w-6 text-white drop-shadow-lg ml-0.5" />
-                                )}
-                              </button>
-                            </div>
-                          ) : (
-                            // Generic music icon for uploaded files without image
-                            <div className="relative w-16 h-16 flex-shrink-0 group/play bg-gradient-to-br from-blue-500 to-purple-600 rounded flex items-center justify-center">
-                              <Music className="h-8 w-8 text-white" />
-                              {/* Play/Pause button overlay */}
-                              <button
-                                className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded transition-all opacity-0 group-hover/play:opacity-100"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                                  if (isThisPlaying) {
-                                    setPauseTrigger(Date.now())
-                                  } else {
-                                    setSelectedItemIds([item.id])
-                                    setPlayTrigger(Date.now())
-                                  }
-                                }}
-                                title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
-                              >
-                                {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
-                                  <Pause className="h-6 w-6 text-white drop-shadow-lg" />
-                                ) : (
-                                  <Play className="h-6 w-6 text-white drop-shadow-lg ml-0.5" />
-                                )}
-                              </button>
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            {/* Podcast title eyebrow */}
-                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
-                              {episode.podcastTitle}
-                            </p>
-                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
-                              {episode.title}
-                            </h3>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-xs text-gray-500">
-                                {formatDuration(episode.duration)}
-                              </p>
-                              
-                              {/* Transcript status badge */}
-                              {transcribingEpisodes.has(episode.episodeId) ? (
-                                <div className="inline-flex bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] px-2 py-0.5 rounded-full items-center gap-1 shadow-sm">
-                                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                  <span className="font-medium">AI Transcribing</span>
-                                </div>
-                              ) : episode.transcript_segments && episode.transcript_segments.length > 0 ? (
-                                <div className="inline-flex bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded-full items-center gap-1">
-                                  <FileText className="h-2.5 w-2.5" />
-                                  <span>Ready</span>
-                                </div>
-                              ) : null}
-                            </div>
+                      {/* Figma Source Card */}
+                      <SourceCard
+                        id={episode.episodeId}
+                        title={episode.title}
+                        podcastTitle={episode.podcastTitle}
+                        duration={episode.duration}
+                        imageUrl={episode.imageUrl}
+                        isTranscribed={hasTranscript}
+                        isActive={isSelected}
+                        onClick={(e) => {
+                          if (!e) return
+                          e.stopPropagation()
+                          if (!(e as React.MouseEvent).shiftKey) {
+                            setSelectedItemIds([item.id])
+                          }
+                        }}
+                        onPlayClick={(e) => {
+                          e.stopPropagation()
+                          const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
+                          if (isThisPlaying) {
+                            setPauseTrigger(Date.now())
+                          } else {
+                            setSelectedItemIds([item.id])
+                            setPlayTrigger(Date.now())
+                          }
+                        }}
+                      />
+                      
+                      {/* Floating X delete button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                          setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-30"
+                        title="Remove from canvas"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      
+                      {/* AI Transcribing indicator */}
+                      {isTranscribing && (
+                        <div className="absolute -top-8 left-0 right-0 flex justify-center pointer-events-none">
+                          <div className="inline-flex bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] px-2 py-1 rounded-full items-center gap-1 shadow-lg">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span className="font-medium">AI Transcribing</span>
                           </div>
                         </div>
-                        
-                        {/* AI Clip Generator Button - hanging off bottom-right */}
-                        {episode.transcript_segments && episode.transcript_segments.length > 0 && (
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              await handleGenerateAIClips(episode)
-                            }}
-                            disabled={generatingClipsFor === episode.episodeId}
-                            className="absolute -bottom-3 -right-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-all shadow-lg hover:shadow-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-20"
-                            title="Generate AI clip suggestions"
-                          >
-                            {generatingClipsFor === episode.episodeId ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Sparkles className="h-4 w-4" />
-                            )}
-                          </button>
-                        )}
-                      </div>
+                      )}
+                      
+                      {/* AI Clip Generator Button - hanging off bottom-right */}
+                      {hasTranscript && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            await handleGenerateAIClips(episode)
+                          }}
+                          disabled={generatingClipsFor === episode.episodeId}
+                          className="absolute -bottom-3 -right-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-all shadow-lg hover:shadow-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-30"
+                          title="Generate AI clip suggestions"
+                        >
+                          {generatingClipsFor === episode.episodeId ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   )
                 }
