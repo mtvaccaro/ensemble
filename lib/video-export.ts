@@ -586,8 +586,8 @@ function drawReactiveVisualizer(
     // Draw bar (centered vertically, growing up and down)
     const halfHeight = barHeight / 2
     
-    // White color for high contrast
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+    // White color at 50% opacity for semi-transparent effect
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
     ctx.fillRect(
       x,
       centerY - halfHeight,
@@ -597,7 +597,7 @@ function drawReactiveVisualizer(
     
     // Add subtle glow for more prominent bars
     if (currentAmplitude > 0.3 && frequencyMultiplier > 0.7) {
-      ctx.shadowColor = 'rgba(255, 255, 255, 0.5)'
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.3)'
       ctx.shadowBlur = 12
       ctx.fillRect(x, centerY - halfHeight, barWidth, barHeight)
       ctx.shadowBlur = 0
