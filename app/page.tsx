@@ -1596,22 +1596,7 @@ export default function CanvasPage() {
               />
             )}
 
-            {canvasItems.length === 0 ? (
-              <div 
-                className="fixed inset-0 flex items-center justify-center pointer-events-none"
-                style={{ 
-                  left: isSearchExpanded ? '320px' : '64px',
-                  right: `${rightPanelWidth}px`,
-                  zIndex: 10
-                }}
-              >
-                <div className="text-center">
-                  <div className="text-gray-300 text-6xl mb-4">🎙️</div>
-                  <p className="text-gray-400 text-lg">Drop episodes here to start</p>
-                  <p className="text-gray-400 text-sm mt-2">← Search podcasts in the sidebar</p>
-                </div>
-              </div>
-            ) : (
+            {canvasItems.length === 0 ? null : (
               <>
                 {canvasItems.map((item) => {
                 if (item.type === 'episode') {
@@ -2020,6 +2005,17 @@ export default function CanvasPage() {
             pauseTrigger={pauseTrigger}
             onPlayingChange={setIsPlaying}
           />
+          
+          {/* Empty State - Outside transformed content */}
+          {canvasItems.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              <div className="text-center">
+                <div className="text-gray-300 text-6xl mb-4">🎙️</div>
+                <p className="text-gray-400 text-lg font-medium">Drop episodes here to start</p>
+                <p className="text-gray-400 text-sm mt-2">← Search podcasts in the sidebar</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
