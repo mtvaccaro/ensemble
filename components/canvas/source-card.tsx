@@ -50,26 +50,30 @@ export function SourceCard({
 
   return (
     <div className="flex flex-col gap-1 items-start w-full">
-      {/* Source Badge */}
+      {/* Source Badge - Changes to gradient when active */}
       <div className="pl-4">
         <div 
-          className="
+          className={`
             inline-flex 
             items-center 
             justify-center 
             px-[6px] 
             py-[2px] 
             rounded-[6px]
-            bg-[#d0c2fd]
-          "
+            transition-all
+            ${isActive 
+              ? 'bg-gradient-to-r from-[#efc2fd] to-[#b76eff]' 
+              : 'bg-[#d0c2fd]'
+            }
+          `}
         >
           <span 
-            className="
+            className={`
               text-xs 
               font-medium 
-              text-[#3d00f6]
               leading-none
-            "
+              ${isActive ? 'text-white' : 'text-[#3d00f6]'}
+            `}
             style={{ 
               fontFamily: 'Noto Sans, sans-serif',
               letterSpacing: '-0.24px'
