@@ -50,7 +50,7 @@ export function SourceCard({
 
   return (
     <div className="flex flex-col gap-1 items-start w-full">
-      {/* Source Badge - Changes to gradient when active */}
+      {/* Source Badge - Solid purple when active, light purple when inactive */}
       <div className="pl-4">
         <div 
           className={`
@@ -62,7 +62,7 @@ export function SourceCard({
             rounded-[6px]
             transition-all
             ${isActive 
-              ? 'bg-gradient-to-r from-[#efc2fd] to-[#b76eff]' 
+              ? 'bg-[#3d00f6]' 
               : 'bg-[#d0c2fd]'
             }
           `}
