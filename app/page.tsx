@@ -308,6 +308,7 @@ export default function CanvasPage() {
       type: 'episode',
       episodeId: episode.id,
       podcastId: podcast.id.toString(),
+      podcastTitle: podcast.title,
       title: episode.title,
       audioUrl: episode.audioUrl,
       imageUrl: episode.imageUrl,
@@ -1138,6 +1139,7 @@ export default function CanvasPage() {
         type: 'episode',
         episodeId: episodeId,
         podcastId: 'uploaded-file',
+        podcastTitle: 'Uploaded Audio',
         title: fileName,
         audioUrl: audioUrl,
         imageUrl: undefined, // No image for uploaded files
@@ -1709,6 +1711,10 @@ export default function CanvasPage() {
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
+                            {/* Podcast title eyebrow */}
+                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
+                              {episode.podcastTitle}
+                            </p>
                             <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
                               {episode.title}
                             </h3>
@@ -2059,6 +2065,10 @@ export default function CanvasPage() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
+                    {/* Podcast title eyebrow */}
+                    <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
+                      {episode.podcastTitle}
+                    </p>
                     <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">
                       {episode.title}
                     </h3>

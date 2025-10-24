@@ -138,6 +138,7 @@ export interface CanvasEpisode extends CanvasItem {
   type: 'episode'
   episodeId: string
   podcastId: string
+  podcastTitle: string // Show/podcast name (e.g., "The Daily", "Behind The Money")
   title: string
   audioUrl: string
   imageUrl?: string
