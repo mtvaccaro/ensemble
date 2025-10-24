@@ -132,6 +132,12 @@ export async function exportClipToVideo(
       if ((options.includeCaptions || options.includeWaveform) && ctx && originalImageData) {
         ctx.putImageData(originalImageData, 0, 0)
         
+        // Add dark overlay over background image if waveform is enabled
+        if (options.includeWaveform) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)' // 60% dark overlay
+          ctx.fillRect(0, 0, options.width, options.height)
+        }
+        
         // Draw reactive audio visualizer
         if (options.includeWaveform && amplitudeData) {
           drawReactiveVisualizer(ctx, amplitudeData, i, options.width, options.height)
@@ -285,6 +291,12 @@ export async function exportReelToVideo(
       // Restore original image (to clear previous frame's captions/visualizer)
       if ((options.includeCaptions || options.includeWaveform) && ctx && originalImageData) {
         ctx.putImageData(originalImageData, 0, 0)
+        
+        // Add dark overlay over background image if waveform is enabled
+        if (options.includeWaveform) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)' // 60% dark overlay
+          ctx.fillRect(0, 0, options.width, options.height)
+        }
         
         // Draw reactive audio visualizer
         if (options.includeWaveform && amplitudeData) {
@@ -574,8 +586,8 @@ function drawReactiveVisualizer(
     // Draw bar (centered vertically, growing up and down)
     const halfHeight = barHeight / 2
     
-    // Solid orange color
-    ctx.fillStyle = 'rgba(249, 115, 22, 0.95)' // Orange-500
+    // White color for high contrast
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
     ctx.fillRect(
       x,
       centerY - halfHeight,
@@ -585,7 +597,7 @@ function drawReactiveVisualizer(
     
     // Add subtle glow for more prominent bars
     if (currentAmplitude > 0.3 && frequencyMultiplier > 0.7) {
-      ctx.shadowColor = 'rgba(249, 115, 22, 0.4)'
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.5)'
       ctx.shadowBlur = 12
       ctx.fillRect(x, centerY - halfHeight, barWidth, barHeight)
       ctx.shadowBlur = 0
