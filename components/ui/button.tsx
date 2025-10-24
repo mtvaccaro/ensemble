@@ -9,20 +9,22 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading = false, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none'
+    const baseStyles = 'inline-flex items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none'
     
+    // Using Ensemble Design Tokens
     const variants = {
-      primary: 'bg-blue-600 text-white hover:bg-blue-700',
-      secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
-      outline: 'border border-gray-300 bg-white text-gray-900 hover:bg-gray-50',
-      ghost: 'text-gray-900 hover:bg-gray-100',
-      destructive: 'bg-red-600 text-white hover:bg-red-700'
+      primary: 'bg-source-5 text-neutral-0 hover:opacity-90',
+      secondary: 'bg-neutral-1 text-neutral-5 hover:bg-neutral-2',
+      outline: 'border border-neutral-2 bg-neutral-0 text-neutral-5 hover:border-source-5',
+      ghost: 'text-neutral-5 hover:bg-neutral-1',
+      destructive: 'bg-red-600 text-neutral-0 hover:bg-red-700'
     }
     
+    // Sizes based on Ensemble spacing and typography
     const sizes = {
-      sm: 'h-8 px-3 text-sm',
-      md: 'h-10 px-4 py-2',
-      lg: 'h-12 px-6 text-lg'
+      sm: 'h-8 px-4 text-body-sm',  // 8px vertical, 16px horizontal padding
+      md: 'h-10 px-6 text-body-med', // 12px horizontal padding
+      lg: 'h-12 px-8 text-title-sm'  // 16px horizontal padding
     }
     
     return (
