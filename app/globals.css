@@ -24,3 +24,36 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* AI Transcription - Breathing Gradient Animation */
+@keyframes breathe-gradient {
+  0%, 100% {
+    opacity: 0.6;
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
+  }
+}
+
+.transcribing-gradient {
+  position: relative;
+  border-radius: 0.5rem;
+}
+
+.transcribing-gradient::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 0.5rem;
+  padding: 4px;
+  background: linear-gradient(135deg, #9333ea, #ec4899, #9333ea);
+  background-size: 200% 200%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: breathe-gradient 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}

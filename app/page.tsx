@@ -110,6 +110,13 @@ export default function CanvasPage() {
     // Load right panel width from localStorage
     const savedRightWidth = localStorage.getItem('rightPanelWidth')
     if (savedRightWidth) setRightPanelWidth(parseInt(savedRightWidth))
+    
+    // Auto fit-to-view when returning to canvas with items
+    if (state.items.length > 0) {
+      setTimeout(() => {
+        handleFitToView()
+      }, 100)
+    }
   }, [])
 
   // Handle Delete/Backspace key to remove selected items
@@ -1603,6 +1610,7 @@ export default function CanvasPage() {
                   const episode = item as CanvasEpisode
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
+                  const isTranscribing = transcribingEpisodes.has(episode.episodeId)
                   
                   return (
                     <div
@@ -1618,6 +1626,7 @@ export default function CanvasPage() {
                       className={`absolute cursor-pointer select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
                       } ${
+                        isTranscribing ? 'transcribing-gradient shadow-xl' : 
                         isSelected ? 'ring-4 ring-blue-500 shadow-xl rounded-lg' : 'ring-0 ring-transparent'
                       }`}
                       style={{
