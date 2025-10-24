@@ -49,9 +49,9 @@ export function SourceCard({
   }
 
   return (
-    <div className="flex flex-col gap-1 items-start w-full">
-      {/* Source Badge - Solid purple when active, light purple when inactive */}
-      <div className="pl-4">
+    <div className="flex flex-col gap-[4px] items-start w-full">
+      {/* Source Badge - Using exact Figma tokens */}
+      <div className="pl-[16px]">
         <div 
           className={`
             inline-flex 
@@ -69,13 +69,13 @@ export function SourceCard({
         >
           <span 
             className={`
-              text-xs 
               font-medium 
-              leading-none
+              leading-[100%]
               ${isActive ? 'text-white' : 'text-[#3d00f6]'}
             `}
             style={{ 
               fontFamily: 'Noto Sans, sans-serif',
+              fontSize: '12px',
               letterSpacing: '-0.24px'
             }}
           >
@@ -84,14 +84,14 @@ export function SourceCard({
         </div>
       </div>
 
-      {/* Card */}
+      {/* Card - Using exact Figma tokens */}
       <div
         onClick={onClick}
         className={`
           bg-white
-          border-2
-          rounded-xl
-          p-4
+          border-[2px]
+          rounded-[12px]
+          p-[16px]
           w-full
           cursor-pointer
           transition-all
@@ -103,20 +103,20 @@ export function SourceCard({
           }
         `}
       >
-        <div className="flex items-start gap-2 w-full">
-          {/* Thumbnail with Play Button */}
+        <div className="flex items-start gap-[8px] w-full py-[2px]">
+          {/* Thumbnail with Play Button - Using exact Figma tokens */}
           <div className="relative shrink-0 group">
             {imageUrl ? (
               <img
                 src={imageUrl}
                 alt={title}
-                className="w-[57px] h-[57px] rounded object-cover bg-black"
+                className="w-[57px] h-[57px] rounded-[4px] object-cover bg-black"
               />
             ) : (
-              <div className="w-[57px] h-[57px] rounded bg-black" />
+              <div className="w-[57px] h-[57px] rounded-[4px] bg-black" />
             )}
             
-            {/* Purple Play Button Overlay */}
+            {/* Purple Play Button Overlay - Using exact Figma tokens */}
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -128,9 +128,9 @@ export function SourceCard({
                 top-1/2 
                 -translate-x-1/2 
                 -translate-y-1/2
-                w-8 
-                h-8 
-                rounded-full 
+                w-[32px]
+                h-[32px]
+                rounded-[80px]
                 bg-[#3d00f6]
                 flex 
                 items-center 
@@ -142,41 +142,38 @@ export function SourceCard({
               "
               aria-label="Play"
             >
-              <Play className="w-6 h-6 text-white fill-white ml-0.5" />
+              <Play className="w-[24px] h-[24px] text-white fill-white ml-0.5" />
             </button>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0 flex flex-col gap-0.5 justify-center">
-            {/* Episode Title - Title/sm: 14px SemiBold */}
+          {/* Content - Using exact Figma tokens */}
+          <div className="flex-1 min-w-0 flex flex-col gap-[2px] justify-center">
+            {/* Episode Title - Title/sm: 14px SemiBold, line-height: 100% */}
             <h3 
               className="
-                text-sm 
                 font-semibold 
                 text-black
                 line-clamp-2
-                leading-none
               "
               style={{ 
                 fontFamily: 'Noto Sans, sans-serif',
+                fontSize: '14px',
+                fontWeight: 600,
+                lineHeight: '100%',
                 letterSpacing: '-0.28px'
               }}
             >
               {title}
             </h3>
 
-            {/* Metadata Row - Meta/med: 12px Medium */}
+            {/* Metadata Row - Meta/med: 12px Medium, line-height: 100% */}
             <div 
-              className="
-                flex 
-                items-center 
-                gap-2 
-                text-xs 
-                font-medium
-                leading-none
-              "
+              className="flex items-center gap-[8px]"
               style={{ 
                 fontFamily: 'Noto Sans, sans-serif',
+                fontSize: '12px',
+                fontWeight: 500,
+                lineHeight: '100%',
                 letterSpacing: '-0.24px'
               }}
             >
@@ -185,7 +182,7 @@ export function SourceCard({
                   {podcastTitle}
                 </span>
               )}
-              <span className="text-[#808080] shrink-0">
+              <span className="text-[#808080] shrink-0 whitespace-nowrap">
                 {formatDuration(duration)}
               </span>
             </div>
