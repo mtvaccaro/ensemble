@@ -49,25 +49,25 @@
    TAILWIND V4 THEME CONFIGURATION
    ============================================ */
 
-@theme inline {
-  /* Color System */
-  --color-neutral-0: var(--color-neutral-0);
-  --color-neutral-1: var(--color-neutral-1);
-  --color-neutral-2: var(--color-neutral-2);
-  --color-neutral-3: var(--color-neutral-3);
-  --color-neutral-5: var(--color-neutral-5);
+@theme {
+  /* Color System - Properly extend Tailwind's color palette */
+  --color-neutral-0: #ffffff;
+  --color-neutral-1: #f3f3f3;
+  --color-neutral-2: #e5e5e5;
+  --color-neutral-3: #808080;
+  --color-neutral-5: #000000;
   
-  --color-source-5: var(--color-source-primary-5);
-  --color-source-1: var(--color-source-primary-1);
+  --color-source-5: #3d00f6;
+  --color-source-1: #d0c2fd;
   
-  --color-clip-5: var(--color-clip-secondary-5);
-  --color-clip-1: var(--color-clip-secondary-1);
+  --color-clip-5: #ac00f6;
+  --color-clip-1: #ebc2fd;
 
   /* Semantic Color Aliases */
-  --color-primary: var(--color-source-primary-5);
-  --color-primary-light: var(--color-source-primary-1);
-  --color-secondary: var(--color-clip-secondary-5);
-  --color-secondary-light: var(--color-clip-secondary-1);
+  --color-primary: #3d00f6;
+  --color-primary-light: #d0c2fd;
+  --color-secondary: #ac00f6;
+  --color-secondary-light: #ebc2fd;
 
   /* Spacing Scale */
   --spacing-0: 0px;
