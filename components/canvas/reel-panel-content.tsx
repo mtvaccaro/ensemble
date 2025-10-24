@@ -33,6 +33,7 @@ export function ReelPanelContent({
   const [statusMessage, setStatusMessage] = useState<string>('')
   const [isComplete, setIsComplete] = useState(false)
   const [includeCaptions, setIncludeCaptions] = useState(true)
+  const [includeWaveform, setIncludeWaveform] = useState(true)
   const [platform, setPlatform] = useState('instagram')
   const [format, setFormat] = useState('reels')
 
@@ -140,7 +141,7 @@ export function ReelPanelContent({
       setStatusMessage('Generating reel...')
       const videoBlob = await exportReelToVideo(clipData, (p) => {
         setProgress(p * 100)
-      }, { includeCaptions, width: dimensions.width, height: dimensions.height })
+      }, { includeCaptions, includeWaveform, width: dimensions.width, height: dimensions.height })
       
       // Download the video
       const url = URL.createObjectURL(videoBlob)
@@ -425,18 +426,36 @@ export function ReelPanelContent({
 
         {/* Export Options */}
         <div>
-          <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
-            <input
-              type="checkbox"
-              checked={includeCaptions}
-              onChange={(e) => setIncludeCaptions(e.target.checked)}
-              className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-            />
-            <div className="flex-1">
-              <div className="text-sm font-medium text-gray-900">Include Captions</div>
-              <div className="text-xs text-gray-500">Add transcript as subtitles on video</div>
-            </div>
+          <label className="block text-sm font-medium text-gray-900 mb-2">
+            Export Options
           </label>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={includeCaptions}
+                onChange={(e) => setIncludeCaptions(e.target.checked)}
+                className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-900">Include Captions</div>
+                <div className="text-xs text-gray-500">Add transcript as subtitles on video</div>
+              </div>
+            </label>
+            
+            <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={includeWaveform}
+                onChange={(e) => setIncludeWaveform(e.target.checked)}
+                className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-900">Include Waveform</div>
+                <div className="text-xs text-gray-500">Add animated audio bars at bottom</div>
+              </div>
+            </label>
+          </div>
         </div>
 
         {/* Progress */}

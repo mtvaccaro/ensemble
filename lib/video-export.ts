@@ -32,6 +32,7 @@ export interface VideoExportOptions {
   frameRate?: number
   videoBitrate?: number
   includeCaptions?: boolean
+  includeWaveform?: boolean
 }
 
 const DEFAULT_OPTIONS: Required<VideoExportOptions> = {
@@ -39,7 +40,8 @@ const DEFAULT_OPTIONS: Required<VideoExportOptions> = {
   height: 1080,
   frameRate: 30,
   videoBitrate: 5000000, // 5 Mbps - high quality for 1080x1080
-  includeCaptions: false
+  includeCaptions: false,
+  includeWaveform: true
 }
 
 /**
@@ -117,21 +119,33 @@ export async function exportClipToVideo(
     const ctx = canvas.getContext('2d')
     const originalImageData = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null
     
-    // Add video frames with captions
+    // Extract waveform data if enabled
+    const waveformData = options.includeWaveform && audioBuffer 
+      ? extractWaveformData(audioBuffer)
+      : null
+    
+    // Add video frames with captions and waveform
     for (let i = 0; i < totalFrames; i++) {
       const timestamp = i * frameDuration
       
-      // Restore original image if using captions (to clear previous caption)
-      if (options.includeCaptions && ctx && originalImageData) {
+      // Restore original image (to clear previous frame's captions/waveform)
+      if ((options.includeCaptions || options.includeWaveform) && ctx && originalImageData) {
         ctx.putImageData(originalImageData, 0, 0)
         
-        // Find active caption for this timestamp
-        const activeSegment = captionSegments.find(seg => 
-          timestamp >= seg.start && timestamp < seg.end
-        )
+        // Draw waveform bars
+        if (options.includeWaveform && waveformData) {
+          drawWaveformBars(ctx, waveformData, timestamp, durationSeconds, options.width, options.height)
+        }
         
-        if (activeSegment) {
-          drawCaptionOnCanvas(ctx, activeSegment.text, options.width, options.height)
+        // Find active caption for this timestamp
+        if (options.includeCaptions) {
+          const activeSegment = captionSegments.find(seg => 
+            timestamp >= seg.start && timestamp < seg.end
+          )
+          
+          if (activeSegment) {
+            drawCaptionOnCanvas(ctx, activeSegment.text, options.width, options.height)
+          }
         }
       }
       
@@ -259,20 +273,33 @@ export async function exportReelToVideo(
     const ctx = canvas.getContext('2d')
     const originalImageData = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null
     
-    // Add video frames with captions
+    // Extract waveform data if enabled
+    const waveformData = options.includeWaveform && concatenatedAudio 
+      ? extractWaveformData(concatenatedAudio)
+      : null
+    
+    // Add video frames with captions and waveform
     for (let i = 0; i < totalFrames; i++) {
       const timestamp = i * frameDuration
       
-      // Restore original image if using captions (to clear previous caption)
-      if (options.includeCaptions && ctx && originalImageData) {
+      // Restore original image (to clear previous frame's captions/waveform)
+      if ((options.includeCaptions || options.includeWaveform) && ctx && originalImageData) {
         ctx.putImageData(originalImageData, 0, 0)
         
-        const activeSegment = captionSegments.find(seg => 
-          timestamp >= seg.start && timestamp < seg.end
-        )
+        // Draw waveform bars
+        if (options.includeWaveform && waveformData) {
+          drawWaveformBars(ctx, waveformData, timestamp, totalDuration, options.width, options.height)
+        }
         
-        if (activeSegment) {
-          drawCaptionOnCanvas(ctx, activeSegment.text, options.width, options.height)
+        // Find active caption for this timestamp
+        if (options.includeCaptions) {
+          const activeSegment = captionSegments.find(seg => 
+            timestamp >= seg.start && timestamp < seg.end
+          )
+          
+          if (activeSegment) {
+            drawCaptionOnCanvas(ctx, activeSegment.text, options.width, options.height)
+          }
         }
       }
       
@@ -465,6 +492,112 @@ async function createDefaultImage(): Promise<string> {
   }
   
   return canvas.toDataURL('image/jpeg', 0.9)
+}
+
+/**
+ * Extract amplitude data from audio buffer for waveform visualization
+ * Returns an array of amplitude values normalized to 0-1
+ */
+function extractWaveformData(audioBuffer: AudioBuffer, numBars: number = 32): number[] {
+  const channelData = audioBuffer.getChannelData(0) // Use first channel (mono or left channel)
+  const samples = channelData.length
+  const samplesPerBar = Math.floor(samples / numBars)
+  const amplitudes: number[] = []
+  
+  for (let i = 0; i < numBars; i++) {
+    const start = i * samplesPerBar
+    const end = start + samplesPerBar
+    let sum = 0
+    
+    // Calculate RMS (Root Mean Square) for this segment
+    for (let j = start; j < end && j < samples; j++) {
+      sum += channelData[j] * channelData[j]
+    }
+    
+    const rms = Math.sqrt(sum / samplesPerBar)
+    // Normalize and apply some gain for better visibility
+    const normalized = Math.min(1, rms * 5)
+    amplitudes.push(normalized)
+  }
+  
+  return amplitudes
+}
+
+/**
+ * Draw reactive waveform bars on canvas
+ */
+function drawWaveformBars(
+  ctx: CanvasRenderingContext2D,
+  waveformData: number[],
+  timestamp: number,
+  duration: number,
+  width: number,
+  height: number
+): void {
+  ctx.save()
+  
+  const numBars = waveformData.length
+  const barWidth = Math.floor(width / numBars * 0.7) // 70% width with gaps
+  const gap = Math.floor(width / numBars * 0.3) // 30% gap
+  const maxBarHeight = height * 0.25 // Bars can take up 25% of height
+  const baseY = height - (height * 0.08) // Position near bottom
+  const minBarHeight = 4 // Minimum visible height
+  
+  // Calculate which bars should be active based on playback progress
+  const progress = timestamp / duration
+  const activeBarIndex = Math.floor(progress * numBars)
+  
+  for (let i = 0; i < numBars; i++) {
+    const amplitude = waveformData[i]
+    const x = i * (barWidth + gap) + gap / 2
+    
+    // Smooth animation: bars ahead of playhead are dimmed
+    let barHeight: number
+    let opacity: number
+    
+    if (i <= activeBarIndex) {
+      // Active bar - full height based on amplitude
+      barHeight = Math.max(minBarHeight, amplitude * maxBarHeight)
+      opacity = 0.9
+    } else if (i === activeBarIndex + 1) {
+      // Next bar - slight preview
+      barHeight = Math.max(minBarHeight, amplitude * maxBarHeight * 0.3)
+      opacity = 0.3
+    } else {
+      // Future bars - minimal height
+      barHeight = minBarHeight
+      opacity = 0.2
+    }
+    
+    // Add some bounce effect for active bars
+    if (i === activeBarIndex) {
+      const bounce = 1 + Math.sin(timestamp * 8) * 0.1 // Subtle pulse
+      barHeight *= bounce
+    }
+    
+    // Draw bar with gradient
+    const gradient = ctx.createLinearGradient(x, baseY, x, baseY - barHeight)
+    gradient.addColorStop(0, `rgba(249, 115, 22, ${opacity})`) // Orange base
+    gradient.addColorStop(1, `rgba(251, 146, 60, ${opacity})`) // Lighter orange top
+    
+    ctx.fillStyle = gradient
+    ctx.fillRect(
+      x,
+      baseY - barHeight,
+      barWidth,
+      barHeight
+    )
+    
+    // Add subtle glow for active bars
+    if (i <= activeBarIndex) {
+      ctx.shadowColor = 'rgba(249, 115, 22, 0.5)'
+      ctx.shadowBlur = 8
+      ctx.fillRect(x, baseY - barHeight, barWidth, barHeight)
+      ctx.shadowBlur = 0
+    }
+  }
+  
+  ctx.restore()
 }
 
 /**
