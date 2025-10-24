@@ -1719,9 +1719,9 @@ export default function CanvasPage() {
                               
                               {/* Transcript status badge */}
                               {transcribingEpisodes.has(episode.episodeId) ? (
-                                <div className="inline-flex bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded-full items-center gap-1">
+                                <div className="inline-flex bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] px-2 py-0.5 rounded-full items-center gap-1 shadow-sm">
                                   <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                  <span>Transcribing</span>
+                                  <span className="font-medium">AI Transcribing</span>
                                 </div>
                               ) : episode.transcript_segments && episode.transcript_segments.length > 0 ? (
                                 <div className="inline-flex bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded-full items-center gap-1">
