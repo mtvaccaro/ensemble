@@ -63,8 +63,13 @@ export async function exportClipToVideo(
     
     onProgress?.(0.3) // Image loaded
     
-    // Load audio
+    // Load audio (tries direct fetch, then proxy fallback)
     const audioBuffer = await fetchAudioSegment(clip.audioUrl, clip.startTime, clip.endTime)
+    
+    if (!audioBuffer) {
+      console.warn('[Clip Export] ⚠️ Audio failed to load - exporting video without audio')
+      alert('⚠️ Audio Export Failed\n\nCould not load audio from this podcast after trying multiple methods.\n\nPossible causes:\n• Podcast host blocking all access\n• Unsupported audio format\n• Network connectivity issues\n\nThe video will export WITHOUT AUDIO.\nCheck the browser console for technical details.')
+    }
     
     onProgress?.(0.5) // Audio loaded
     
@@ -203,16 +208,25 @@ export async function exportReelToVideo(
     
     onProgress?.(0.15)
     
-    // Load all audio segments
+    // Load all audio segments (tries direct fetch, then proxy fallback for each)
     const audioBuffers: AudioBuffer[] = []
+    let failedAudioCount = 0
     for (let i = 0; i < clips.length; i++) {
       const clip = clips[i]
       const buffer = await fetchAudioSegment(clip.audioUrl, clip.startTime, clip.endTime)
       if (buffer) {
         audioBuffers.push(buffer)
+      } else {
+        failedAudioCount++
       }
       const progress = 0.15 + (0.3 * ((i + 1) / clips.length))
       onProgress?.(progress)
+    }
+    
+    // Warn user if any audio failed (after trying both direct + proxy)
+    if (failedAudioCount > 0) {
+      console.warn(`[Reel Export] ⚠️ ${failedAudioCount}/${clips.length} audio segments failed to load`)
+      alert(`⚠️ Reel Audio Incomplete\n\n${failedAudioCount} of ${clips.length} clips could not load audio after trying multiple methods.\n\nPossible causes:\n• Podcast host blocking all access\n• Unsupported audio format\n• Network connectivity issues\n\nThe reel will export with partial or no audio.\nCheck the browser console for technical details.`)
     }
     
     // Concatenate audio buffers
@@ -409,49 +423,122 @@ async function createCanvasWithImage(
 
 /**
  * Fetch audio segment from URL and trim to specified time range
+ * Uses hybrid approach: tries direct fetch first, falls back to proxy on CORS failure
  */
 async function fetchAudioSegment(
   audioUrl: string,
   startTime: number,
   endTime: number
 ): Promise<AudioBuffer | null> {
+  // Try direct fetch first (free, no bandwidth cost)
+  const directResult = await tryFetchAudio(audioUrl, false)
+  
+  if (directResult.success && directResult.buffer) {
+    return trimAudioBuffer(directResult.buffer, startTime, endTime)
+  }
+  
+  // If direct fetch failed due to CORS, try proxy
+  if (directResult.isCorsError) {
+    console.log('[Audio Export] 🔄 Direct fetch blocked by CORS, trying proxy...')
+    const proxyUrl = `/api/audio-proxy?url=${encodeURIComponent(audioUrl)}`
+    const proxyResult = await tryFetchAudio(proxyUrl, true)
+    
+    if (proxyResult.success && proxyResult.buffer) {
+      console.log('[Audio Export] ✅ Proxy fetch succeeded')
+      return trimAudioBuffer(proxyResult.buffer, startTime, endTime)
+    }
+  }
+  
+  // Both attempts failed
+  console.error('[Audio Export] ❌ All fetch attempts failed')
+  return null
+}
+
+/**
+ * Attempt to fetch and decode audio from a URL
+ */
+async function tryFetchAudio(
+  url: string,
+  isProxy: boolean
+): Promise<{ success: boolean; buffer?: AudioBuffer; isCorsError?: boolean }> {
   try {
-    const response = await fetch(audioUrl)
-    const arrayBuffer = await response.arrayBuffer()
+    const logPrefix = isProxy ? '[Audio Proxy]' : '[Audio Direct]'
+    console.log(`${logPrefix} Fetching:`, url)
     
-    const audioContext = new AudioContext()
-    const fullAudioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+    const response = await fetch(url, {
+      mode: 'cors',
+      credentials: 'omit'
+    })
     
-    // Calculate sample positions
-    const sampleRate = fullAudioBuffer.sampleRate
-    const startSample = Math.floor(startTime * sampleRate)
-    const endSample = Math.floor(endTime * sampleRate)
-    const duration = endSample - startSample
-    
-    // Create trimmed buffer
-    const trimmedBuffer = audioContext.createBuffer(
-      fullAudioBuffer.numberOfChannels,
-      duration,
-      sampleRate
-    )
-    
-    // Copy trimmed audio data
-    for (let channel = 0; channel < fullAudioBuffer.numberOfChannels; channel++) {
-      const sourceData = fullAudioBuffer.getChannelData(channel)
-      const trimmedData = trimmedBuffer.getChannelData(channel)
-      
-      for (let i = 0; i < duration; i++) {
-        trimmedData[i] = sourceData[startSample + i]
-      }
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
     
+    const contentType = response.headers.get('content-type')
+    console.log(`${logPrefix} Content-Type:`, contentType)
+    
+    const arrayBuffer = await response.arrayBuffer()
+    console.log(`${logPrefix} Fetched`, arrayBuffer.byteLength, 'bytes')
+    
+    const audioContext = new AudioContext()
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+    console.log(`${logPrefix} Decoded:`, audioBuffer.duration.toFixed(2), 'seconds')
+    
     await audioContext.close()
-    return trimmedBuffer
+    
+    return { success: true, buffer: audioBuffer }
     
   } catch (error) {
-    console.error('Error fetching/trimming audio:', error)
-    return null
+    const logPrefix = isProxy ? '[Audio Proxy]' : '[Audio Direct]'
+    console.error(`${logPrefix} Failed:`, error instanceof Error ? error.message : error)
+    
+    // Detect CORS errors
+    const isCorsError = error instanceof TypeError && 
+      (error.message.includes('Failed to fetch') || 
+       error.message.includes('CORS') ||
+       error.message.includes('NetworkError'))
+    
+    return { success: false, isCorsError }
   }
+}
+
+/**
+ * Trim audio buffer to specified time range
+ */
+function trimAudioBuffer(
+  fullAudioBuffer: AudioBuffer,
+  startTime: number,
+  endTime: number
+): AudioBuffer {
+  const audioContext = new AudioContext()
+  
+  // Calculate sample positions
+  const sampleRate = fullAudioBuffer.sampleRate
+  const startSample = Math.floor(startTime * sampleRate)
+  const endSample = Math.floor(endTime * sampleRate)
+  const duration = endSample - startSample
+  
+  // Create trimmed buffer
+  const trimmedBuffer = audioContext.createBuffer(
+    fullAudioBuffer.numberOfChannels,
+    duration,
+    sampleRate
+  )
+  
+  // Copy trimmed audio data
+  for (let channel = 0; channel < fullAudioBuffer.numberOfChannels; channel++) {
+    const sourceData = fullAudioBuffer.getChannelData(channel)
+    const trimmedData = trimmedBuffer.getChannelData(channel)
+    
+    for (let i = 0; i < duration; i++) {
+      trimmedData[i] = sourceData[startSample + i]
+    }
+  }
+  
+  audioContext.close()
+  console.log('[Audio Export] ✂️ Trimmed to', (endTime - startTime).toFixed(2), 'seconds')
+  
+  return trimmedBuffer
 }
 
 /**
