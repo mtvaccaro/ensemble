@@ -1279,7 +1279,7 @@ export default function CanvasPage() {
         {/* Header - Always Visible */}
         <div className="px-3 pt-3 pb-2 border-b border-gray-200">
           <img 
-            src="/ensemble-logo-v1.svg" 
+            src="/ensemble-studio-logo-v1.svg" 
             alt="Ensemble" 
             className="h-6 w-auto"
           />
