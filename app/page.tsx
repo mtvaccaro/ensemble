@@ -1281,7 +1281,7 @@ export default function CanvasPage() {
           <img 
             src="/ensemble-studio-logo-v1.svg" 
             alt="Ensemble" 
-            className="h-6 w-auto"
+            className="h-7 w-auto"
           />
         </div>
 
