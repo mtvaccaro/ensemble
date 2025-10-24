@@ -21,6 +21,7 @@ import { ExportPanelContent } from '@/components/canvas/export-panel-content'
 import { ReelPanelContent } from '@/components/canvas/reel-panel-content'
 import { ContextualPlayer } from '@/components/canvas/contextual-player'
 import { SourceCard } from '@/components/canvas/source-card'
+import { ClipCard } from '@/components/canvas/clip-card'
 import posthog from 'posthog-js'
 
 interface EpisodeResult {
@@ -1713,92 +1714,68 @@ export default function CanvasPage() {
                     <div
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
-                      onClick={(e) => e.stopPropagation()}
-                      className={`absolute cursor-move select-none group ${
+                      className={`absolute select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
-                      } ${
-                        isSelected ? 'ring-4 ring-purple-500 shadow-xl rounded-lg' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
-                        width: '340px',
+                        width: '361px',
                         zIndex: isSelected ? 20 : 10,
                         transform: isDragging ? `translate(${dragDelta.x}px, ${dragDelta.y}px)` : 'none'
                       }}
                     >
-                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-lg border-2 border-purple-300 p-4 hover:shadow-xl transition-shadow relative">
-                        {/* Floating X delete button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setCanvasItems(canvasItems.filter(i => i.id !== item.id))
-                            setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
-                          title="Remove from canvas"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        
-                        <div className="flex items-start gap-2 mb-3">
-                          <div className="bg-purple-600 text-white p-2 rounded">
-                            <Scissors className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium text-purple-600 mb-1">CLIP</div>
-                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
-                              {clip.title}
-                            </h3>
-                            <p className="text-xs text-gray-600 mt-1">
-                              Duration: {formatDuration(clip.duration)}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-white bg-opacity-50 rounded p-2 mb-3">
-                          <p className="text-xs text-gray-700 line-clamp-3">
-                            {clip.transcript}
-                          </p>
-                        </div>
-                        
-                        <div className="flex gap-2 items-center">
-                          {/* Play/Pause button */}
-                          <button
-                            className="bg-purple-600 hover:bg-purple-700 rounded-full p-2 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                              if (isThisPlaying) {
-                                setPauseTrigger(Date.now())
-                              } else {
-                                setSelectedItemIds([item.id])
-                                setPlayTrigger(Date.now())
-                              }
-                            }}
-                            title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
-                          >
-                            {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
-                              <Pause className="h-4 w-4 text-white" />
-                            ) : (
-                              <Play className="h-4 w-4 text-white ml-0.5" />
-                            )}
-                          </button>
-                        </div>
-                        
-                        {/* Connection handle at bottom center - drag to add to reel */}
-                        <div
-                          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-orange-500 border-2 border-white rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shadow-lg cursor-pointer hover:scale-110 z-30 flex items-center justify-center"
-                          onMouseDown={(e) => {
-                            e.stopPropagation()
-                            setIsConnecting(true)
-                            setConnectingClipId(clip.id)
-                            setConnectionEndPoint({ x: item.position.x + 170, y: item.position.y + 220 })
-                          }}
-                          title="Drag to add this clip to a reel"
-                        >
-                          <Plus className="h-3 w-3 text-white" />
-                        </div>
+                      {/* Figma Clip Card */}
+                      <ClipCard
+                        id={clip.id}
+                        title={clip.title}
+                        duration={clip.duration}
+                        transcriptPreview={clip.transcript}
+                        isActive={isSelected}
+                        onClick={(e) => {
+                          if (!e) return
+                          e.stopPropagation()
+                          if (!(e as React.MouseEvent).shiftKey) {
+                            setSelectedItemIds([item.id])
+                          }
+                        }}
+                        onPlayClick={(e) => {
+                          e.stopPropagation()
+                          const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
+                          if (isThisPlaying) {
+                            setPauseTrigger(Date.now())
+                          } else {
+                            setSelectedItemIds([item.id])
+                            setPlayTrigger(Date.now())
+                          }
+                        }}
+                      />
+                      
+                      {/* Floating X delete button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                          setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-30"
+                        title="Remove from canvas"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      
+                      {/* Connection handle at bottom center - drag to add to reel */}
+                      <div
+                        className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-orange-500 border-2 border-white rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shadow-lg cursor-pointer hover:scale-110 z-30 flex items-center justify-center"
+                        onMouseDown={(e) => {
+                          e.stopPropagation()
+                          setIsConnecting(true)
+                          setConnectingClipId(clip.id)
+                          setConnectionEndPoint({ x: item.position.x + 170, y: item.position.y + 220 })
+                        }}
+                        title="Drag to add this clip to a reel"
+                      >
+                        <Plus className="h-3 w-3 text-white" />
                       </div>
                     </div>
                   )
