@@ -1,4 +1,4 @@
-# Clipper Development Progress
+# Ensemble Development Progress
 
 ## Project Overview
 Podcast clip generation web tool - Transform podcasts into viral clips with AI transcription.
@@ -57,7 +57,7 @@ Implement episode listing, audio playback, OpenAI Whisper transcription, and epi
 - Freemium model with premium AI features
 
 ## Directory Structure (FIXED!)
-- Clean single directory: `/Users/mattvaccaro/clipper/`
+- Clean single directory: `/Users/mattvaccaro/Documents/clipper/`
 - No more nested clipper/clipper/ confusion
 
 ## Development Workflow & Git Best Practices

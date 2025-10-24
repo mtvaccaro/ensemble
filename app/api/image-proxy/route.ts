@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Fetch the image from the external URL
     const response = await fetch(imageUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ClipperBot/1.0)'
+        'User-Agent': 'Mozilla/5.0 (compatible; EnsembleBot/1.0)'
       }
     })
     

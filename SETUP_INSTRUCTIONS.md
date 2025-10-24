@@ -1,4 +1,4 @@
-# Clipper Setup Instructions
+# Ensemble Setup Instructions
 
 ## Quick Start
 

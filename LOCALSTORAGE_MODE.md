@@ -2,7 +2,7 @@
 
 ## What We Just Implemented
 
-Your Clipper app now works **completely offline** with full data persistence using browser localStorage. No Supabase, no database, no backend needed!
+Your Ensemble app now works **completely offline** with full data persistence using browser localStorage. No Supabase, no database, no backend needed!
 
 ## How It Works
 

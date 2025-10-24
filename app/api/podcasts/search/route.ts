@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'ClipperApp/1.0'
+        'User-Agent': 'EnsembleApp/1.0'
       }
     })
 
