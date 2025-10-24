@@ -11,13 +11,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading = false, children, disabled, ...props }, ref) => {
     const baseStyles = 'inline-flex items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none'
     
-    // Using Ensemble Design Tokens
+    // Using Ensemble Design Tokens with Tailwind arbitrary values (Turbopack workaround)
     const variants = {
-      primary: 'bg-source-5 text-neutral-0 hover:opacity-90',
-      secondary: 'bg-neutral-1 text-neutral-5 hover:bg-neutral-2',
-      outline: 'border border-neutral-2 bg-neutral-0 text-neutral-5 hover:border-source-5',
-      ghost: 'text-neutral-5 hover:bg-neutral-1',
-      destructive: 'bg-red-600 text-neutral-0 hover:bg-red-700'
+      primary: 'bg-[#3d00f6] text-white hover:opacity-90',
+      secondary: 'bg-[#f3f3f3] text-black hover:bg-[#e5e5e5]',
+      outline: 'border border-[#e5e5e5] bg-white text-black hover:border-[#3d00f6]',
+      ghost: 'text-black hover:bg-[#f3f3f3]',
+      destructive: 'bg-red-600 text-white hover:bg-red-700'
     }
     
     // Sizes based on Ensemble spacing and typography
