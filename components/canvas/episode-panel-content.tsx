@@ -23,7 +23,7 @@ export function EpisodePanelContent({
   const [endSegment, setEndSegment] = useState<TranscriptSegment | null>(null)
   const [hoveredSegment, setHoveredSegment] = useState<TranscriptSegment | null>(null)
   
-  // Word-level precision state
+  // Word-level precision state (default to true - word-level is the superior UX)
   const [useWordLevel, setUseWordLevel] = useState(true)
   const [manualStartTime, setManualStartTime] = useState<number | null>(null)
   const [manualEndTime, setManualEndTime] = useState<number | null>(null)
@@ -427,43 +427,22 @@ export function EpisodePanelContent({
       {/* Fixed action buttons at bottom (only when range is selected) */}
       {selectedRange && (
         <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg">
-          <div className="space-y-2">
-            {/* Duration display */}
-            <div className="text-center text-sm font-semibold text-gray-700">
-              {formatDuration(selectedRange.duration)}
-            </div>
-            
-            {/* Manual time inputs (only in word-level mode) */}
-            {selectedRange.isWordLevel && (
-              <div className="grid grid-cols-2 gap-2 pb-2">
-                <div>
-                  <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                    <Clock className="h-3 w-3" />
-                    Start Time
-                  </label>
-                  <input
-                    type="text"
-                    value={manualStartInput}
-                    onChange={(e) => handleManualStartChange(e.target.value)}
-                    placeholder="0:00.000"
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                    <Clock className="h-3 w-3" />
-                    End Time
-                  </label>
-                  <input
-                    type="text"
-                    value={manualEndInput}
-                    onChange={(e) => handleManualEndChange(e.target.value)}
-                    placeholder="0:00.000"
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+          <div className="space-y-3">
+            {/* Clip metadata - Duration, Start, End as read-only labels */}
+            <div className="grid grid-cols-3 gap-2 text-center pb-2 border-b border-gray-200">
+              <div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Duration</div>
+                <div className="text-xs font-semibold text-gray-900">{formatDuration(selectedRange.duration)}</div>
               </div>
-            )}
+              <div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Start</div>
+                <div className="text-xs font-mono text-gray-900">{formatDuration(selectedRange.startTime)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">End</div>
+                <div className="text-xs font-mono text-gray-900">{formatDuration(selectedRange.endTime)}</div>
+              </div>
+            </div>
             
             {/* Action buttons stacked */}
             <div className="flex flex-col gap-2">

@@ -918,14 +918,16 @@ export default function CanvasPage() {
     }
 
     setCanvasItems([...canvasItems, newClip])
+    
+    // Auto-select the newly created clip (optimizes for fast clip creation flow)
+    setSelectedItemIds([newClip.id])
+    
     posthog.capture('clip_created_on_canvas', {
       clip_title: clipData.title,
       clip_duration: clipData.duration,
       source_episode: episode.episodeId,
       clip_index: clipIndex
     })
-
-    // Don't close panel - user might want to create more clips
   }
 
   /**
@@ -1578,16 +1580,17 @@ export default function CanvasPage() {
 
             {canvasItems.length === 0 ? (
               <div 
-                className="flex items-center justify-center pointer-events-none"
+                className="fixed inset-0 flex items-center justify-center pointer-events-none"
                 style={{ 
-                  width: `${CANVAS_MAX_X}px`, 
-                  height: `${CANVAS_MAX_Y}px` 
+                  left: isSearchExpanded ? '320px' : '64px',
+                  right: `${rightPanelWidth}px`,
+                  zIndex: 1
                 }}
               >
                 <div className="text-center">
                   <div className="text-gray-300 text-6xl mb-4">🎙️</div>
                   <p className="text-gray-400 text-lg">Drop episodes here to start</p>
-                  <p className="text-gray-400 text-sm mt-2">Search podcasts in the sidebar →</p>
+                  <p className="text-gray-400 text-sm mt-2">← Search podcasts in the sidebar</p>
                 </div>
               </div>
             ) : (
@@ -2015,9 +2018,6 @@ export default function CanvasPage() {
         />
         {/* Panel Header */}
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          {selectedItemIds.length === 0 && (
-            <h3 className="text-sm font-semibold text-gray-900">Canvas</h3>
-          )}
           {selectedItemIds.length === 1 && (() => {
             const selectedItem = canvasItems.find(item => item.id === selectedItemIds[0])
             if (selectedItem?.type === 'episode') {
@@ -2047,10 +2047,48 @@ export default function CanvasPage() {
               )
             }
             if (selectedItem?.type === 'clip') {
-              return <h3 className="text-sm font-semibold text-gray-900">Clip</h3>
+              const clip = selectedItem as CanvasClip
+              return (
+                <div className="flex items-center gap-3">
+                  {clip.imageUrl ? (
+                    <img
+                      src={clip.imageUrl}
+                      alt={clip.title}
+                      className="w-10 h-10 rounded object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center flex-shrink-0">
+                      <Scissors className="h-5 w-5 text-white" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-1 leading-tight">
+                      {clip.title}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Clip · {formatDuration(clip.duration)}
+                    </p>
+                  </div>
+                </div>
+              )
             }
             if (selectedItem?.type === 'reel') {
-              return <h3 className="text-sm font-semibold text-gray-900">Reel</h3>
+              const reel = selectedItem as CanvasReel
+              return (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center flex-shrink-0">
+                    <Film className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-1 leading-tight">
+                      {reel.title}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Reel · {reel.clipIds.length} clips · {formatDuration(reel.totalDuration)}
+                    </p>
+                  </div>
+                </div>
+              )
             }
             return <h3 className="text-sm font-semibold text-gray-900">Selection</h3>
           })()}
