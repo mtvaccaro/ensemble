@@ -1278,7 +1278,11 @@ export default function CanvasPage() {
       <div className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-xl">
         {/* Header - Always Visible */}
         <div className="px-3 pt-3 pb-2 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">Ensemble</h2>
+          <img 
+            src="/ensemble-logo-v1.svg" 
+            alt="Ensemble" 
+            className="h-6 w-auto"
+          />
         </div>
 
         {/* Search Input (Always Visible) */}
