@@ -66,6 +66,11 @@ export async function exportClipToVideo(
     // Load audio
     const audioBuffer = await fetchAudioSegment(clip.audioUrl, clip.startTime, clip.endTime)
     
+    if (!audioBuffer) {
+      console.warn('[Clip Export] ⚠️ Audio failed to load - exporting video without audio')
+      alert('⚠️ Warning: Audio could not be loaded from this podcast.\n\nThis is usually due to:\n• CORS restrictions from the podcast host\n• Unsupported audio format\n• Network issues\n\nThe video will export WITHOUT AUDIO. Check the browser console for details.')
+    }
+    
     onProgress?.(0.5) // Audio loaded
     
     // Create output
@@ -205,14 +210,23 @@ export async function exportReelToVideo(
     
     // Load all audio segments
     const audioBuffers: AudioBuffer[] = []
+    let failedAudioCount = 0
     for (let i = 0; i < clips.length; i++) {
       const clip = clips[i]
       const buffer = await fetchAudioSegment(clip.audioUrl, clip.startTime, clip.endTime)
       if (buffer) {
         audioBuffers.push(buffer)
+      } else {
+        failedAudioCount++
       }
       const progress = 0.15 + (0.3 * ((i + 1) / clips.length))
       onProgress?.(progress)
+    }
+    
+    // Warn user if any audio failed
+    if (failedAudioCount > 0) {
+      console.warn(`[Reel Export] ⚠️ ${failedAudioCount}/${clips.length} audio segments failed to load`)
+      alert(`⚠️ Warning: ${failedAudioCount} of ${clips.length} clips could not load audio.\n\nThis is usually due to:\n• CORS restrictions from the podcast host\n• Unsupported audio format\n• Network issues\n\nThe reel will export with partial or no audio. Check the browser console for details.`)
     }
     
     // Concatenate audio buffers
@@ -416,11 +430,26 @@ async function fetchAudioSegment(
   endTime: number
 ): Promise<AudioBuffer | null> {
   try {
-    const response = await fetch(audioUrl)
+    console.log('[Audio Export] Fetching audio from:', audioUrl)
+    
+    const response = await fetch(audioUrl, {
+      mode: 'cors',
+      credentials: 'omit'
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+    
+    const contentType = response.headers.get('content-type')
+    console.log('[Audio Export] Content-Type:', contentType)
+    
     const arrayBuffer = await response.arrayBuffer()
+    console.log('[Audio Export] Fetched', arrayBuffer.byteLength, 'bytes')
     
     const audioContext = new AudioContext()
     const fullAudioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+    console.log('[Audio Export] Decoded audio:', fullAudioBuffer.duration, 'seconds')
     
     // Calculate sample positions
     const sampleRate = fullAudioBuffer.sampleRate
@@ -446,10 +475,23 @@ async function fetchAudioSegment(
     }
     
     await audioContext.close()
+    console.log('[Audio Export] Successfully trimmed audio segment')
     return trimmedBuffer
     
   } catch (error) {
-    console.error('Error fetching/trimming audio:', error)
+    console.error('[Audio Export] FAILED to fetch/decode audio:', {
+      url: audioUrl,
+      error: error instanceof Error ? error.message : error,
+      name: error instanceof Error ? error.name : 'Unknown'
+    })
+    
+    // Show user-friendly error
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      console.error('[Audio Export] CORS or network issue - podcast host may be blocking browser access')
+    } else if (error instanceof Error && error.name === 'EncodingError') {
+      console.error('[Audio Export] Audio format not supported by browser')
+    }
+    
     return null
   }
 }
