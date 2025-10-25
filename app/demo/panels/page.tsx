@@ -68,7 +68,7 @@ export default function PanelDemoPage() {
               letterSpacing: '-0.28px'
             }}
           >
-            Welcome to today's episode where we discuss the latest trends in technology and innovation. 
+            Welcome to today&apos;s episode where we discuss the latest trends in technology and innovation. 
             The market has been incredibly volatile this quarter, with significant shifts in investor sentiment.
           </p>
         </div>
@@ -110,7 +110,7 @@ export default function PanelDemoPage() {
               letterSpacing: '-0.28px'
             }}
           >
-            That's absolutely right. We've seen unprecedented changes in how companies approach digital transformation. 
+            That&apos;s absolutely right. We&apos;ve seen unprecedented changes in how companies approach digital transformation. 
             The key question is: how can businesses adapt to these rapid changes while maintaining profitability?
           </p>
         </div>
@@ -153,7 +153,7 @@ export default function PanelDemoPage() {
             }}
           >
             Innovation requires a fundamental shift in mindset. Companies that succeed are those that embrace change 
-            rather than resist it. They invest heavily in R&D and aren't afraid to cannibalize their own products.
+            rather than resist it. They invest heavily in R&D and aren&apos;t afraid to cannibalize their own products.
           </p>
         </div>
 
@@ -195,7 +195,7 @@ export default function PanelDemoPage() {
             }}
           >
             Exactly. The companies that thrive are the ones building resilient systems. They understand that 
-            disruption isn't a one-time event—it's continuous. You need to build an organization that can adapt quickly.
+            disruption isn&apos;t a one-time event—it&apos;s continuous. You need to build an organization that can adapt quickly.
           </p>
         </div>
 
@@ -237,7 +237,7 @@ export default function PanelDemoPage() {
             }}
           >
             Looking ahead, the next decade will be defined by artificial intelligence and machine learning. 
-            These technologies are no longer futuristic concepts—they're here now, transforming every industry.
+            These technologies are no longer futuristic concepts—they&apos;re here now, transforming every industry.
           </p>
         </div>
       </div>

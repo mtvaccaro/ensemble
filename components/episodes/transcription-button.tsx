@@ -59,8 +59,8 @@ export function TranscriptionButton({
           <Button
             onClick={handleTranscribe}
             disabled={isLoading}
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="small"
           >
             {isLoading ? (
               <>
@@ -99,8 +99,8 @@ export function TranscriptionButton({
             <Button
               onClick={handleTranscribe}
               disabled={isLoading}
-              variant="outline"
-              size="sm"
+              variant="secondary"
+              size="small"
             >
               Retry
             </Button>

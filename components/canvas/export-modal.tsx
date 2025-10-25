@@ -251,7 +251,7 @@ export function ExportModal({ clips, onClose }: ExportModalProps) {
         <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
           <Button 
             onClick={onClose} 
-            variant="outline"
+            variant="secondary"
             disabled={isExporting}
           >
             Cancel

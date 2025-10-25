@@ -22,7 +22,7 @@ interface AudioPlayerContextType {
   setPlayableItems: (items: CanvasItem[], allItems: CanvasItem[]) => void
   
   // Internal audio element ref (for advanced usage)
-  audioRef: React.RefObject<HTMLAudioElement>
+  audioRef: React.RefObject<HTMLAudioElement | null>
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | null>(null)

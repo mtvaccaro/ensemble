@@ -13,7 +13,7 @@ interface ReelCardProps {
   totalDuration: number
   isActive?: boolean
   isPlaying?: boolean
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent) => void
   onPlayClick?: (e: React.MouseEvent) => void
   onTitleChange?: (newTitle: string) => void
   onReorderClips?: (newClipIds: string[]) => void

@@ -28,7 +28,7 @@ interface SourceCardProps {
   isTranscribed: boolean
   isActive?: boolean
   isPlaying?: boolean
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent) => void
   onPlayClick?: (e: React.MouseEvent) => void
 }
 

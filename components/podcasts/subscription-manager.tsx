@@ -86,8 +86,8 @@ export default function SubscriptionManager({
         <Button
           onClick={handleRefreshAll}
           disabled={isRefreshing}
-          variant="outline"
-          size="sm"
+          variant="secondary"
+          size="small"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
           {isRefreshing ? 'Refreshing...' : 'Refresh All'}
@@ -127,8 +127,8 @@ export default function SubscriptionManager({
                       <Button
                         onClick={() => handleRefreshPodcast(podcast.id)}
                         disabled={refreshingId === podcast.id}
-                        variant="outline"
-                        size="sm"
+                        variant="secondary"
+                        size="small"
                       >
                         <RefreshCw 
                           className={`h-4 w-4 ${refreshingId === podcast.id ? 'animate-spin' : ''}`} 
@@ -140,8 +140,8 @@ export default function SubscriptionManager({
                             posthog.capture('podcast_unsubscribed', { podcast_id: podcast.id, podcast_title: podcast.title })
                             onUnsubscribe(podcast.id)
                           }}
-                          variant="outline"
-                          size="sm"
+                          variant="secondary"
+                          size="small"
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
