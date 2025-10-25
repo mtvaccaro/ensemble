@@ -1355,23 +1355,35 @@ export default function CanvasPage() {
 
         {/* Search Input - Only show when NOT viewing episodes */}
         {!selectedPodcast && (
-          <div className="px-[16px] pt-[8px] pb-[16px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
-              <Input
-                type="text"
-                placeholder="Search podcasts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 text-sm"
-                onFocus={() => {
-                  if (searchResults.length > 0 || selectedPodcast) {
-                    setIsSearchExpanded(true)
-                  }
+        <div className="px-[16px] pt-[8px] pb-[16px]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Search podcasts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-8 text-sm"
+              onFocus={() => {
+                if (searchResults.length > 0 || selectedPodcast) {
+                  setIsSearchExpanded(true)
+                }
+              }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('')
+                  setSearchResults([])
                 }}
-              />
-            </div>
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#808080] hover:text-black transition-colors p-1"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
+        </div>
         )}
 
         {/* "Back to search" button - Only show when viewing episodes */}
