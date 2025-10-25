@@ -172,18 +172,21 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     console.log('[AudioPlayer] play() called')
     console.log('  targetItem:', targetItem?.id || 'undefined')
     console.log('  targetItem type:', targetItem?.type || 'undefined')
+    console.log('  playableItems:', playableItems.map(i => `${i.type}:${i.id}`).join(', '))
+    console.log('  currentItemIndex:', currentItemIndex)
     console.log('  latestCurrentItem:', latestCurrentItem?.id || 'null')
     console.log('  latestCurrentItem type:', latestCurrentItem?.type || 'null')
     console.log('  itemToPlay:', itemToPlay.id)
     console.log('  itemToPlay type:', itemToPlay.type)
     console.log('  audioSrc:', audio.src)
+    console.log('  audio.currentTime:', audio.currentTime)
     console.log('========================================')
     
     const isDifferentItem = !latestCurrentItem || itemToPlay.id !== latestCurrentItem.id
     
     if (isDifferentItem) {
       console.log('🔄 [AudioPlayer] Different item detected - need to reload audio')
-      console.log('   Reason:', !latestCurrentItem ? 'No current item' : 'Different ID')
+      console.log('   Reason:', !latestCurrentItem ? 'No current item' : `Different ID: ${itemToPlay.id} vs ${latestCurrentItem.id}`)
       setIsPlaying(true)
       return
     }
@@ -208,11 +211,19 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     
     console.log('▶️ [AudioPlayer] Playing audio now')
     
+    // Reset position based on item type
     if (itemToPlay.type === 'clip') {
       const clip = itemToPlay as CanvasClip
+      // For clips, ensure we're at the clip's start position
       if (audio.currentTime < clip.startTime || audio.currentTime >= clip.startTime + clip.duration) {
         audio.currentTime = clip.startTime
       }
+    } else if (itemToPlay.type === 'episode') {
+      // For episodes, if we're coming from a clip (audio is past the start),
+      // we might want to continue from current position OR reset to start
+      // For now, let's NOT reset - user might want to continue where they left off
+      // If you want to always start from beginning, uncomment the next line:
+      // audio.currentTime = 0
     }
     
     audio.play().catch(err => console.error('Play failed:', err))
