@@ -42,7 +42,14 @@ export function EpisodePanelContent({
   
   // Check if transcript has word-level data
   const hasWordLevelData = useMemo(() => {
-    return episode.transcript_segments?.some(seg => seg.words && seg.words.length > 0) || false
+    const hasWords = episode.transcript_segments?.some(seg => seg.words && seg.words.length > 0) || false
+    console.log('🔍 hasWordLevelData check:', {
+      segmentCount: episode.transcript_segments?.length || 0,
+      firstSegmentHasWords: episode.transcript_segments?.[0]?.words?.length || 0,
+      hasWords,
+      useWordLevel
+    })
+    return hasWords
   }, [episode.transcript_segments])
   
   // Auto-disable word-level if no word data available
@@ -349,23 +356,29 @@ export function EpisodePanelContent({
             )}
           </div>
         ) : useWordLevel && hasWordLevelData ? (
-          <WordLevelTranscript
-            segments={episode.transcript_segments || []}
-            onSelectionChange={handleWordLevelSelection}
-            startTime={manualStartTime}
-            endTime={manualEndTime}
-            searchQuery={searchQuery}
-            onSearchInfoChange={setSearchInfo}
-          />
+          <>
+            {console.log('✅ Rendering WordLevelTranscript')}
+            <WordLevelTranscript
+              segments={episode.transcript_segments || []}
+              onSelectionChange={handleWordLevelSelection}
+              startTime={manualStartTime}
+              endTime={manualEndTime}
+              searchQuery={searchQuery}
+              onSearchInfoChange={setSearchInfo}
+            />
+          </>
         ) : (
-          <SearchableTranscript
-            segments={episode.transcript_segments || []}
-            onSegmentClick={handleSegmentClick}
-            onSegmentHover={handleSegmentHover}
-            startSegment={startSegment}
-            endSegment={endSegment}
-            previewRange={previewRange}
-          />
+          <>
+            {console.log('❌ Rendering SearchableTranscript (fallback)', { useWordLevel, hasWordLevelData })}
+            <SearchableTranscript
+              segments={episode.transcript_segments || []}
+              onSegmentClick={handleSegmentClick}
+              onSegmentHover={handleSegmentHover}
+              startSegment={startSegment}
+              endSegment={endSegment}
+              previewRange={previewRange}
+            />
+          </>
         )}
       </div>
 
