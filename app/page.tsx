@@ -1995,28 +1995,28 @@ export default function CanvasPage() {
           </div>
           
           {/* Floating Zoom Controls - Bottom Right */}
-          <div className="absolute bottom-4 right-4 flex flex-col gap-1 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-1 z-40">
+          <div className="absolute bottom-4 right-4 flex flex-col gap-2 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-2 z-40">
             <button
               onClick={handleZoomIn}
-              className="p-2 hover:bg-gray-100 rounded transition-colors group"
+              className="p-3 hover:bg-gray-100 rounded transition-colors group"
               title="Zoom in"
             >
-              <ZoomIn className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
+              <ZoomIn className="h-5 w-5 text-gray-700 group-hover:text-gray-900" />
             </button>
             <button
               onClick={handleZoomOut}
-              className="p-2 hover:bg-gray-100 rounded transition-colors group"
+              className="p-3 hover:bg-gray-100 rounded transition-colors group"
               title="Zoom out"
             >
-              <ZoomOut className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
+              <ZoomOut className="h-5 w-5 text-gray-700 group-hover:text-gray-900" />
             </button>
             <button
               onClick={handleFitToView}
               disabled={canvasItems.length === 0}
-              className="p-2 hover:bg-gray-100 rounded transition-colors group disabled:opacity-40 disabled:cursor-not-allowed"
+              className="p-3 hover:bg-gray-100 rounded transition-colors group disabled:opacity-40 disabled:cursor-not-allowed"
               title="Fit to view"
             >
-              <Maximize2 className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
+              <Maximize2 className="h-5 w-5 text-gray-700 group-hover:text-gray-900" />
             </button>
           </div>
 
