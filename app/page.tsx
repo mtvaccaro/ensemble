@@ -192,6 +192,17 @@ function CanvasPageContent() {
     return () => window.removeEventListener('keydown', handleSpacebar)
   }, [selectedItemIds, audioPlayer])
 
+  // Stop audio when navigating away from a playing item
+  useEffect(() => {
+    // If currently playing item is not in the selected items, stop playback
+    if (audioPlayer.isPlaying && audioPlayer.currentItem) {
+      const currentItemStillSelected = selectedItemIds.includes(audioPlayer.currentItem.id)
+      if (!currentItemStillSelected) {
+        audioPlayer.pause()
+      }
+    }
+  }, [selectedItemIds, audioPlayer.isPlaying, audioPlayer.currentItem, audioPlayer])
+
   // Handle right panel resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
