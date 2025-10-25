@@ -22,6 +22,8 @@ import { ReelPanelContent } from '@/components/canvas/reel-panel-content'
 import { ContextualPlayer } from '@/components/canvas/contextual-player'
 import { SourceCard } from '@/components/canvas/source-card'
 import { ClipCard } from '@/components/canvas/clip-card'
+import { PodcastSearchCard } from '@/components/podcasts/podcast-search-card'
+import { EpisodeSearchCard } from '@/components/podcasts/episode-search-card'
 import posthog from 'posthog-js'
 
 interface EpisodeResult {
@@ -1355,7 +1357,7 @@ export default function CanvasPage() {
             </Button>
           </form>
 
-          {/* File Upload Button */}
+          {/* File Upload Button - Using small tertiary variant with no icon per Figma */}
           <div className="relative">
             <input
               type="file"
@@ -1367,13 +1369,12 @@ export default function CanvasPage() {
             <label htmlFor="audio-upload">
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
+                variant="tertiary"
+                size="small"
+                className="w-full"
                 onClick={() => document.getElementById('audio-upload')?.click()}
               >
-                <Upload className="h-4 w-4" />
-                Upload MP3
+                Upload Audio File
               </Button>
             </label>
           </div>
@@ -1416,69 +1417,55 @@ export default function CanvasPage() {
                   ) : (
                     <div className="space-y-2">
                       {episodes.map((episode) => (
-                        <div
+                        <div 
                           key={episode.id}
                           draggable
                           onDragStart={() => handleDragEpisodeStart(episode, selectedPodcast)}
-                          className="p-2 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                          className="cursor-move"
                         >
-                          <div className="flex items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-medium text-gray-900 line-clamp-2">
-                                {episode.title}
-                              </h4>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {formatDuration(episode.duration)}
-                              </p>
-                            </div>
-                            <div className="text-gray-400 text-xs flex-shrink-0">⋮⋮</div>
-                          </div>
+                          <EpisodeSearchCard
+                            title={episode.title}
+                            description={episode.description || ''}
+                            date={new Date(episode.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            duration={formatDuration(episode.duration)}
+                            onClick={() => {}}
+                          />
+                          <div className="absolute top-2 right-2 text-gray-400 text-xs">⋮⋮</div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               ) : (
-                // Podcast search results
+                // Podcast search results - Using Figma PodcastSearchCard
                 <div className="p-3">
                   <div className="space-y-2">
                     {searchResults.map((podcast) => (
-                      <div
+                      <PodcastSearchCard
                         key={podcast.id}
+                        title={podcast.title}
+                        author={podcast.author}
+                        episodeCount={podcast.episodeCount}
+                        imageUrl={podcast.imageUrl}
                         onClick={() => loadEpisodes(podcast)}
-                        className="p-2 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all"
-                      >
-                        <div className="flex items-start gap-2">
-                          <img
-                            src={podcast.imageUrl}
-                            alt={podcast.title}
-                            className="w-10 h-10 rounded object-cover flex-shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-xs font-semibold text-gray-900 line-clamp-1">
-                              {podcast.title}
-                            </h3>
-                            <p className="text-xs text-gray-600 line-clamp-1">{podcast.author}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {podcast.episodeCount} episodes
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                      />
                     ))}
                   </div>
                 </div>
               )}
             </div>
             
-            {/* Collapse button */}
+            {/* Collapse button - Using tertiary small variant */}
             <div className="border-t border-gray-200 p-2">
-              <button
+              <Button
+                type="button"
+                variant="tertiary"
+                size="small"
                 onClick={() => setIsSearchExpanded(false)}
-                className="w-full text-xs text-gray-600 hover:text-gray-900 py-1"
+                className="w-full"
               >
                 Collapse
-              </button>
+              </Button>
             </div>
           </>
         )}
