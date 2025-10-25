@@ -63,7 +63,7 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
       audioUrl = (currentItem as CanvasClip).audioUrl
     }
 
-    if (audioUrl && audio.src !== audioUrl) {
+    if (audioUrl && audio.src !== audioUrl && !audio.src.endsWith(audioUrl)) {
       const wasPlaying = isPlaying
       audio.src = audioUrl
       audio.load()
@@ -75,14 +75,14 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
           audio.currentTime = clip.startTime
           audio.removeEventListener('loadedmetadata', setInitialTime)
           
-          // Resume playing if it was playing before
+          // Resume playing if it was playing before OR if play() was called while loading
           if (wasPlaying) {
             audio.play().catch(err => console.error('Auto-play failed:', err))
           }
         }
         audio.addEventListener('loadedmetadata', setInitialTime)
       } else {
-        // For episodes, resume playing if it was playing before
+        // For episodes, resume playing if it was playing before OR if play() was called while loading
         if (wasPlaying) {
           const playWhenReady = () => {
             audio.play().catch(err => console.error('Auto-play failed:', err))
@@ -92,7 +92,7 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
         }
       }
     }
-  }, [currentItem])
+  }, [currentItem, isPlaying])
 
   // Handle audio metadata loaded
   useEffect(() => {
@@ -155,6 +155,23 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     const audio = audioRef.current
     if (!audio || !currentItem) return
     
+    // Get the expected audio URL for the current item
+    let expectedAudioUrl = ''
+    if (currentItem.type === 'episode') {
+      expectedAudioUrl = (currentItem as CanvasEpisode).audioUrl
+    } else if (currentItem.type === 'clip') {
+      expectedAudioUrl = (currentItem as CanvasClip).audioUrl
+    }
+    
+    // If the audio source doesn't match, we need to wait for it to load
+    // The useEffect will handle loading and auto-playing
+    if (expectedAudioUrl && audio.src !== expectedAudioUrl && !audio.src.endsWith(expectedAudioUrl)) {
+      // Audio is being loaded, the useEffect will handle playing it
+      // Just set isPlaying to true so the UI updates
+      setIsPlaying(true)
+      return
+    }
+    
     // For clips, ensure we're at the right position before playing
     if (currentItem.type === 'clip') {
       const clip = currentItem as CanvasClip
@@ -212,7 +229,7 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     setPlayableItemsState(expanded)
     setCurrentItemIndex(0)
     setCurrentTime(0)
-    setIsPlaying(false)
+    // Don't change isPlaying - let the audio load first, then the play() call will work
   }
 
   const value: AudioPlayerContextType = {

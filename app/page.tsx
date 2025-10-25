@@ -1777,14 +1777,23 @@ function CanvasPageContent() {
                         }}
                         onPlayClick={(e) => {
                           e.stopPropagation()
-                          // Always set this item as the playable item (in case user was playing something else)
-                          audioPlayer.setPlayableItems([episode], [episode])
-                          // Select this item if not already selected
-                          if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
-                            setSelectedItemIds([item.id])
+                          
+                          // Check if this is the currently playing item
+                          const isThisCurrentlyPlaying = audioPlayer.currentItem?.id === item.id && audioPlayer.isPlaying
+                          
+                          if (isThisCurrentlyPlaying) {
+                            // If this item is already playing, just pause it
+                            audioPlayer.pause()
+                          } else {
+                            // Otherwise, set this as the playable item and play it
+                            audioPlayer.setPlayableItems([episode], [episode])
+                            // Select this item if not already selected
+                            if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
+                              setSelectedItemIds([item.id])
+                            }
+                            // Play the audio
+                            audioPlayer.play()
                           }
-                          // Toggle play/pause
-                          audioPlayer.togglePlay()
                         }}
                       />
                       
@@ -1872,14 +1881,23 @@ function CanvasPageContent() {
                         }}
                         onPlayClick={(e) => {
                           e.stopPropagation()
-                          // Always set this item as the playable item (in case user was playing something else)
-                          audioPlayer.setPlayableItems([clip], [clip])
-                          // Select this item if not already selected
-                          if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
-                            setSelectedItemIds([item.id])
+                          
+                          // Check if this is the currently playing item
+                          const isThisCurrentlyPlaying = audioPlayer.currentItem?.id === item.id && audioPlayer.isPlaying
+                          
+                          if (isThisCurrentlyPlaying) {
+                            // If this item is already playing, just pause it
+                            audioPlayer.pause()
+                          } else {
+                            // Otherwise, set this as the playable item and play it
+                            audioPlayer.setPlayableItems([clip], [clip])
+                            // Select this item if not already selected
+                            if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
+                              setSelectedItemIds([item.id])
+                            }
+                            // Play the audio
+                            audioPlayer.play()
                           }
-                          // Toggle play/pause
-                          audioPlayer.togglePlay()
                         }}
                       />
                       
