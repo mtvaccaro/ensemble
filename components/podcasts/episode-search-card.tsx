@@ -33,7 +33,7 @@ export function EpisodeSearchCard({
     <div
       onClick={onClick}
       className="
-        w-[345px]
+        w-full
         bg-white
         border-[2px]
         border-[#e5e5e5]

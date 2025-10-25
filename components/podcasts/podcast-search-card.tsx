@@ -33,7 +33,7 @@ export function PodcastSearchCard({
     <div
       onClick={onClick}
       className="
-        w-[329px]
+        w-full
         bg-white
         border-[2px]
         border-[#e5e5e5]

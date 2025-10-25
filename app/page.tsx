@@ -249,7 +249,7 @@ export default function CanvasPage() {
       } finally {
         setIsSearching(false)
       }
-    }, 1000) // 1 second debounce
+    }, 250) // 0.25 second debounce
 
     // Cleanup function to cancel previous timer
     return () => {
