@@ -149,7 +149,16 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     }
 
     const handleEnded = () => {
-      setIsPlaying(false)
+      // Check if there's a next item to play (for reels/playlists)
+      const nextIndex = currentItemIndex + 1
+      if (nextIndex < playableItems.length) {
+        // Auto-advance to next clip in the reel
+        setCurrentItemIndex(nextIndex)
+        shouldAutoPlayRef.current = true
+      } else {
+        // No more clips, stop playing
+        setIsPlaying(false)
+      }
     }
 
     const handlePlay = () => {

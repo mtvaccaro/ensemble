@@ -123,7 +123,7 @@ export function ClipPanelFooter({
           }}
           className="w-full"
         >
-          Export Clip
+          Export
         </Button>
       </div>
     </div>
