@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { TranscriptSegment, CanvasEpisode, CanvasClip } from '@/types'
 import { SearchableTranscript } from '@/components/episodes/searchable-transcript'
 import { WordLevelTranscript } from '@/components/episodes/word-level-transcript'
+import { UniversalPanel } from './universal-panel'
+import { SourcePanelFooter } from './source-panel-footer'
 
 interface EpisodePanelContentProps {
   episode: CanvasEpisode
