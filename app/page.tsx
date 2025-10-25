@@ -219,6 +219,45 @@ export default function CanvasPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isSearchExpanded])
 
+  // Automatic debounced search - triggers 1 second after user stops typing
+  useEffect(() => {
+    // Clear results if search is empty
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      setSelectedPodcast(null)
+      setEpisodes([])
+      return
+    }
+
+    // Set up debounce timer
+    setIsSearching(true)
+    const debounceTimer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/podcasts/search?q=${encodeURIComponent(searchQuery)}`)
+        if (response.ok) {
+          const data = await response.json()
+          posthog.capture('canvas_podcast_searched', {
+            search_query: searchQuery,
+            result_count: data.podcasts.length
+          })
+          setSearchResults(data.podcasts)
+          setSelectedPodcast(null)
+          setEpisodes([])
+        }
+      } catch (error) {
+        console.error('Search failed:', error)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 1000) // 1 second debounce
+
+    // Cleanup function to cancel previous timer
+    return () => {
+      clearTimeout(debounceTimer)
+      setIsSearching(false)
+    }
+  }, [searchQuery])
+
   // Save canvas state whenever it changes
   useEffect(() => {
     storage.setCanvasState({
@@ -227,30 +266,6 @@ export default function CanvasPage() {
       lastUpdated: new Date().toISOString()
     })
   }, [canvasItems, selectedItemIds])
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim()) return
-
-    setIsSearching(true)
-    try {
-      const response = await fetch(`/api/podcasts/search?q=${encodeURIComponent(searchQuery)}`)
-      if (response.ok) {
-        const data = await response.json()
-        posthog.capture('canvas_podcast_searched', {
-          search_query: searchQuery,
-          result_count: data.podcasts.length
-        })
-        setSearchResults(data.podcasts)
-        setSelectedPodcast(null)
-        setEpisodes([])
-      }
-    } catch (error) {
-      console.error('Search failed:', error)
-    } finally {
-      setIsSearching(false)
-    }
-  }
 
   const loadEpisodes = async (podcast: PodcastSearchResult) => {
     setSelectedPodcast(podcast)
@@ -1336,26 +1351,21 @@ export default function CanvasPage() {
 
         {/* Search Input (Always Visible) */}
         <div className="p-3 space-y-2">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search podcasts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 text-sm"
-                onFocus={() => {
-                  if (searchResults.length > 0 || selectedPodcast) {
-                    setIsSearchExpanded(true)
-                  }
-                }}
-              />
-            </div>
-            <Button type="submit" disabled={isSearching} size="sm">
-              {isSearching ? '...' : 'Go'}
-            </Button>
-          </form>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Search podcasts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 text-sm"
+              onFocus={() => {
+                if (searchResults.length > 0 || selectedPodcast) {
+                  setIsSearchExpanded(true)
+                }
+              }}
+            />
+          </div>
 
           {/* File Upload Button - Using small tertiary variant with no icon per Figma */}
           <div className="relative">
@@ -1453,19 +1463,6 @@ export default function CanvasPage() {
                   </div>
                 </div>
               )}
-            </div>
-            
-            {/* Collapse button - Using tertiary small variant */}
-            <div className="border-t border-gray-200 p-2">
-              <Button
-                type="button"
-                variant="tertiary"
-                size="small"
-                onClick={() => setIsSearchExpanded(false)}
-                className="w-full"
-              >
-                Collapse
-              </Button>
             </div>
           </>
         )}
