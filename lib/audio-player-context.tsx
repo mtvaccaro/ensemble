@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useRef, useEffect, ReactNode, useCallback } from 'react'
 import { CanvasItem, CanvasEpisode, CanvasClip, CanvasReel } from '@/types'
 
 interface AudioPlayerContextType {
@@ -29,8 +29,8 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | null>(null)
 
 export function useAudioPlayer() {
   const context = useContext(AudioPlayerContext)
-  if (!context) {
-    throw new Error('useAudioPlayer must be used within AudioPlayerProvider')
+  if (context === null) {
+    throw new Error('useAudioPlayer must be used within an AudioPlayerProvider')
   }
   return context
 }
@@ -55,6 +55,8 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     const audio = audioRef.current
     if (!audio || !currentItem) return
 
+    console.log('[AudioPlayer] useEffect: currentItem changed', { currentItem: currentItem.id, isPlaying })
+
     let audioUrl = ''
     
     if (currentItem.type === 'episode') {
@@ -63,8 +65,9 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
       audioUrl = (currentItem as CanvasClip).audioUrl
     }
 
+    // Only load if the URL is actually different
     if (audioUrl && audio.src !== audioUrl && !audio.src.endsWith(audioUrl)) {
-      const wasPlaying = isPlaying
+      console.log('[AudioPlayer] useEffect: Loading new audio source', audioUrl)
       audio.src = audioUrl
       audio.load()
       
@@ -75,22 +78,25 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
           audio.currentTime = clip.startTime
           audio.removeEventListener('loadedmetadata', setInitialTime)
           
-          // Resume playing if it was playing before OR if play() was called while loading
-          if (wasPlaying) {
+          if (isPlaying) {
+            console.log('[AudioPlayer] useEffect: Auto-playing clip after metadata load')
             audio.play().catch(err => console.error('Auto-play failed:', err))
           }
         }
         audio.addEventListener('loadedmetadata', setInitialTime)
       } else {
-        // For episodes, resume playing if it was playing before OR if play() was called while loading
-        if (wasPlaying) {
+        if (isPlaying) {
           const playWhenReady = () => {
+            console.log('[AudioPlayer] useEffect: Auto-playing episode when ready')
             audio.play().catch(err => console.error('Auto-play failed:', err))
             audio.removeEventListener('canplay', playWhenReady)
           }
           audio.addEventListener('canplay', playWhenReady)
         }
       }
+    } else if (isPlaying) {
+      console.log('[AudioPlayer] useEffect: URL is same, but isPlaying is true. Ensuring playback.')
+      audio.play().catch(err => console.error('Auto-play failed:', err))
     }
   }, [currentItem, isPlaying])
 
@@ -151,37 +157,37 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     }
   }, [currentItem])
 
-  const play = (targetItem?: CanvasItem) => {
+  const play = useCallback((targetItem?: CanvasItem) => {
     const audio = audioRef.current
-    // Use targetItem if provided, otherwise use currentItem
-    const itemToPlay = targetItem || currentItem
-    if (!audio || !itemToPlay) return
+    // CRITICAL: Access current state via playableItems/currentItemIndex, NOT the closure variable
+    const latestCurrentItem = playableItems[currentItemIndex]
+    const itemToPlay = targetItem || latestCurrentItem
+    
+    if (!audio || !itemToPlay) {
+      console.log('[AudioPlayer] play() aborted: no audio ref or itemToPlay', { audio: !!audio, itemToPlay: !!itemToPlay })
+      return
+    }
     
     console.log('========================================')
     console.log('[AudioPlayer] play() called')
     console.log('  targetItem:', targetItem?.id || 'undefined')
     console.log('  targetItem type:', targetItem?.type || 'undefined')
-    console.log('  currentItem:', currentItem?.id || 'null')
-    console.log('  currentItem type:', currentItem?.type || 'null')
+    console.log('  latestCurrentItem:', latestCurrentItem?.id || 'null')
+    console.log('  latestCurrentItem type:', latestCurrentItem?.type || 'null')
     console.log('  itemToPlay:', itemToPlay.id)
     console.log('  itemToPlay type:', itemToPlay.type)
     console.log('  audioSrc:', audio.src)
     console.log('========================================')
     
-    // Check if we're trying to play a DIFFERENT item than what's currently loaded
-    // This is important because clips and episodes can have the same audioUrl
-    // but they need different playback behavior (clips have start/end times)
-    const isDifferentItem = !currentItem || itemToPlay.id !== currentItem.id
+    const isDifferentItem = !latestCurrentItem || itemToPlay.id !== latestCurrentItem.id
     
     if (isDifferentItem) {
       console.log('🔄 [AudioPlayer] Different item detected - need to reload audio')
-      console.log('   Reason:', !currentItem ? 'No current item' : 'Different ID')
-      // Set isPlaying to true, the useEffect will handle loading and playing
+      console.log('   Reason:', !latestCurrentItem ? 'No current item' : 'Different ID')
       setIsPlaying(true)
       return
     }
     
-    // Get the expected audio URL for the item we want to play
     let expectedAudioUrl = ''
     if (itemToPlay.type === 'episode') {
       expectedAudioUrl = (itemToPlay as CanvasEpisode).audioUrl
@@ -194,77 +200,71 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     console.log('   audioSrc:', audio.src)
     console.log('   match:', audio.src.endsWith(expectedAudioUrl))
     
-    // If the audio source doesn't match, we need to wait for it to load
-    // The useEffect will handle loading and auto-playing
     if (expectedAudioUrl && audio.src !== expectedAudioUrl && !audio.src.endsWith(expectedAudioUrl)) {
       console.log('⏳ [AudioPlayer] Audio source mismatch - waiting for load')
-      // Audio is being loaded, the useEffect will handle playing it
-      // Just set isPlaying to true so the UI updates
       setIsPlaying(true)
       return
     }
     
     console.log('▶️ [AudioPlayer] Playing audio now')
     
-    // For clips, ensure we're at the right position before playing
     if (itemToPlay.type === 'clip') {
       const clip = itemToPlay as CanvasClip
-      // If we're before the start or after the end, reset to start
       if (audio.currentTime < clip.startTime || audio.currentTime >= clip.startTime + clip.duration) {
         audio.currentTime = clip.startTime
       }
     }
     
     audio.play().catch(err => console.error('Play failed:', err))
-  }
+  }, [playableItems, currentItemIndex]) // Dependencies: playableItems and currentItemIndex
 
-  const pause = () => {
+  const pause = useCallback(() => {
     const audio = audioRef.current
     if (!audio) return
+    console.log('[AudioPlayer] pause() called')
     audio.pause()
-  }
+  }, [])
 
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
+    console.log('[AudioPlayer] togglePlay() called. isPlaying:', isPlaying)
     if (isPlaying) {
       pause()
     } else {
       play()
     }
-  }
+  }, [isPlaying, play, pause])
 
-  const seek = (time: number) => {
+  const seek = useCallback((time: number) => {
     const audio = audioRef.current
     if (!audio) return
 
-    if (currentItem?.type === 'clip') {
-      const clip = currentItem as CanvasClip
-      audio.currentTime = clip.startTime + time
-    } else {
-      audio.currentTime = time
+    const latestCurrentItem = playableItems[currentItemIndex]
+    let newAudioTime = time
+    if (latestCurrentItem?.type === 'clip') {
+      const clip = latestCurrentItem as CanvasClip
+      newAudioTime = clip.startTime + time
     }
+    
+    audio.currentTime = newAudioTime
     setCurrentTime(time)
-  }
+    console.log('[AudioPlayer] seek() called. New time:', newAudioTime)
+  }, [playableItems, currentItemIndex])
 
-  const setPlayableItems = (items: CanvasItem[], allItems: CanvasItem[]) => {
-    // Expand reels into their clips
-    const expanded = items.flatMap(item => {
+  const setPlayableItems = useCallback((items: CanvasItem[], allItems: CanvasItem[]) => {
+    console.log('[AudioPlayer] setPlayableItems() called with items:', items.map(i => i.id))
+    const resolvedItems = items.flatMap(item => {
       if (item.type === 'reel') {
         const reel = item as CanvasReel
         return reel.clipIds.map(clipId => 
           allItems.find(i => i.id === clipId && i.type === 'clip')
         ).filter(Boolean) as CanvasClip[]
       }
-      if (item.type === 'episode' || item.type === 'clip') {
-        return [item]
-      }
-      return []
+      return [item]
     })
-    
-    setPlayableItemsState(expanded)
+    setPlayableItemsState(resolvedItems)
     setCurrentItemIndex(0)
     setCurrentTime(0)
-    // Don't change isPlaying - let the audio load first, then the play() call will work
-  }
+  }, [])
 
   const value: AudioPlayerContextType = {
     isPlaying,
@@ -282,9 +282,7 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
   return (
     <AudioPlayerContext.Provider value={value}>
       {children}
-      {/* Hidden audio element */}
-      <audio ref={audioRef} preload="metadata" />
+      <audio ref={audioRef} />
     </AudioPlayerContext.Provider>
   )
 }
-
