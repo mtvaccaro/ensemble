@@ -1777,10 +1777,11 @@ function CanvasPageContent() {
                         }}
                         onPlayClick={(e) => {
                           e.stopPropagation()
+                          // Always set this item as the playable item (in case user was playing something else)
+                          audioPlayer.setPlayableItems([episode], [episode])
                           // Select this item if not already selected
                           if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
                             setSelectedItemIds([item.id])
-                            audioPlayer.setPlayableItems([episode], [episode])
                           }
                           // Toggle play/pause
                           audioPlayer.togglePlay()
@@ -1871,10 +1872,11 @@ function CanvasPageContent() {
                         }}
                         onPlayClick={(e) => {
                           e.stopPropagation()
+                          // Always set this item as the playable item (in case user was playing something else)
+                          audioPlayer.setPlayableItems([clip], [clip])
                           // Select this item if not already selected
                           if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
                             setSelectedItemIds([item.id])
-                            audioPlayer.setPlayableItems([clip], [clip])
                           }
                           // Toggle play/pause
                           audioPlayer.togglePlay()
