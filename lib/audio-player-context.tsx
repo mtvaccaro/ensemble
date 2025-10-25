@@ -47,8 +47,16 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
   const [playableItems, setPlayableItemsState] = useState<CanvasItem[]>([])
   
   const audioRef = useRef<HTMLAudioElement>(null)
+  const previousItemTypeRef = useRef<'episode' | 'clip' | 'reel' | null>(null)
   
   const currentItem = playableItems[currentItemIndex] || null
+
+  // Track previous item type when currentItem changes
+  useEffect(() => {
+    if (currentItem) {
+      previousItemTypeRef.current = currentItem.type
+    }
+  }, [currentItem])
 
   // Update audio source when current item changes
   useEffect(() => {
@@ -216,14 +224,19 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
       const clip = itemToPlay as CanvasClip
       // For clips, ensure we're at the clip's start position
       if (audio.currentTime < clip.startTime || audio.currentTime >= clip.startTime + clip.duration) {
+        console.log('   Resetting clip to start:', clip.startTime)
         audio.currentTime = clip.startTime
       }
     } else if (itemToPlay.type === 'episode') {
-      // For episodes, if we're coming from a clip (audio is past the start),
-      // we might want to continue from current position OR reset to start
-      // For now, let's NOT reset - user might want to continue where they left off
-      // If you want to always start from beginning, uncomment the next line:
-      // audio.currentTime = 0
+      // For episodes, check if we were previously playing a clip
+      // If so, reset to the beginning
+      const previousType = previousItemTypeRef.current
+      console.log('   Previous item type:', previousType, '| Current item type:', itemToPlay.type)
+      if (previousType === 'clip') {
+        console.log('   Switching from clip to episode - resetting to start (was at', audio.currentTime, ')')
+        audio.currentTime = 0
+      }
+      // Otherwise continue from current position (user paused and resumed same episode)
     }
     
     audio.play().catch(err => console.error('Play failed:', err))
