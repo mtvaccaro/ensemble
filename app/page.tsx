@@ -218,16 +218,17 @@ function CanvasPageContent() {
               .filter((c): c is CanvasClip => c !== undefined)
             
             if (reelClips.length > 0) {
-              audioPlayer.setPlayableItems(reelClips, reelClips)
-              
               // Check if we're resuming from a paused state or starting fresh
-              const currentlyPausedClip = audioPlayer.currentItem && reel.clipIds.includes(audioPlayer.currentItem.id)
-                ? audioPlayer.currentItem
-                : null
+              const isResumingSameReel = audioPlayer.currentItem && reel.clipIds.includes(audioPlayer.currentItem.id)
               
-              // If resuming, don't pass a target (resumes from current position)
+              // Only set playable items if we're starting a new reel (not resuming)
+              if (!isResumingSameReel) {
+                audioPlayer.setPlayableItems(reelClips, reelClips)
+              }
+              
+              // If resuming, play the current clip (resumes from current position)
               // If starting fresh, play the first clip
-              audioPlayer.play(currentlyPausedClip || reelClips[0])
+              audioPlayer.play(isResumingSameReel ? audioPlayer.currentItem! : reelClips[0])
             }
           } else {
             // For episodes and clips, play directly
@@ -2056,23 +2057,23 @@ function CanvasPageContent() {
                               .map(clipId => allClips.find(c => c.id === clipId))
                               .filter((c): c is CanvasClip => c !== undefined)
                             
-                            // Set reel clips as playable items
-                            audioPlayer.setPlayableItems(reelClips, reelClips)
-                            
                             // Select this item if not already selected
                             if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
                               setSelectedItemIds([item.id])
                             }
                             
-                            // Check if we're resuming from a paused state or starting fresh
-                            const currentlyPausedClip = audioPlayer.currentItem && reel.clipIds.includes(audioPlayer.currentItem.id)
-                              ? audioPlayer.currentItem
-                              : null
-                            
-                            // If resuming, play the currently paused clip (resumes from current position)
-                            // If starting fresh, play the first clip
                             if (reelClips.length > 0) {
-                              audioPlayer.play(currentlyPausedClip || reelClips[0])
+                              // Check if we're resuming from a paused state or starting fresh
+                              const isResumingSameReel = audioPlayer.currentItem && reel.clipIds.includes(audioPlayer.currentItem.id)
+                              
+                              // Only set playable items if we're starting a new reel (not resuming)
+                              if (!isResumingSameReel) {
+                                audioPlayer.setPlayableItems(reelClips, reelClips)
+                              }
+                              
+                              // If resuming, play the current clip (resumes from current position)
+                              // If starting fresh, play the first clip
+                              audioPlayer.play(isResumingSameReel ? audioPlayer.currentItem! : reelClips[0])
                             }
                           }
                         }}

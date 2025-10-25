@@ -402,15 +402,16 @@ export function ReelPanelContent({
         } else {
           if (reelClips.length > 0) {
             // Check if we're resuming from a paused state or starting fresh
-            const currentlyPausedClip = audioPlayer.currentItem && reel.clipIds.includes(audioPlayer.currentItem.id)
-              ? audioPlayer.currentItem
-              : null
+            const isResumingSameReel = audioPlayer.currentItem && reel.clipIds.includes(audioPlayer.currentItem.id)
             
-            audioPlayer.setPlayableItems(reelClips, reelClips) // Ensure playable items are set
+            // Only set playable items if we're starting a new reel (not resuming)
+            if (!isResumingSameReel) {
+              audioPlayer.setPlayableItems(reelClips, reelClips)
+            }
             
-            // If resuming, play the currently paused clip (resumes from current position)
+            // If resuming, play the current clip (resumes from current position)
             // If starting fresh, play the first clip
-            audioPlayer.play(currentlyPausedClip || reelClips[0])
+            audioPlayer.play(isResumingSameReel ? audioPlayer.currentItem! : reelClips[0])
           }
         }
       }}
