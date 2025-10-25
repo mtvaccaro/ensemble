@@ -41,6 +41,9 @@ export function SourceCard({
   onClick,
   onPlayClick
 }: SourceCardProps) {
+  // Debug: Check what we're receiving
+  console.log('SourceCard:', { title, podcastTitle, duration })
+  
   // Format duration as MM:SS
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
