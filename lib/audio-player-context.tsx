@@ -157,14 +157,16 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     const itemToPlay = targetItem || currentItem
     if (!audio || !itemToPlay) return
     
-    console.log('[AudioPlayer] play() called', {
-      targetItem: targetItem?.id,
-      currentItem: currentItem?.id,
-      itemToPlay: itemToPlay.id,
-      itemToPlayType: itemToPlay.type,
-      currentItemType: currentItem?.type,
-      audioSrc: audio.src
-    })
+    console.log('========================================')
+    console.log('[AudioPlayer] play() called')
+    console.log('  targetItem:', targetItem?.id || 'undefined')
+    console.log('  targetItem type:', targetItem?.type || 'undefined')
+    console.log('  currentItem:', currentItem?.id || 'null')
+    console.log('  currentItem type:', currentItem?.type || 'null')
+    console.log('  itemToPlay:', itemToPlay.id)
+    console.log('  itemToPlay type:', itemToPlay.type)
+    console.log('  audioSrc:', audio.src)
+    console.log('========================================')
     
     // Check if we're trying to play a DIFFERENT item than what's currently loaded
     // This is important because clips and episodes can have the same audioUrl
@@ -172,7 +174,8 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     const isDifferentItem = !currentItem || itemToPlay.id !== currentItem.id
     
     if (isDifferentItem) {
-      console.log('[AudioPlayer] Different item detected - need to reload audio')
+      console.log('🔄 [AudioPlayer] Different item detected - need to reload audio')
+      console.log('   Reason:', !currentItem ? 'No current item' : 'Different ID')
       // Set isPlaying to true, the useEffect will handle loading and playing
       setIsPlaying(true)
       return
@@ -186,23 +189,22 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
       expectedAudioUrl = (itemToPlay as CanvasClip).audioUrl
     }
     
-    console.log('[AudioPlayer] URL check', {
-      expectedAudioUrl,
-      audioSrc: audio.src,
-      match: audio.src.endsWith(expectedAudioUrl)
-    })
+    console.log('🔍 [AudioPlayer] URL check')
+    console.log('   expectedAudioUrl:', expectedAudioUrl)
+    console.log('   audioSrc:', audio.src)
+    console.log('   match:', audio.src.endsWith(expectedAudioUrl))
     
     // If the audio source doesn't match, we need to wait for it to load
     // The useEffect will handle loading and auto-playing
     if (expectedAudioUrl && audio.src !== expectedAudioUrl && !audio.src.endsWith(expectedAudioUrl)) {
-      console.log('[AudioPlayer] Audio source mismatch - waiting for load')
+      console.log('⏳ [AudioPlayer] Audio source mismatch - waiting for load')
       // Audio is being loaded, the useEffect will handle playing it
       // Just set isPlaying to true so the UI updates
       setIsPlaying(true)
       return
     }
     
-    console.log('[AudioPlayer] Playing audio now')
+    console.log('▶️ [AudioPlayer] Playing audio now')
     
     // For clips, ensure we're at the right position before playing
     if (itemToPlay.type === 'clip') {
