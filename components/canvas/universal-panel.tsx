@@ -99,12 +99,14 @@ export function UniversalPanel({
   return (
     <div
       className={cn(
-        'fixed top-0 right-0 h-screen w-[420px] bg-white flex flex-col z-40 outline-none focus:outline-none',
+        'fixed top-0 right-0 h-screen w-[420px] bg-white flex flex-col z-40',
         className
       )}
       style={{
-        boxShadow: '0px 4px 8px 3px rgba(0,0,0,0.15), 0px 1px 3px 0px rgba(0,0,0,0.3)'
+        boxShadow: '0px 4px 8px 3px rgba(0,0,0,0.15), 0px 1px 3px 0px rgba(0,0,0,0.3)',
+        outline: 'none'
       }}
+      tabIndex={-1}
     >
       {/* Header Section - Using Figma tokens */}
       <div className="flex-none border-b-[2px] border-[#e5e5e5]">
