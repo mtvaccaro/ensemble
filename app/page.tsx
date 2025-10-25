@@ -19,12 +19,11 @@ import { storage } from '@/lib/localStorage'
 import { EpisodePanelContent } from '@/components/canvas/episode-panel-content'
 import { ExportPanelContent } from '@/components/canvas/export-panel-content'
 import { ReelPanelContent } from '@/components/canvas/reel-panel-content'
-import { ContextualPlayer } from '@/components/canvas/contextual-player'
 import { SourceCard } from '@/components/canvas/source-card'
 import { ClipCard } from '@/components/canvas/clip-card'
 import { PodcastSearchCard } from '@/components/podcasts/podcast-search-card'
 import { EpisodeSearchCard } from '@/components/podcasts/episode-search-card'
-import { AudioPlayerProvider } from '@/lib/audio-player-context'
+import { AudioPlayerProvider, useAudioPlayer } from '@/lib/audio-player-context'
 import posthog from 'posthog-js'
 
 interface EpisodeResult {
@@ -37,7 +36,10 @@ interface EpisodeResult {
   publishedAt: string
 }
 
-export default function CanvasPage() {
+// Inner component that has access to AudioPlayerContext
+function CanvasPageContent() {
+  const audioPlayer = useAudioPlayer()
+  
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<PodcastSearchResult[]>([])
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastSearchResult | null>(null)
@@ -168,6 +170,27 @@ export default function CanvasPage() {
     window.addEventListener('keydown', handleDelete)
     return () => window.removeEventListener('keydown', handleDelete)
   }, [selectedItemIds])
+
+  // Handle spacebar for play/pause
+  useEffect(() => {
+    const handleSpacebar = (e: KeyboardEvent) => {
+      // Only handle spacebar if:
+      // 1. Spacebar was pressed
+      // 2. Not typing in an input/textarea
+      // 3. Something is selected
+      if (
+        e.code === 'Space' && 
+        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName) &&
+        selectedItemIds.length > 0
+      ) {
+        e.preventDefault() // Prevent page scroll
+        audioPlayer.togglePlay()
+      }
+    }
+
+    window.addEventListener('keydown', handleSpacebar)
+    return () => window.removeEventListener('keydown', handleSpacebar)
+  }, [selectedItemIds, audioPlayer])
 
   // Handle right panel resizing
   useEffect(() => {
@@ -1337,8 +1360,7 @@ export default function CanvasPage() {
   }, [canvasItems, dragDelta, dragStartPositions])
 
   return (
-    <AudioPlayerProvider>
-      <div className="flex h-screen bg-gray-50" style={{ overscrollBehavior: 'none' }}>
+    <div className="flex h-screen bg-gray-50" style={{ overscrollBehavior: 'none' }}>
       {/* Floating Search Card - Top Left */}
       <div 
         data-search-panel
@@ -1741,13 +1763,13 @@ export default function CanvasPage() {
                         }}
                         onPlayClick={(e) => {
                           e.stopPropagation()
-                          const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                          if (isThisPlaying) {
-                            setPauseTrigger(Date.now())
-                          } else {
+                          // Select this item if not already selected
+                          if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
                             setSelectedItemIds([item.id])
-                            setPlayTrigger(Date.now())
+                            audioPlayer.setPlayableItems([episode], [episode])
                           }
+                          // Toggle play/pause
+                          audioPlayer.togglePlay()
                         }}
                       />
                       
@@ -1832,13 +1854,13 @@ export default function CanvasPage() {
                         }}
                         onPlayClick={(e) => {
                           e.stopPropagation()
-                          const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                          if (isThisPlaying) {
-                            setPauseTrigger(Date.now())
-                          } else {
+                          // Select this item if not already selected
+                          if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
                             setSelectedItemIds([item.id])
-                            setPlayTrigger(Date.now())
+                            audioPlayer.setPlayableItems([clip], [clip])
                           }
+                          // Toggle play/pause
+                          audioPlayer.togglePlay()
                         }}
                       />
                       
@@ -2022,15 +2044,6 @@ export default function CanvasPage() {
             </button>
           </div>
 
-          {/* Contextual Audio Player */}
-          <ContextualPlayer
-            selectedItems={canvasItems.filter(item => selectedItemIds.includes(item.id))}
-            allItems={canvasItems}
-            playTrigger={playTrigger}
-            pauseTrigger={pauseTrigger}
-            onPlayingChange={setIsPlaying}
-          />
-          
           {/* Empty State - Outside transformed content */}
           {canvasItems.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
@@ -2198,6 +2211,14 @@ export default function CanvasPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Main export wrapped in AudioPlayerProvider
+export default function CanvasPage() {
+  return (
+    <AudioPlayerProvider>
+      <CanvasPageContent />
     </AudioPlayerProvider>
   )
 }
