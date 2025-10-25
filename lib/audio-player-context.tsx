@@ -161,8 +161,22 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
       targetItem: targetItem?.id,
       currentItem: currentItem?.id,
       itemToPlay: itemToPlay.id,
+      itemToPlayType: itemToPlay.type,
+      currentItemType: currentItem?.type,
       audioSrc: audio.src
     })
+    
+    // Check if we're trying to play a DIFFERENT item than what's currently loaded
+    // This is important because clips and episodes can have the same audioUrl
+    // but they need different playback behavior (clips have start/end times)
+    const isDifferentItem = !currentItem || itemToPlay.id !== currentItem.id
+    
+    if (isDifferentItem) {
+      console.log('[AudioPlayer] Different item detected - need to reload audio')
+      // Set isPlaying to true, the useEffect will handle loading and playing
+      setIsPlaying(true)
+      return
+    }
     
     // Get the expected audio URL for the item we want to play
     let expectedAudioUrl = ''
