@@ -46,9 +46,6 @@ interface UniversalPanelProps {
   // Footer content (variant-specific)
   footerContent: ReactNode
   
-  // Optional close handler
-  onClose?: () => void
-  
   className?: string
 }
 
@@ -65,7 +62,6 @@ export function UniversalPanel({
   onSearchChange,
   transcriptContent,
   footerContent,
-  onClose,
   className
 }: UniversalPanelProps) {
   // Variant-specific colors
@@ -182,17 +178,6 @@ export function UniversalPanel({
                 )}
               </div>
             </div>
-
-            {/* Close Button */}
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="shrink-0 w-[24px] h-[24px] flex items-center justify-center text-[#808080] hover:text-black transition-colors"
-                aria-label="Close panel"
-              >
-                <X className="w-[16px] h-[16px]" />
-              </button>
-            )}
           </div>
 
           {/* Audio Player - Figma: py-[8px] gap-[8px] */}

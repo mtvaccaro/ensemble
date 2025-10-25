@@ -383,7 +383,6 @@ export default function PanelDemoPage() {
                 />
               ) : null
             }
-            onClose={() => console.log('Close panel')}
             className="shadow-2xl"
           />
         </div>
@@ -417,7 +416,6 @@ export default function PanelDemoPage() {
                 }}
               />
             }
-            onClose={() => console.log('Close panel')}
             className="shadow-2xl"
           />
         </div>
