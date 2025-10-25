@@ -270,6 +270,7 @@ export default function CanvasPage() {
 
   const loadEpisodes = async (podcast: PodcastSearchResult) => {
     setSelectedPodcast(podcast)
+    setEpisodeSearchQuery('') // Clear episode search when loading new podcast
     setIsLoadingEpisodes(true)
     
     try {
@@ -1378,16 +1379,17 @@ export default function CanvasPage() {
           <div className="px-[16px] pt-[8px]">
             <Button
               type="button"
-              variant="tertiary"
-              size="med"
-              onClick={() => {
-                setSelectedPodcast(null)
-                setEpisodes([])
-              }}
-              className="w-full justify-start"
-            >
-              ← Return to Search
-            </Button>
+            variant="tertiary"
+            size="med"
+            onClick={() => {
+              setSelectedPodcast(null)
+              setEpisodes([])
+              setEpisodeSearchQuery('') // Clear episode search when returning
+            }}
+            className="w-full justify-start"
+          >
+            ← Return to Search
+          </Button>
           </div>
         )}
 
