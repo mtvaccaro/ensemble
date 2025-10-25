@@ -1440,15 +1440,24 @@ export default function CanvasPage() {
 
                   {/* Episode List - Figma: bg-white gap-[8px] grow with episode search and px-[16px] padding */}
                   <div className="flex-1 bg-white flex flex-col gap-[8px] overflow-y-auto px-[16px]">
-                    {/* Episode Search Field */}
-                    <div className="shrink-0">
+                    {/* Episode Search Field with Clear Icon */}
+                    <div className="shrink-0 relative">
                       <Input
                         type="text"
                         placeholder="Search episodes..."
                         value={episodeSearchQuery}
                         onChange={(e) => setEpisodeSearchQuery(e.target.value)}
-                        className="text-sm"
+                        className="text-sm pr-8"
                       />
+                      {episodeSearchQuery && (
+                        <button
+                          onClick={() => setEpisodeSearchQuery('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#808080] hover:text-black transition-colors p-1"
+                          aria-label="Clear search"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
 
                     {/* Episode Cards */}
