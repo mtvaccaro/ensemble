@@ -1,10 +1,10 @@
-# Contributing to Ensemble
+# Contributing to Unspool Studio
 
-Thank you for contributing to Ensemble! This guide will help you work safely with our production codebase.
+Thank you for contributing to Unspool Studio! This guide will help you work safely with our production codebase.
 
 ## 🚨 Important: We Have Active Users
 
-Ensemble is a **production application** with real users. Every merge to `main` goes live immediately on [ensemblestud.io](https://ensemblestud.io). Follow these guidelines carefully.
+Unspool Studio is a **production application** with real users. Every merge to `main` goes live immediately on [unspoolstud.io](https://unspoolstud.io). Follow these guidelines carefully.
 
 ---
 
@@ -13,7 +13,7 @@ Ensemble is a **production application** with real users. Every merge to `main` 
 ### Branch Overview
 | Branch | Purpose | Auto-Deploy |
 |--------|---------|-------------|
-| `main` | Production - stable code only | ✅ ensemblestud.io |
+| `main` | Production - stable code only | ✅ unspoolstud.io |
 | `staging` | Final QA before production | ✅ staging URL |
 | `feature/*` | Development & testing | ✅ Vercel preview |
 
@@ -54,7 +54,7 @@ git push origin feature/your-feature-name
    Test basic functionality
 
 2. **Vercel Preview** (auto-created when you push)
-   - Vercel creates: `ensemble-xyz-feature-your-feature-name.vercel.app`
+   - Vercel creates: `unspool-xyz-feature-your-feature-name.vercel.app`
    - Test thoroughly on this URL
    - Share with team for feedback
 

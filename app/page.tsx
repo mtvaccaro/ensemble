@@ -13,13 +13,18 @@ declare global {
 }
 import { Search, Scissors, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, Loader2, Film, X, Plus, Sparkles, Upload, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem, ClipSuggestion } from '@/types'
 import { storage } from '@/lib/localStorage'
 import { EpisodePanelContent } from '@/components/canvas/episode-panel-content'
 import { ExportPanelContent } from '@/components/canvas/export-panel-content'
 import { ReelPanelContent } from '@/components/canvas/reel-panel-content'
-import { ContextualPlayer } from '@/components/canvas/contextual-player'
+import { SourceCard } from '@/components/canvas/source-card'
+import { ClipCard } from '@/components/canvas/clip-card'
+import { ReelCard } from '@/components/canvas/reel-card'
+import { PodcastSearchCard } from '@/components/podcasts/podcast-search-card'
+import { EpisodeSearchCard } from '@/components/podcasts/episode-search-card'
+import { AudioPlayerProvider, useAudioPlayer } from '@/lib/audio-player-context'
 import posthog from 'posthog-js'
 
 interface EpisodeResult {
@@ -32,11 +37,15 @@ interface EpisodeResult {
   publishedAt: string
 }
 
-export default function CanvasPage() {
+// Inner component that has access to AudioPlayerContext
+function CanvasPageContent() {
+  const audioPlayer = useAudioPlayer()
+  
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<PodcastSearchResult[]>([])
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastSearchResult | null>(null)
   const [episodes, setEpisodes] = useState<EpisodeResult[]>([])
+  const [episodeSearchQuery, setEpisodeSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false)
   
@@ -83,9 +92,9 @@ export default function CanvasPage() {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   
   // Right panel resize state
-  const [rightPanelWidth, setRightPanelWidth] = useState(360)
+  const [rightPanelWidth, setRightPanelWidth] = useState(420)
   const [isResizingRight, setIsResizingRight] = useState(false)
-  const MIN_PANEL_WIDTH = 260
+  const MIN_PANEL_WIDTH = 360
   const MAX_PANEL_WIDTH = 600
   
   // Play trigger (to differentiate selection from explicit play action)
@@ -104,7 +113,23 @@ export default function CanvasPage() {
   // Load canvas state and panel widths on mount
   useEffect(() => {
     const state = storage.getCanvasState()
-    setCanvasItems(state.items)
+    
+    // Migrate old episodes: add podcastTitle if missing
+    const migratedItems = state.items.map(item => {
+      if (item.type === 'episode') {
+        const episode = item as CanvasEpisode
+        // If podcastTitle is missing, use a fallback
+        if (!episode.podcastTitle) {
+          return {
+            ...episode,
+            podcastTitle: 'Podcast' // Generic fallback - user can re-add for correct name
+          } as CanvasEpisode
+        }
+      }
+      return item
+    })
+    
+    setCanvasItems(migratedItems)
     setSelectedItemIds(state.selectedItemIds)
     
     // Load right panel width from localStorage
@@ -112,7 +137,7 @@ export default function CanvasPage() {
     if (savedRightWidth) setRightPanelWidth(parseInt(savedRightWidth))
     
     // Auto fit-to-view when returning to canvas with items
-    if (state.items.length > 0) {
+    if (migratedItems.length > 0) {
       setTimeout(() => {
         handleFitToView()
       }, 100)
@@ -147,6 +172,75 @@ export default function CanvasPage() {
     return () => window.removeEventListener('keydown', handleDelete)
   }, [selectedItemIds])
 
+  // Handle spacebar for play/pause
+  useEffect(() => {
+    const handleSpacebar = (e: KeyboardEvent) => {
+      // Only handle spacebar if:
+      // 1. Spacebar was pressed
+      // 2. Not typing in an input/textarea
+      // 3. Something is selected
+      if (
+        e.code === 'Space' && 
+        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName) &&
+        selectedItemIds.length > 0
+      ) {
+        e.preventDefault() // Prevent page scroll
+        
+        // Get the currently selected item(s)
+        const selectedItems = canvasItems.filter(item => selectedItemIds.includes(item.id))
+        if (selectedItems.length === 0) return
+        
+        // Use the first selected item
+        const selectedItem = selectedItems[0]
+        
+        // Check if it's currently playing
+        const isSelectedItemPlaying = audioPlayer.isPlaying && audioPlayer.currentItem?.id === selectedItem.id
+        
+        if (isSelectedItemPlaying) {
+          audioPlayer.pause()
+        } else {
+          // Set as playable and play it
+          audioPlayer.setPlayableItems(selectedItems, canvasItems)
+          audioPlayer.play(selectedItem) // Pass the target item!
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleSpacebar)
+    return () => window.removeEventListener('keydown', handleSpacebar)
+  }, [selectedItemIds, audioPlayer, canvasItems])
+
+  // Stop audio when navigating away from a playing item
+  useEffect(() => {
+    // If currently playing item is not in the selected items, stop playback
+    if (audioPlayer.isPlaying && audioPlayer.currentItem) {
+      const currentItemId = audioPlayer.currentItem.id
+      
+      // Check if current item is directly selected
+      const currentItemDirectlySelected = selectedItemIds.includes(currentItemId)
+      
+      // Check if current item is a clip within a selected reel
+      const currentItemInSelectedReel = selectedItemIds.some(selectedId => {
+        const selectedItem = canvasItems.find(item => item.id === selectedId)
+        if (selectedItem?.type === 'reel') {
+          const reel = selectedItem as CanvasReel
+          return reel.clipIds.includes(currentItemId)
+        }
+        return false
+      })
+      
+      // Only pause if the item is not selected AND not part of a selected reel
+      if (!currentItemDirectlySelected && !currentItemInSelectedReel) {
+        console.log('🛑 [Canvas] Pausing audio - current item not selected', {
+          currentItemId,
+          selectedItemIds,
+          reason: 'Item deselected'
+        })
+        audioPlayer.pause()
+      }
+    }
+  }, [selectedItemIds, audioPlayer.isPlaying, audioPlayer.currentItem, audioPlayer, canvasItems])
+
   // Handle right panel resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -176,7 +270,7 @@ export default function CanvasPage() {
       }
     }
   }, [isResizingRight, MIN_PANEL_WIDTH, MAX_PANEL_WIDTH])
-  
+
   // Auto-expand search panel when results are loaded
   useEffect(() => {
     if (searchResults.length > 0 || selectedPodcast) {
@@ -199,6 +293,45 @@ export default function CanvasPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isSearchExpanded])
 
+  // Automatic debounced search - triggers 1 second after user stops typing
+  useEffect(() => {
+    // Clear results if search is empty
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      setSelectedPodcast(null)
+      setEpisodes([])
+      return
+    }
+
+    // Set up debounce timer
+    setIsSearching(true)
+    const debounceTimer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/podcasts/search?q=${encodeURIComponent(searchQuery)}`)
+        if (response.ok) {
+          const data = await response.json()
+          posthog.capture('canvas_podcast_searched', {
+            search_query: searchQuery,
+            result_count: data.podcasts.length
+          })
+          setSearchResults(data.podcasts)
+          setSelectedPodcast(null)
+          setEpisodes([])
+        }
+      } catch (error) {
+        console.error('Search failed:', error)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 250) // 0.25 second debounce
+
+    // Cleanup function to cancel previous timer
+    return () => {
+      clearTimeout(debounceTimer)
+      setIsSearching(false)
+    }
+  }, [searchQuery])
+
   // Save canvas state whenever it changes
   useEffect(() => {
     storage.setCanvasState({
@@ -208,32 +341,9 @@ export default function CanvasPage() {
     })
   }, [canvasItems, selectedItemIds])
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim()) return
-
-    setIsSearching(true)
-    try {
-      const response = await fetch(`/api/podcasts/search?q=${encodeURIComponent(searchQuery)}`)
-      if (response.ok) {
-        const data = await response.json()
-        posthog.capture('canvas_podcast_searched', {
-          search_query: searchQuery,
-          result_count: data.podcasts.length
-        })
-        setSearchResults(data.podcasts)
-        setSelectedPodcast(null)
-        setEpisodes([])
-      }
-    } catch (error) {
-      console.error('Search failed:', error)
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
   const loadEpisodes = async (podcast: PodcastSearchResult) => {
     setSelectedPodcast(podcast)
+    setEpisodeSearchQuery('') // Clear episode search when loading new podcast
     setIsLoadingEpisodes(true)
     
     try {
@@ -1077,15 +1187,11 @@ export default function CanvasPage() {
     // Calculate total duration
     const totalDuration = selectedClips.reduce((sum, clip) => sum + clip.duration, 0)
     
-    // Create reel title from clips
-    const reelTitle = selectedClips.length === 2 
-      ? `${selectedClips[0].title} + ${selectedClips[1].title}`
-      : `Reel (${selectedClips.length} clips)`
-    
+    // Default to "Untitled Reel" - user can rename inline
     const newReel: CanvasReel = {
       id: `canvas-reel-${Date.now()}-${Math.random()}`,
       type: 'reel',
-      title: reelTitle,
+      title: 'Untitled Reel',
       clipIds: selectedClips.map(clip => clip.id),
       totalDuration,
       position: {
@@ -1303,164 +1409,192 @@ export default function CanvasPage() {
       {/* Floating Search Card - Top Left */}
       <div 
         data-search-panel
-        className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-xl"
+        className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-[8px] shadow-xl overflow-hidden"
       >
-        {/* Header - Always Visible */}
-        <div className="px-3 pt-3 pb-2 border-b border-gray-200">
-          <img 
-            src="/ensemble-studio-logo-v1.svg" 
-            alt="Ensemble" 
-            className="h-7 w-auto"
-          />
-        </div>
-
-        {/* Search Input (Always Visible) */}
-        <div className="p-3 space-y-2">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search podcasts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 text-sm"
-                onFocus={() => {
-                  if (searchResults.length > 0 || selectedPodcast) {
-                    setIsSearchExpanded(true)
-                  }
-                }}
-              />
-            </div>
-            <Button type="submit" disabled={isSearching} size="sm">
-              {isSearching ? '...' : 'Go'}
-            </Button>
-          </form>
-
-          {/* File Upload Button */}
-          <div className="relative">
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="audio-upload"
+        {/* Header - Always Visible - Using Figma tokens: p-[16px] outer card + p-[4px] logo container */}
+        <div className="px-[16px] pt-[16px] pb-0">
+          <div className="p-[4px]">
+            <img 
+              src="/Unspool Studio Logo.svg" 
+              alt="Unspool Studio" 
+              className="h-[38px] w-auto"
             />
-            <label htmlFor="audio-upload">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-                onClick={() => document.getElementById('audio-upload')?.click()}
-              >
-                <Upload className="h-4 w-4" />
-                Upload MP3
-              </Button>
-            </label>
           </div>
         </div>
+
+        {/* Search Input - Only show when NOT viewing episodes */}
+        {!selectedPodcast && (
+        <div className="px-[16px] pt-[8px] pb-[16px]">
+          <SearchInput
+            placeholder="Search podcasts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            showButton={false}
+            onFocus={() => {
+              if (searchResults.length > 0 || selectedPodcast) {
+                setIsSearchExpanded(true)
+              }
+            }}
+          />
+        </div>
+        )}
+
+        {/* "Back to search" button - Only show when viewing episodes */}
+        {selectedPodcast && (
+          <div className="px-[16px] pt-[8px]">
+            <Button
+              type="button"
+            variant="tertiary"
+            size="med"
+            onClick={() => {
+              setSelectedPodcast(null)
+              setEpisodes([])
+              setEpisodeSearchQuery('') // Clear episode search when returning
+            }}
+            className="w-full justify-start"
+          >
+            ← Return to Search
+          </Button>
+          </div>
+        )}
 
         {/* Expanded Results (Collapsible) */}
         {isSearchExpanded && (searchResults.length > 0 || selectedPodcast) && (
           <>
-            <div className="border-t border-gray-200" />
-            <div className="overflow-y-auto" style={{ maxHeight: '60vh' }}>
+            {/* Results Container - Scrollable with proper structure */}
+            <div className="flex-1 overflow-y-auto" style={{ maxHeight: '60vh' }}>
               {selectedPodcast ? (
-                // Episode list
-                <div className="p-3">
-                  <button
-                    onClick={() => {
-                      setSelectedPodcast(null)
-                      setEpisodes([])
-                    }}
-                    className="flex items-center text-sm text-gray-600 hover:text-gray-900 mb-3"
-                  >
-                    ← Back to search
-                  </button>
-                  
-                  <div className="flex items-start gap-3 mb-3 pb-3 border-b">
-                    <img
-                      src={selectedPodcast.imageUrl}
-                      alt={selectedPodcast.title}
-                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">
-                        {selectedPodcast.title}
-                      </h3>
-                      <p className="text-xs text-gray-600">{selectedPodcast.author}</p>
+                // Episode list with podcast header - Using Figma structure for state=state3
+                <div className="flex flex-col h-full">
+                  {/* Podcast Header - Figma: px-[16px] py-[8px] gap-[10px] */}
+                  <div className="flex flex-col gap-[10px] px-[16px] py-[8px] shrink-0">
+                    <div className="flex gap-[9px] items-center py-[1px]">
+                      <img
+                        src={selectedPodcast.imageUrl}
+                        alt={selectedPodcast.title}
+                        className="w-[57px] h-[57px] rounded-[4px] object-cover shrink-0"
+                      />
+                      <div className="flex-1 min-w-0 flex flex-col gap-[4px]">
+                        <h3 
+                          className="text-black line-clamp-2"
+                          style={{
+                            fontFamily: 'Noto Sans, sans-serif',
+                            fontSize: '16px',
+                            fontWeight: 600,
+                            lineHeight: '1.4',
+                            letterSpacing: '-0.32px'
+                          }}
+                        >
+                          {selectedPodcast.title}
+                        </h3>
+                        <p 
+                          className="text-[#808080]"
+                          style={{
+                            fontFamily: 'Noto Sans, sans-serif',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            lineHeight: '1.2',
+                            letterSpacing: '-0.24px'
+                          }}
+                        >
+                          {selectedPodcast.author}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  {isLoadingEpisodes ? (
-                    <p className="text-sm text-gray-500 text-center py-4">Loading episodes...</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {episodes.map((episode) => (
-                        <div
-                          key={episode.id}
-                          draggable
-                          onDragStart={() => handleDragEpisodeStart(episode, selectedPodcast)}
-                          className="p-2 bg-gray-50 rounded-lg border border-gray-200 cursor-move hover:bg-gray-100 hover:border-gray-300 transition-colors"
-                        >
-                          <div className="flex items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-xs font-medium text-gray-900 line-clamp-2">
-                                {episode.title}
-                              </h4>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {formatDuration(episode.duration)}
-                              </p>
-                            </div>
-                            <div className="text-gray-400 text-xs flex-shrink-0">⋮⋮</div>
-                          </div>
-                        </div>
-                      ))}
+                  {/* Episode List - Figma: bg-white gap-[8px] grow with episode search and px-[16px] padding */}
+                  <div className="flex-1 bg-white flex flex-col gap-[8px] overflow-y-auto px-[16px]">
+                    {/* Episode Search Field */}
+                    <div className="shrink-0">
+                      <SearchInput
+                        placeholder="Search episodes..."
+                        value={episodeSearchQuery}
+                        onChange={(e) => setEpisodeSearchQuery(e.target.value)}
+                        showButton={false}
+                      />
                     </div>
-                  )}
+
+                    {/* Episode Cards */}
+                    {isLoadingEpisodes ? (
+                      <p className="text-sm text-gray-500 text-center py-4">Loading episodes...</p>
+                    ) : (
+                      <>
+                        {episodes
+                          .filter(episode => {
+                            if (!episodeSearchQuery.trim()) return true
+                            const query = episodeSearchQuery.toLowerCase()
+                            return (
+                              episode.title.toLowerCase().includes(query) ||
+                              (episode.description && episode.description.toLowerCase().includes(query))
+                            )
+                          })
+                          .map((episode) => (
+                            <div 
+                              key={episode.id}
+                              draggable
+                              onDragStart={() => handleDragEpisodeStart(episode, selectedPodcast)}
+                              className="cursor-move"
+                            >
+                              <EpisodeSearchCard
+                                title={episode.title}
+                                description={episode.description || ''}
+                                date={new Date(episode.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                duration={formatDuration(episode.duration)}
+                                onClick={() => {}}
+                              />
+                            </div>
+                          ))}
+                        {episodes.filter(episode => {
+                          if (!episodeSearchQuery.trim()) return false
+                          const query = episodeSearchQuery.toLowerCase()
+                          return !(
+                            episode.title.toLowerCase().includes(query) ||
+                            (episode.description && episode.description.toLowerCase().includes(query))
+                          )
+                        }).length === episodes.length && episodeSearchQuery.trim() && (
+                          <p className="text-sm text-gray-500 text-center py-4">
+                            No episodes found matching "{episodeSearchQuery}"
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               ) : (
-                // Podcast search results
-                <div className="p-3">
-                  <div className="space-y-2">
-                    {searchResults.map((podcast) => (
-                      <div
-                        key={podcast.id}
-                        onClick={() => loadEpisodes(podcast)}
-                        className="p-2 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all"
-                      >
-                        <div className="flex items-start gap-2">
-                          <img
-                            src={podcast.imageUrl}
-                            alt={podcast.title}
-                            className="w-10 h-10 rounded object-cover flex-shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-xs font-semibold text-gray-900 line-clamp-1">
-                              {podcast.title}
-                            </h3>
-                            <p className="text-xs text-gray-600 line-clamp-1">{podcast.author}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {podcast.episodeCount} episodes
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                // Podcast search results - Figma: content inside basis-0 grow container with gap-[10px]
+                <div className="px-[16px] flex flex-col gap-[10px] h-full">
+                  {searchResults.map((podcast) => (
+                    <PodcastSearchCard
+                      key={podcast.id}
+                      title={podcast.title}
+                      author={podcast.author}
+                      episodeCount={podcast.episodeCount}
+                      imageUrl={podcast.imageUrl}
+                      onClick={() => loadEpisodes(podcast)}
+                    />
+                  ))}
                 </div>
               )}
             </div>
-            
-            {/* Collapse button */}
-            <div className="border-t border-gray-200 p-2">
-              <button
-                onClick={() => setIsSearchExpanded(false)}
-                className="w-full text-xs text-gray-600 hover:text-gray-900 py-1"
+
+            {/* Footer with Upload Button - Figma: border-t-[1px] border-[#f3f3f3] gap-[8px] pt-[8px] pb-[8px] px-[4px] */}
+            <div className="border-t border-[#f3f3f3] flex gap-[8px] items-center justify-end pt-[8px] pb-[8px] px-[4px] bg-white shrink-0">
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="audio-upload"
+              />
+              <Button
+                type="button"
+                variant="tertiary"
+                size="med"
+                onClick={() => document.getElementById('audio-upload')?.click()}
               >
-                Collapse
-              </button>
+                Upload File
+              </Button>
             </div>
           </>
         )}
@@ -1613,151 +1747,107 @@ export default function CanvasPage() {
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
                   const isTranscribing = transcribingEpisodes.has(episode.episodeId)
+                  const hasTranscript = episode.transcript_segments && episode.transcript_segments.length > 0
+                  // Check if this episode is playing (only show as playing if the episode itself is selected and playing)
+                  const isThisPlaying = audioPlayer.isPlaying && 
+                                       audioPlayer.currentItem?.id === item.id && 
+                                       isSelected
                   
                   return (
                     <div
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Just select the episode (panel is always visible)
-                        if (!e.shiftKey) {
-                          setSelectedItemIds([item.id])
-                        }
-                      }}
-                      className={`absolute cursor-pointer select-none group ${
+                      className={`absolute select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
-                      } ${
-                        isTranscribing ? 'transcribing-gradient shadow-xl' : 
-                        isSelected ? 'ring-4 ring-blue-500 shadow-xl rounded-lg' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
-                        width: '340px',
+                        width: '361px',
                         zIndex: isSelected ? 20 : 10,
                         transform: isDragging ? `translate(${dragDelta.x}px, ${dragDelta.y}px)` : 'none'
                       }}
                     >
-                      <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow relative">
-                        {/* Floating X delete button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setCanvasItems(canvasItems.filter(i => i.id !== item.id))
-                            setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
-                          title="Remove from canvas"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        
-                        <div className="flex items-start gap-3">
-                          {episode.imageUrl ? (
-                            <div className="relative w-16 h-16 flex-shrink-0 group/play">
-                              <img
-                                src={episode.imageUrl}
-                                alt={episode.title}
-                                className="w-full h-full rounded object-cover"
-                              />
-                              {/* Play/Pause button overlay */}
-                              <button
-                                className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded transition-all opacity-0 group-hover/play:opacity-100"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                                  if (isThisPlaying) {
-                                    setPauseTrigger(Date.now())
-                                  } else {
-                                    setSelectedItemIds([item.id])
-                                    setPlayTrigger(Date.now())
-                                  }
-                                }}
-                                title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
-                              >
-                                {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
-                                  <Pause className="h-6 w-6 text-white drop-shadow-lg" />
-                                ) : (
-                                  <Play className="h-6 w-6 text-white drop-shadow-lg ml-0.5" />
-                                )}
-                              </button>
-                            </div>
-                          ) : (
-                            // Generic music icon for uploaded files without image
-                            <div className="relative w-16 h-16 flex-shrink-0 group/play bg-gradient-to-br from-blue-500 to-purple-600 rounded flex items-center justify-center">
-                              <Music className="h-8 w-8 text-white" />
-                              {/* Play/Pause button overlay */}
-                              <button
-                                className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded transition-all opacity-0 group-hover/play:opacity-100"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                                  if (isThisPlaying) {
-                                    setPauseTrigger(Date.now())
-                                  } else {
-                                    setSelectedItemIds([item.id])
-                                    setPlayTrigger(Date.now())
-                                  }
-                                }}
-                                title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
-                              >
-                                {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
-                                  <Pause className="h-6 w-6 text-white drop-shadow-lg" />
-                                ) : (
-                                  <Play className="h-6 w-6 text-white drop-shadow-lg ml-0.5" />
-                                )}
-                              </button>
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            {/* Podcast title eyebrow */}
-                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
-                              {episode.podcastTitle}
-                            </p>
-                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
-                              {episode.title}
-                            </h3>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-xs text-gray-500">
-                                {formatDuration(episode.duration)}
-                              </p>
-                              
-                              {/* Transcript status badge */}
-                              {transcribingEpisodes.has(episode.episodeId) ? (
-                                <div className="inline-flex bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] px-2 py-0.5 rounded-full items-center gap-1 shadow-sm">
-                                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                  <span className="font-medium">AI Transcribing</span>
-                                </div>
-                              ) : episode.transcript_segments && episode.transcript_segments.length > 0 ? (
-                                <div className="inline-flex bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded-full items-center gap-1">
-                                  <FileText className="h-2.5 w-2.5" />
-                                  <span>Ready</span>
-                                </div>
-                              ) : null}
-                            </div>
+                      {/* Figma Source Card */}
+                      <SourceCard
+                        id={episode.episodeId}
+                        title={episode.title}
+                        podcastTitle={episode.podcastTitle}
+                        duration={episode.duration}
+                        imageUrl={episode.imageUrl}
+                        isTranscribed={hasTranscript}
+                        isActive={isSelected}
+                        isPlaying={isThisPlaying}
+                        onClick={(e) => {
+                          if (!e) return
+                          e.stopPropagation()
+                          if (!(e as React.MouseEvent).shiftKey) {
+                            setSelectedItemIds([item.id])
+                          }
+                        }}
+                        onPlayClick={(e) => {
+                          e.stopPropagation()
+                          
+                          // Check if this is the currently playing item
+                          const isThisCurrentlyPlaying = audioPlayer.currentItem?.id === item.id && audioPlayer.isPlaying
+                          
+                          if (isThisCurrentlyPlaying) {
+                            // If this item is already playing, just pause it
+                            audioPlayer.pause()
+                          } else {
+                            // Otherwise, set this as the playable item and play it
+                            audioPlayer.setPlayableItems([episode], [episode])
+                            // Select this item if not already selected
+                            if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
+                              setSelectedItemIds([item.id])
+                            }
+                            // Play the audio - pass the episode so play() knows what to expect
+                            audioPlayer.play(episode)
+                          }
+                        }}
+                      />
+                      
+                      {/* Floating X delete button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                          setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-30"
+                        title="Remove from canvas"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      
+                      {/* AI Transcribing indicator */}
+                      {isTranscribing && (
+                        <div className="absolute -top-8 left-0 right-0 flex justify-center pointer-events-none">
+                          <div className="inline-flex bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] px-2 py-1 rounded-full items-center gap-1 shadow-lg">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span className="font-medium">AI Transcribing</span>
                           </div>
                         </div>
-                        
-                        {/* AI Clip Generator Button - hanging off bottom-right */}
-                        {episode.transcript_segments && episode.transcript_segments.length > 0 && (
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              await handleGenerateAIClips(episode)
-                            }}
-                            disabled={generatingClipsFor === episode.episodeId}
-                            className="absolute -bottom-3 -right-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-all shadow-lg hover:shadow-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-20"
-                            title="Generate AI clip suggestions"
-                          >
-                            {generatingClipsFor === episode.episodeId ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Sparkles className="h-4 w-4" />
-                            )}
-                          </button>
-                        )}
-                      </div>
+                      )}
+                      
+                      {/* AI Clip Generator Button - hanging off bottom-right */}
+                      {hasTranscript && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            await handleGenerateAIClips(episode)
+                          }}
+                          disabled={generatingClipsFor === episode.episodeId}
+                          className="absolute -bottom-3 -right-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-all shadow-lg hover:shadow-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed z-30"
+                          title="Generate AI clip suggestions"
+                        >
+                          {generatingClipsFor === episode.episodeId ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   )
                 }
@@ -1766,97 +1856,96 @@ export default function CanvasPage() {
                   const clip = item as CanvasClip
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
+                  // Check if this clip is playing (only show as playing if the clip itself is selected and playing)
+                  // Don't show as playing if it's part of a reel that's playing
+                  const isThisPlaying = audioPlayer.isPlaying && 
+                                       audioPlayer.currentItem?.id === item.id && 
+                                       isSelected
                   
                   return (
                     <div
                       key={item.id}
                       onMouseDown={(e) => handleItemMouseDown(e, item)}
-                      onClick={(e) => e.stopPropagation()}
-                      className={`absolute cursor-move select-none group ${
+                      className={`absolute select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
-                      } ${
-                        isSelected ? 'ring-4 ring-purple-500 shadow-xl rounded-lg' : 'ring-0 ring-transparent'
                       }`}
                       style={{
                         left: item.position.x,
                         top: item.position.y,
-                        width: '340px',
+                        width: '361px',
                         zIndex: isSelected ? 20 : 10,
                         transform: isDragging ? `translate(${dragDelta.x}px, ${dragDelta.y}px)` : 'none'
                       }}
                     >
-                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-lg border-2 border-purple-300 p-4 hover:shadow-xl transition-shadow relative">
-                        {/* Floating X delete button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setCanvasItems(canvasItems.filter(i => i.id !== item.id))
-                            setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
-                          title="Remove from canvas"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        
-                        <div className="flex items-start gap-2 mb-3">
-                          <div className="bg-purple-600 text-white p-2 rounded">
-                            <Scissors className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium text-purple-600 mb-1">CLIP</div>
-                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
-                              {clip.title}
-                            </h3>
-                            <p className="text-xs text-gray-600 mt-1">
-                              Duration: {formatDuration(clip.duration)}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-white bg-opacity-50 rounded p-2 mb-3">
-                          <p className="text-xs text-gray-700 line-clamp-3">
-                            {clip.transcript}
-                          </p>
-                        </div>
-                        
-                        <div className="flex gap-2 items-center">
-                          {/* Play/Pause button */}
-                          <button
-                            className="bg-purple-600 hover:bg-purple-700 rounded-full p-2 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                              if (isThisPlaying) {
-                                setPauseTrigger(Date.now())
-                              } else {
-                                setSelectedItemIds([item.id])
-                                setPlayTrigger(Date.now())
-                              }
-                            }}
-                            title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
-                          >
-                            {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
-                              <Pause className="h-4 w-4 text-white" />
-                            ) : (
-                              <Play className="h-4 w-4 text-white ml-0.5" />
-                            )}
-                          </button>
-                        </div>
-                        
-                        {/* Connection handle at bottom center - drag to add to reel */}
-                        <div
-                          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-orange-500 border-2 border-white rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shadow-lg cursor-pointer hover:scale-110 z-30 flex items-center justify-center"
-                          onMouseDown={(e) => {
-                            e.stopPropagation()
-                            setIsConnecting(true)
-                            setConnectingClipId(clip.id)
-                            setConnectionEndPoint({ x: item.position.x + 170, y: item.position.y + 220 })
-                          }}
-                          title="Drag to add this clip to a reel"
-                        >
-                          <Plus className="h-3 w-3 text-white" />
-                        </div>
+                      {/* Figma Clip Card */}
+                      <ClipCard
+                        id={clip.id}
+                        title={clip.title}
+                        duration={clip.duration}
+                        transcriptPreview={clip.transcript}
+                        isActive={isSelected}
+                        isPlaying={isThisPlaying}
+                        onClick={(e) => {
+                          if (!e) return
+                          e.stopPropagation()
+                          if (!(e as React.MouseEvent).shiftKey) {
+                            setSelectedItemIds([item.id])
+                          }
+                        }}
+                        onPlayClick={(e) => {
+                          e.stopPropagation()
+                          
+                          // Check if this is the currently playing item
+                          const isThisCurrentlyPlaying = audioPlayer.currentItem?.id === item.id && audioPlayer.isPlaying
+                          
+                          if (isThisCurrentlyPlaying) {
+                            // If this item is already playing, just pause it
+                            audioPlayer.pause()
+                          } else {
+                            // Otherwise, set this as the playable item and play it
+                            audioPlayer.setPlayableItems([clip], [clip])
+                            // Select this item if not already selected
+                            if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
+                              setSelectedItemIds([item.id])
+                            }
+                            // Play the audio - pass the clip so play() knows what to expect
+                            audioPlayer.play(clip)
+                          }
+                        }}
+                        onTitleChange={(newTitle) => {
+                          // Update clip title in canvas
+                          const updatedItems = canvasItems.map(i =>
+                            i.id === clip.id ? { ...i, title: newTitle, updatedAt: new Date().toISOString() } : i
+                          )
+                          setCanvasItems(updatedItems)
+                        }}
+                      />
+                      
+                      {/* Floating X delete button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                          setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-30"
+                        title="Remove from canvas"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      
+                      {/* Connection handle at bottom center - drag to add to reel */}
+                      <div
+                        className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-orange-500 border-2 border-white rounded-full opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity shadow-lg cursor-pointer hover:scale-110 z-30 flex items-center justify-center"
+                        onMouseDown={(e) => {
+                          e.stopPropagation()
+                          setIsConnecting(true)
+                          setConnectingClipId(clip.id)
+                          setConnectionEndPoint({ x: item.position.x + 170, y: item.position.y + 220 })
+                        }}
+                        title="Drag to add this clip to a reel"
+                      >
+                        <Plus className="h-3 w-3 text-white" />
                       </div>
                     </div>
                   )
@@ -1866,8 +1955,14 @@ export default function CanvasPage() {
                   const reel = item as CanvasReel
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
-                  
                   const isHoveredForConnection = isConnecting && hoveredReelId === item.id
+                  const allClips = canvasItems.filter(i => i.type === 'clip') as CanvasClip[]
+                  
+                  // Check if this reel is playing (reel is playing if it's selected and any of its clips is the current item)
+                  const isThisPlaying = audioPlayer.isPlaying && 
+                                       isSelected && 
+                                       audioPlayer.currentItem && 
+                                       reel.clipIds.includes(audioPlayer.currentItem.id)
                   
                   return (
                     <div
@@ -1883,19 +1978,10 @@ export default function CanvasPage() {
                           setHoveredReelId(null)
                         }
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Select the reel
-                        if (!e.shiftKey) {
-                          setSelectedItemIds([item.id])
-                        }
-                      }}
                       className={`absolute cursor-pointer select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
                       } ${
-                        isSelected ? 'ring-4 ring-orange-500 shadow-xl rounded-lg' : 
-                        isHoveredForConnection ? 'ring-4 ring-green-500 shadow-xl rounded-lg' : 
-                        'ring-0 ring-transparent'
+                        isHoveredForConnection ? 'ring-4 ring-green-500 shadow-xl rounded-lg' : ''
                       }`}
                       style={{
                         left: item.position.x,
@@ -1905,77 +1991,88 @@ export default function CanvasPage() {
                         transform: isDragging ? `translate(${dragDelta.x}px, ${dragDelta.y}px)` : 'none'
                       }}
                     >
-                      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg shadow-lg border-2 border-orange-400 p-4 hover:shadow-xl transition-shadow relative">
-                        {/* Floating X delete button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setCanvasItems(canvasItems.filter(i => i.id !== item.id))
-                            setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
-                          title="Delete Reel"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        
-                        <div className="flex items-start gap-2 mb-3">
-                          <div className="bg-orange-600 text-white p-2 rounded">
-                            <Film className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium text-orange-600 mb-1">🎬 REEL</div>
-                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
-                              {reel.title}
-                            </h3>
-                            <p className="text-xs text-gray-600 mt-1">
-                              {reel.clipIds.length} clips • {formatDuration(reel.totalDuration)}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-white bg-opacity-50 rounded p-2 mb-3">
-                          <div className="flex flex-wrap gap-1">
-                            {reel.clipIds.slice(0, 3).map((clipId, index) => {
-                              const clip = canvasItems.find(i => i.id === clipId) as CanvasClip | undefined
-                              return (
-                                <div key={clipId} className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                                  {clip ? `Clip ${index + 1}` : 'Clip'}
-                                </div>
-                              )
-                            })}
-                            {reel.clipIds.length > 3 && (
-                              <div className="text-xs text-gray-600 px-2 py-1">
-                                +{reel.clipIds.length - 3} more
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="flex gap-2 items-center">
-                          {/* Play/Pause button */}
-                          <button
-                            className="bg-orange-600 hover:bg-orange-700 rounded-full p-2 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                              if (isThisPlaying) {
-                                setPauseTrigger(Date.now())
-                              } else {
-                                setSelectedItemIds([item.id])
-                                setPlayTrigger(Date.now())
-                              }
-                            }}
-                            title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
-                          >
-                            {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
-                              <Pause className="h-4 w-4 text-white" />
-                            ) : (
-                              <Play className="h-4 w-4 text-white ml-0.5" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
+                      {/* Figma Reel Card */}
+                      <ReelCard
+                        id={reel.id}
+                        title={reel.title}
+                        clipIds={reel.clipIds}
+                        clips={allClips}
+                        totalDuration={reel.totalDuration}
+                        isActive={isSelected}
+                        isPlaying={isThisPlaying}
+                        onClick={(e) => {
+                          if (!e) return
+                          e.stopPropagation()
+                          if (!(e as React.MouseEvent).shiftKey) {
+                            setSelectedItemIds([item.id])
+                          }
+                        }}
+                        onPlayClick={(e) => {
+                          e.stopPropagation()
+                          
+                          // Check if this is the currently playing item
+                          const isThisCurrentlyPlaying = audioPlayer.currentItem?.id === item.id && audioPlayer.isPlaying
+                          
+                          if (isThisCurrentlyPlaying) {
+                            // If this reel is already playing, just pause it
+                            audioPlayer.pause()
+                          } else {
+                            // Get all clips in the reel
+                            const reelClips = reel.clipIds
+                              .map(clipId => allClips.find(c => c.id === clipId))
+                              .filter((c): c is CanvasClip => c !== undefined)
+                            
+                            // Set reel clips as playable items
+                            audioPlayer.setPlayableItems(reelClips, reelClips)
+                            
+                            // Select this item if not already selected
+                            if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
+                              setSelectedItemIds([item.id])
+                            }
+                            
+                            // Play the reel (first clip)
+                            if (reelClips.length > 0) {
+                              audioPlayer.play(reelClips[0])
+                            }
+                          }
+                        }}
+                        onTitleChange={(newTitle) => {
+                          // Update reel title in canvas
+                          const updatedItems = canvasItems.map(i =>
+                            i.id === reel.id ? { ...i, title: newTitle, updatedAt: new Date().toISOString() } : i
+                          )
+                          setCanvasItems(updatedItems)
+                        }}
+                        onReorderClips={(newClipIds) => {
+                          // Update clip order in reel
+                          const updatedItems = canvasItems.map(i =>
+                            i.id === reel.id ? { ...i, clipIds: newClipIds, updatedAt: new Date().toISOString() } : i
+                          )
+                          setCanvasItems(updatedItems)
+                        }}
+                        onRemoveClip={(clipId) => {
+                          // Remove clip from reel
+                          const updatedItems = canvasItems.map(i =>
+                            i.id === reel.id 
+                              ? { ...i, clipIds: reel.clipIds.filter(id => id !== clipId), updatedAt: new Date().toISOString() } 
+                              : i
+                          )
+                          setCanvasItems(updatedItems)
+                        }}
+                      />
+                      
+                      {/* Floating X delete button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                          setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-30"
+                        title="Remove from canvas"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </div>
                   )
                 }
@@ -1987,40 +2084,31 @@ export default function CanvasPage() {
           </div>
           
           {/* Floating Zoom Controls - Bottom Right */}
-          <div className="absolute bottom-4 right-4 flex flex-col gap-1 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-1 z-40">
+          <div className="absolute bottom-4 right-4 flex flex-col gap-2 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg shadow-lg p-2 z-40">
             <button
               onClick={handleZoomIn}
-              className="p-2 hover:bg-gray-100 rounded transition-colors group"
+              className="p-3 hover:bg-gray-100 rounded transition-colors group"
               title="Zoom in"
             >
-              <ZoomIn className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
+              <ZoomIn className="h-5 w-5 text-gray-700 group-hover:text-gray-900" />
             </button>
             <button
               onClick={handleZoomOut}
-              className="p-2 hover:bg-gray-100 rounded transition-colors group"
+              className="p-3 hover:bg-gray-100 rounded transition-colors group"
               title="Zoom out"
             >
-              <ZoomOut className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
+              <ZoomOut className="h-5 w-5 text-gray-700 group-hover:text-gray-900" />
             </button>
             <button
               onClick={handleFitToView}
               disabled={canvasItems.length === 0}
-              className="p-2 hover:bg-gray-100 rounded transition-colors group disabled:opacity-40 disabled:cursor-not-allowed"
+              className="p-3 hover:bg-gray-100 rounded transition-colors group disabled:opacity-40 disabled:cursor-not-allowed"
               title="Fit to view"
             >
-              <Maximize2 className="h-4 w-4 text-gray-700 group-hover:text-gray-900" />
+              <Maximize2 className="h-5 w-5 text-gray-700 group-hover:text-gray-900" />
             </button>
           </div>
 
-          {/* Contextual Audio Player */}
-          <ContextualPlayer
-            selectedItems={canvasItems.filter(item => selectedItemIds.includes(item.id))}
-            allItems={canvasItems}
-            playTrigger={playTrigger}
-            pauseTrigger={pauseTrigger}
-            onPlayingChange={setIsPlaying}
-          />
-          
           {/* Empty State - Outside transformed content */}
           {canvasItems.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
@@ -2034,104 +2122,25 @@ export default function CanvasPage() {
         </div>
       </div>
 
-      {/* Always-Visible Right Panel (Figma-style) */}
+      {/* Always-Visible Right Panel (Resizable) */}
       <div 
-        className="bg-white border-l border-gray-200 flex flex-col overflow-hidden z-40 relative group"
-        style={{ width: `${rightPanelWidth}px`, minWidth: `${MIN_PANEL_WIDTH}px`, maxWidth: `${MAX_PANEL_WIDTH}px` }}
+        className="bg-white flex flex-col overflow-hidden z-40 relative group"
+        style={{ 
+          width: `${rightPanelWidth}px`, 
+          minWidth: `${MIN_PANEL_WIDTH}px`, 
+          maxWidth: `${MAX_PANEL_WIDTH}px`,
+          boxShadow: '-4px 0px 8px 3px rgba(0,0,0,0.15), -1px 0px 3px 0px rgba(0,0,0,0.3)'
+        }}
       >
-        {/* Resize Handle */}
+        {/* Resize Handle - Invisible but functional */}
         <div
-          className="absolute top-0 left-0 w-1 h-full cursor-ew-resize hover:bg-blue-500 group-hover:bg-blue-300 transition-colors z-50"
+          className="absolute top-0 left-0 w-2 h-full cursor-ew-resize hover:bg-gray-300 active:bg-gray-400 transition-colors z-50"
           onMouseDown={() => setIsResizingRight(true)}
-          title="Drag to resize"
+          title="Drag to resize panel"
         />
-        {/* Panel Header */}
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          {selectedItemIds.length === 1 && (() => {
-            const selectedItem = canvasItems.find(item => item.id === selectedItemIds[0])
-            if (selectedItem?.type === 'episode') {
-              const episode = selectedItem as CanvasEpisode
-              return (
-                <div className="flex items-center gap-3">
-                  {episode.imageUrl ? (
-                    <img
-                      src={episode.imageUrl}
-                      alt={episode.title}
-                      className="w-12 h-12 rounded object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                      <Music className="h-6 w-6 text-white" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    {/* Podcast title eyebrow */}
-                    <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
-                      {episode.podcastTitle}
-                    </p>
-                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">
-                      {episode.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {formatDuration(episode.duration)}
-                    </p>
-                  </div>
-                </div>
-              )
-            }
-            if (selectedItem?.type === 'clip') {
-              const clip = selectedItem as CanvasClip
-              return (
-                <div className="flex items-center gap-3">
-                  {clip.imageUrl ? (
-                    <img
-                      src={clip.imageUrl}
-                      alt={clip.title}
-                      className="w-10 h-10 rounded object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center flex-shrink-0">
-                      <Scissors className="h-5 w-5 text-white" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-1 leading-tight">
-                      {clip.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Clip · {formatDuration(clip.duration)}
-                    </p>
-                  </div>
-                </div>
-              )
-            }
-            if (selectedItem?.type === 'reel') {
-              const reel = selectedItem as CanvasReel
-              return (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center flex-shrink-0">
-                    <Film className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-1 leading-tight">
-                      {reel.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Reel · {reel.clipIds.length} clips · {formatDuration(reel.totalDuration)}
-                    </p>
-                  </div>
-                </div>
-              )
-            }
-            return <h3 className="text-sm font-semibold text-gray-900">Selection</h3>
-          })()}
-          {selectedItemIds.length > 1 && (
-            <h3 className="text-sm font-semibold text-gray-900">{selectedItemIds.length} Items Selected</h3>
-          )}
-        </div>
 
         {/* Panel Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto h-full">
           {selectedItemIds.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full p-8 space-y-6">
               <div className="text-center space-y-2">
@@ -2181,6 +2190,13 @@ export default function CanvasPage() {
                 <ExportPanelContent
                   clips={[clip]}
                   onExportComplete={() => setSelectedItemIds([])}
+                  onUpdateClip={(clipId, updates) => {
+                    // Update clip in canvas
+                    const updatedItems = canvasItems.map(item =>
+                      item.id === clipId ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item
+                    )
+                    setCanvasItems(updatedItems)
+                  }}
                 />
               )
             }
@@ -2197,34 +2213,6 @@ export default function CanvasPage() {
                     setCanvasItems(canvasItems.map(item => 
                       item.id === updatedReel.id ? updatedReel : item
                     ))
-                  }}
-                  onRemoveClip={(clipId) => {
-                    // Remove clip from reel's clipIds
-                    const updatedReel = {
-                      ...reel,
-                      clipIds: reel.clipIds.filter(id => id !== clipId),
-                      totalDuration: reel.clipIds
-                        .filter(id => id !== clipId)
-                        .reduce((sum, id) => {
-                          const clip = allClips.find(c => c.id === id)
-                          return sum + (clip?.duration || 0)
-                        }, 0),
-                      updatedAt: new Date().toISOString()
-                    }
-                    
-                    // Delete reel if no clips left
-                    if (updatedReel.clipIds.length === 0) {
-                      setCanvasItems(canvasItems.filter(item => item.id !== reel.id))
-                      setSelectedItemIds([])
-                    } else {
-                      setCanvasItems(canvasItems.map(item => 
-                        item.id === reel.id ? updatedReel : item
-                      ))
-                    }
-                  }}
-                  onPlayClip={(clipId) => {
-                    setSelectedItemIds([clipId])
-                    setPlayTrigger(Date.now())
                   }}
                 />
               )
@@ -2267,5 +2255,14 @@ export default function CanvasPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Main export wrapped in AudioPlayerProvider
+export default function CanvasPage() {
+  return (
+    <AudioPlayerProvider>
+      <CanvasPageContent />
+    </AudioPlayerProvider>
   )
 }

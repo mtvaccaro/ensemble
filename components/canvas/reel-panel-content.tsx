@@ -1,133 +1,89 @@
 'use client'
 
-import { useState } from 'react'
-import { GripVertical, X, Play, Download, Loader2, CheckCircle, AlertCircle, Music2, Instagram, Youtube, Linkedin, Twitter } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useState, useMemo } from 'react'
+import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { CanvasReel, CanvasClip } from '@/types'
+import { UniversalPanel } from './universal-panel'
+import { ClipPanelFooter, ExportPlatform } from './clip-panel-footer'
+import { EditableTitle } from '@/components/ui/editable-title'
 import { 
   exportReelToVideo,
   isWebCodecsSupported,
   sanitizeFilename,
   type ClipExportData 
 } from '@/lib/video-export'
+import { useAudioPlayer } from '@/lib/audio-player-context'
 
 interface ReelPanelContentProps {
   reel: CanvasReel
   clips: CanvasClip[] // All canvas clips to look up from
   onUpdateReel: (updatedReel: CanvasReel) => void
-  onRemoveClip: (clipId: string) => void
-  onPlayClip: (clipId: string) => void
 }
 
 export function ReelPanelContent({ 
   reel, 
   clips,
-  onUpdateReel,
-  onRemoveClip,
-  onPlayClip
+  onUpdateReel
 }: ReelPanelContentProps) {
-  const [draggedClipId, setDraggedClipId] = useState<string | null>(null)
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  // Get audio player from context
+  const audioPlayer = useAudioPlayer()
+  
   const [isExporting, setIsExporting] = useState(false)
   const [progress, setProgress] = useState<number>(0)
   const [statusMessage, setStatusMessage] = useState<string>('')
   const [isComplete, setIsComplete] = useState(false)
   const [includeCaptions, setIncludeCaptions] = useState(true)
   const [includeWaveform, setIncludeWaveform] = useState(true)
-  const [platform, setPlatform] = useState('instagram')
-  const [format, setFormat] = useState('reels')
+  const [selectedPlatform, setSelectedPlatform] = useState<ExportPlatform>('youtube')
+  const [format, setFormat] = useState('shorts')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const webCodecsSupported = isWebCodecsSupported()
 
+  // Get all clips in the reel
+  const reelClips = useMemo(() => {
+    return reel.clipIds
+      .map(clipId => clips.find(c => c.id === clipId))
+      .filter((c): c is CanvasClip => c !== undefined)
+  }, [reel.clipIds, clips])
+
+  // NOTE: Do NOT set playable items here in useEffect!
+  // This causes the audio to restart on every render, creating choppy playback.
+  // Playable items are set when the user clicks play in page.tsx
+
   // Get dimensions based on platform and format
   const getDimensions = () => {
-    if (platform === 'tiktok') return { width: 1080, height: 1920, label: 'Vertical (9:16)' }
-    if (platform === 'instagram') {
-      if (format === 'reels') return { width: 1080, height: 1920, label: 'Reels/Stories (9:16)' }
-      if (format === 'square') return { width: 1080, height: 1080, label: 'Feed Square (1:1)' }
-      if (format === 'portrait') return { width: 1080, height: 1350, label: 'Feed Portrait (4:5)' }
+    if (selectedPlatform === 'youtube') {
+      if (format === 'shorts') return { width: 1080, height: 1920 }
+      if (format === 'standard') return { width: 1920, height: 1080 }
     }
-    if (platform === 'youtube') {
-      if (format === 'shorts') return { width: 1080, height: 1920, label: 'Shorts (9:16)' }
-      if (format === 'standard') return { width: 1920, height: 1080, label: 'Standard (16:9)' }
+    if (selectedPlatform === 'instagram') {
+      if (format === 'reels') return { width: 1080, height: 1920 }
+      if (format === 'square') return { width: 1080, height: 1080 }
+      if (format === 'portrait') return { width: 1080, height: 1350 }
     }
-    if (platform === 'linkedin') {
-      if (format === 'square') return { width: 1080, height: 1080, label: 'Square (1:1)' }
-      if (format === 'horizontal') return { width: 1920, height: 1080, label: 'Horizontal (16:9)' }
-      if (format === 'vertical') return { width: 1080, height: 1920, label: 'Vertical (9:16)' }
+    if (selectedPlatform === 'linkedin') {
+      if (format === 'square') return { width: 1080, height: 1080 }
+      if (format === 'horizontal') return { width: 1920, height: 1080 }
+      if (format === 'vertical') return { width: 1080, height: 1920 }
     }
-    if (platform === 'twitter') {
-      if (format === 'horizontal') return { width: 1280, height: 720, label: 'Horizontal (16:9)' }
-      if (format === 'square') return { width: 1080, height: 1080, label: 'Square (1:1)' }
+    if (selectedPlatform === 'x') {
+      if (format === 'horizontal') return { width: 1280, height: 720 }
+      if (format === 'square') return { width: 1080, height: 1080 }
     }
-    return { width: 1080, height: 1080, label: 'Square (1:1)' }
+    return { width: 1080, height: 1920 }
   }
 
   const dimensions = getDimensions()
 
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const handleDragStart = (e: React.DragEvent, clipId: string) => {
-    setDraggedClipId(clipId)
-    e.dataTransfer.effectAllowed = 'move'
-  }
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setDragOverIndex(index)
-  }
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault()
-    
-    if (!draggedClipId) return
-
-    const dragIndex = reel.clipIds.indexOf(draggedClipId)
-    if (dragIndex === -1) return
-
-    // Reorder the clipIds array
-    const newClipIds = [...reel.clipIds]
-    newClipIds.splice(dragIndex, 1)
-    newClipIds.splice(dropIndex, 0, draggedClipId)
-
-    // Update the reel
-    onUpdateReel({
-      ...reel,
-      clipIds: newClipIds,
-      updatedAt: new Date().toISOString()
-    })
-
-    setDraggedClipId(null)
-    setDragOverIndex(null)
-  }
-
-  const handleDragEnd = () => {
-    setDraggedClipId(null)
-    setDragOverIndex(null)
-  }
-
   const handleExport = async () => {
+    console.log('🎬 Export started - reel with', reelClips.length, 'clips')
     setIsExporting(true)
     setProgress(0)
     setIsComplete(false)
     setStatusMessage('Preparing export...')
 
     try {
-      // Get clips in order from the reel
-      const reelClips = reel.clipIds
-        .map(clipId => clips.find(c => c.id === clipId))
-        .filter((clip): clip is CanvasClip => clip !== undefined)
-
-      if (reelClips.length === 0) {
-        alert('This reel has no clips to export')
-        return
-      }
-
       const clipData: ClipExportData[] = reelClips.map(clip => ({
         title: clip.title,
         audioUrl: clip.audioUrl,
@@ -137,17 +93,21 @@ export function ReelPanelContent({
         duration: clip.duration,
         segments: clip.segments
       }))
+      console.log('📊 Clip data prepared:', clipData)
 
+      // Export as reel (concatenated clips)
       setStatusMessage('Generating reel...')
       const videoBlob = await exportReelToVideo(clipData, (p) => {
         setProgress(p * 100)
       }, { includeCaptions, includeWaveform, width: dimensions.width, height: dimensions.height })
       
+      const filename = `${sanitizeFilename(reel.title)}.mp4`
+      
       // Download the video
       const url = URL.createObjectURL(videoBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${sanitizeFilename(reel.title)}.mp4`
+      a.download = filename
       a.click()
       URL.revokeObjectURL(url)
 
@@ -171,395 +131,257 @@ export function ReelPanelContent({
     }
   }
 
-  return (
-    <div className="p-4 space-y-4">
-      {/* Clip List */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-semibold text-gray-900">Clips (drag to reorder)</h4>
+  // Format time as mm:ss
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Build concatenated transcript with clip headers and sequential timestamps
+  const transcriptContent = useMemo(() => {
+    if (reelClips.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-sm text-[#808080]">No clips in this reel</p>
         </div>
+      )
+    }
 
-        <div className="space-y-2">
-          {reel.clipIds.map((clipId, index) => {
-            const clip = clips.find(c => c.id === clipId)
-            if (!clip) return null
+    let cumulativeTime = 0
+    const segments: Array<{
+      clipTitle: string
+      clipIndex: number
+      speaker: string
+      text: string
+      absoluteTime: number
+      originalTime: number
+    }> = []
 
-            const isDragging = draggedClipId === clipId
-            const isDropTarget = dragOverIndex === index
+    // Build concatenated transcript with sequential timestamps
+    reelClips.forEach((clip, clipIndex) => {
+      if (clip.segments && clip.segments.length > 0) {
+        clip.segments.forEach(segment => {
+          segments.push({
+            clipTitle: clip.title,
+            clipIndex: clipIndex + 1,
+            speaker: segment.speaker || 'Speaker',
+            text: segment.text,
+            absoluteTime: cumulativeTime + segment.start,
+            originalTime: segment.start
+          })
+        })
+      }
+      cumulativeTime += clip.duration
+    })
 
-            return (
-              <div
-                key={clipId}
-                draggable
-                onDragStart={(e) => handleDragStart(e, clipId)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                className={`
-                  bg-white border rounded-lg p-3 transition-all
-                  ${isDragging ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}
-                  ${isDropTarget ? 'border-orange-400 border-2' : 'border-gray-200'}
-                  hover:border-orange-300 cursor-move
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Drag handle */}
-                  <div className="text-gray-400 cursor-grab active:cursor-grabbing">
-                    <GripVertical className="h-4 w-4" />
-                  </div>
+    // Filter by search query if provided
+    const filteredSegments = searchQuery
+      ? segments.filter(seg => 
+          seg.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          seg.speaker.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          seg.clipTitle.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : segments
 
-                  {/* Clip number */}
-                  <div className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">
-                    {index + 1}
-                  </div>
+    if (filteredSegments.length === 0 && searchQuery) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-sm text-[#808080]">No matches found for "{searchQuery}"</p>
+        </div>
+      )
+    }
 
-                  {/* Clip info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">
-                      {clip.title}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {formatDuration(clip.duration)}
-                    </div>
-                  </div>
+    return (
+      <div className="space-y-4">
+        {filteredSegments.map((segment, idx) => {
+          // Show clip header when we start a new clip
+          const showClipHeader = idx === 0 || segment.clipIndex !== filteredSegments[idx - 1].clipIndex
 
-                  {/* Actions */}
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => onPlayClip(clipId)}
-                      className="p-1.5 hover:bg-orange-100 rounded transition-colors"
-                      title="Play clip"
-                    >
-                      <Play className="h-4 w-4 text-orange-600" />
-                    </button>
-                    <button
-                      onClick={() => onRemoveClip(clipId)}
-                      className="p-1.5 hover:bg-red-100 rounded transition-colors"
-                      title="Remove from reel"
-                    >
-                      <X className="h-4 w-4 text-red-600" />
-                    </button>
-                  </div>
+          return (
+            <div key={`${segment.clipIndex}-${idx}`}>
+              {showClipHeader && (
+                <div 
+                  className="
+                    bg-[#ffdbce] 
+                    border-l-4 
+                    border-[#ff6932] 
+                    px-[12px] 
+                    py-[8px] 
+                    mb-[8px]
+                    rounded-[4px]
+                  "
+                  style={{
+                    fontFamily: 'Noto Sans, sans-serif',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    lineHeight: '1.2',
+                    letterSpacing: '-0.24px'
+                  }}
+                >
+                  <span className="text-[#ff6932]">
+                    Clip {segment.clipIndex}: {segment.clipTitle}
+                  </span>
                 </div>
+              )}
+              
+              <div className="flex flex-col gap-[4px]">
+                <div className="flex gap-[8px] items-center">
+                  <p
+                    className="text-[#ff6932]"
+                    style={{
+                      fontFamily: 'Noto Sans, sans-serif',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      lineHeight: '1.2',
+                      letterSpacing: '-0.24px'
+                    }}
+                  >
+                    {segment.speaker}
+                  </p>
+                  <p
+                    className="text-[#808080]"
+                    style={{
+                      fontFamily: 'Noto Sans, sans-serif',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      lineHeight: '1.2',
+                      letterSpacing: '-0.24px'
+                    }}
+                  >
+                    {formatTime(segment.absoluteTime)}
+                  </p>
+                </div>
+                <p
+                  className="text-black"
+                  style={{
+                    fontFamily: 'Noto Sans, sans-serif',
+                    fontSize: '14px',
+                    fontWeight: 400,
+                    lineHeight: '1.2',
+                    letterSpacing: '-0.28px'
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: searchQuery
+                      ? segment.text.replace(
+                          new RegExp(`(${searchQuery})`, 'gi'),
+                          '<mark style="background-color: #ffdbce; color: #ff6932; font-weight: 600;">$1</mark>'
+                        )
+                      : segment.text
+                  }}
+                />
               </div>
-            )
-          })}
-        </div>
+            </div>
+          )
+        })}
       </div>
+    )
+  }, [reelClips, searchQuery])
 
-      {/* Export Section */}
-      <div className="border-t pt-4 space-y-3">
-        {/* Browser Support Warning */}
-        {!webCodecsSupported && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <div className="flex gap-2">
-              <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-xs text-yellow-800">
-                  Video export requires WebCodecs API. Please use Chrome 94+, Edge 94+, or Safari 16.4+.
-                </p>
-              </div>
-            </div>
+  // Footer content for export controls
+  const footerContent = (
+    <div className="flex flex-col gap-[16px]">
+      {/* Export Progress */}
+      {isExporting && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#ff6932] font-medium">{statusMessage}</span>
+            <span className="text-[#808080]">{Math.round(progress)}%</span>
           </div>
-        )}
-
-        {/* Platform & Format Selection */}
-        <div className="space-y-3">
-          {/* Platform - Segmented Control */}
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Select Platform
-            </label>
-            <div className="inline-flex rounded-lg border border-gray-300 bg-white p-1 shadow-sm">
-              <button
-                onClick={() => {
-                  setPlatform('tiktok')
-                  setFormat('vertical')
-                }}
-                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
-                  platform === 'tiktok' 
-                    ? 'bg-orange-600 text-white shadow-sm' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-                title="TikTok"
-              >
-                <Music2 className="h-6 w-6" />
-              </button>
-              <button
-                onClick={() => {
-                  setPlatform('instagram')
-                  setFormat('reels')
-                }}
-                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
-                  platform === 'instagram' 
-                    ? 'bg-orange-600 text-white shadow-sm' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-                title="Instagram"
-              >
-                <Instagram className="h-6 w-6" />
-              </button>
-              <button
-                onClick={() => {
-                  setPlatform('youtube')
-                  setFormat('shorts')
-                }}
-                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
-                  platform === 'youtube' 
-                    ? 'bg-orange-600 text-white shadow-sm' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-                title="YouTube"
-              >
-                <Youtube className="h-6 w-6" />
-              </button>
-              <button
-                onClick={() => {
-                  setPlatform('linkedin')
-                  setFormat('square')
-                }}
-                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
-                  platform === 'linkedin' 
-                    ? 'bg-orange-600 text-white shadow-sm' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-                title="LinkedIn"
-              >
-                <Linkedin className="h-6 w-6" />
-              </button>
-              <button
-                onClick={() => {
-                  setPlatform('twitter')
-                  setFormat('horizontal')
-                }}
-                className={`px-4 py-2.5 rounded-md transition-all duration-200 min-w-[56px] flex items-center justify-center ${
-                  platform === 'twitter' 
-                    ? 'bg-orange-600 text-white shadow-sm' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-                title="Twitter/X"
-              >
-                <Twitter className="h-6 w-6" />
-              </button>
-            </div>
-          </div>
-
-          {/* Format - conditional based on platform (Radio buttons) */}
-          {platform === 'instagram' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Format
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="reels"
-                    checked={format === 'reels'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Reels / Stories (9:16)</span>
-                </label>
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="square"
-                    checked={format === 'square'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Feed Square (1:1)</span>
-                </label>
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="portrait"
-                    checked={format === 'portrait'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Feed Portrait (4:5)</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {platform === 'youtube' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Format
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="shorts"
-                    checked={format === 'shorts'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Shorts (9:16)</span>
-                </label>
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="standard"
-                    checked={format === 'standard'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Standard (16:9)</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {platform === 'linkedin' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Format
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="square"
-                    checked={format === 'square'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Square (1:1)</span>
-                </label>
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="horizontal"
-                    checked={format === 'horizontal'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Horizontal (16:9)</span>
-                </label>
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="vertical"
-                    checked={format === 'vertical'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Vertical (9:16)</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {platform === 'twitter' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Format
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="horizontal"
-                    checked={format === 'horizontal'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Horizontal (16:9)</span>
-                </label>
-                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    value="square"
-                    checked={format === 'square'}
-                    onChange={(e) => setFormat(e.target.value)}
-                    className="w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-900">Square (1:1)</span>
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Export Options - Reduced size */}
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-2">
-            Export Options
-          </label>
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
-              <input
-                type="checkbox"
-                checked={includeCaptions}
-                onChange={(e) => setIncludeCaptions(e.target.checked)}
-                className="w-3.5 h-3.5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-              />
-              <span className="text-xs text-gray-900">Include Captions</span>
-            </label>
-            
-            <label className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
-              <input
-                type="checkbox"
-                checked={includeWaveform}
-                onChange={(e) => setIncludeWaveform(e.target.checked)}
-                className="w-3.5 h-3.5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-              />
-              <span className="text-xs text-gray-900">Include Waveform</span>
-            </label>
+          <div className="w-full bg-[#e5e5e5] rounded-full h-2">
+            <div
+              className="bg-[#ff6932] h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
+      )}
 
-        {/* Progress */}
-        {isExporting && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-orange-600 font-medium">{statusMessage}</span>
-              <span className="text-gray-600">{Math.round(progress)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-orange-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+      {/* Success Message */}
+      {isComplete && (
+        <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
+          <CheckCircle className="h-5 w-5" />
+          {statusMessage}
+        </div>
+      )}
+
+      {/* Browser Support Warning */}
+      {!webCodecsSupported && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-yellow-900 mb-1">
+                Browser Not Supported
+              </h4>
+              <p className="text-sm text-yellow-800">
+                Video export requires WebCodecs API. Please use Chrome 94+, Edge 94+, or Safari 16.4+.
+              </p>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Success Message */}
-        {isComplete && (
-          <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
-            <CheckCircle className="h-4 w-4" />
-            {statusMessage}
-          </div>
-        )}
-
-        <Button 
-          onClick={handleExport}
-          disabled={isExporting || !webCodecsSupported}
-          className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400"
-        >
-          {isExporting ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Exporting Video...
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4 mr-2" />
-          Export Reel
-            </>
-          )}
-        </Button>
-        <p className="text-xs text-gray-500 text-center">
-          Export all clips as a continuous sequence
-        </p>
-      </div>
+      <ClipPanelFooter
+        selectedPlatform={selectedPlatform}
+        onPlatformChange={setSelectedPlatform}
+        onExport={handleExport}
+        previewUrl={undefined}
+      />
     </div>
   )
-}
 
+  return (
+    <UniversalPanel
+      variant="reel"
+      title={
+        <EditableTitle
+          value={reel.title}
+          onChange={(newTitle) => {
+            onUpdateReel({ ...reel, title: newTitle, updatedAt: new Date().toISOString() })
+          }}
+          placeholder="Untitled Reel"
+          maxLength={100}
+          className="text-black -mx-[6px] -my-[2px]"
+          style={{
+            fontFamily: 'Noto Sans, sans-serif',
+            fontSize: '18px',
+            fontWeight: 600,
+            lineHeight: '1.4',
+            letterSpacing: '-0.36px'
+          }}
+        />
+      }
+      duration={formatTime(reel.totalDuration)}
+      isPlaying={audioPlayer.isPlaying}
+      currentTime={audioPlayer.currentTime}
+      onPlayPause={() => {
+        // Always pass the first clip when toggling from the panel
+        if (audioPlayer.isPlaying) {
+          audioPlayer.pause()
+        } else {
+          if (reelClips.length > 0) {
+            audioPlayer.play(reelClips[0])
+          }
+        }
+      }}
+      onSeek={(time) => {
+        // Find which clip this time falls into and seek accordingly
+        let cumulativeTime = 0
+        for (const clip of reelClips) {
+          if (time < cumulativeTime + clip.duration) {
+            // Time falls in this clip
+            const clipTime = time - cumulativeTime
+            audioPlayer.seek(clipTime)
+            break
+          }
+          cumulativeTime += clip.duration
+        }
+      }}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      transcriptContent={transcriptContent}
+      footerContent={footerContent}
+    />
+  )
+}
