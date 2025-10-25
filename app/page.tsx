@@ -184,13 +184,30 @@ function CanvasPageContent() {
         selectedItemIds.length > 0
       ) {
         e.preventDefault() // Prevent page scroll
-        audioPlayer.togglePlay()
+        
+        // Get the currently selected item(s)
+        const selectedItems = canvasItems.filter(item => selectedItemIds.includes(item.id))
+        if (selectedItems.length === 0) return
+        
+        // Use the first selected item
+        const selectedItem = selectedItems[0]
+        
+        // Check if it's currently playing
+        const isSelectedItemPlaying = audioPlayer.isPlaying && audioPlayer.currentItem?.id === selectedItem.id
+        
+        if (isSelectedItemPlaying) {
+          audioPlayer.pause()
+        } else {
+          // Set as playable and play it
+          audioPlayer.setPlayableItems(selectedItems, canvasItems)
+          audioPlayer.play(selectedItem) // Pass the target item!
+        }
       }
     }
 
     window.addEventListener('keydown', handleSpacebar)
     return () => window.removeEventListener('keydown', handleSpacebar)
-  }, [selectedItemIds, audioPlayer])
+  }, [selectedItemIds, audioPlayer, canvasItems])
 
   // Stop audio when navigating away from a playing item
   useEffect(() => {
