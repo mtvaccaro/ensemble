@@ -2058,93 +2058,9 @@ export default function CanvasPage() {
           onMouseDown={() => setIsResizingRight(true)}
           title="Drag to resize panel"
         />
-        {/* Panel Header */}
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          {selectedItemIds.length === 1 && (() => {
-            const selectedItem = canvasItems.find(item => item.id === selectedItemIds[0])
-            if (selectedItem?.type === 'episode') {
-              const episode = selectedItem as CanvasEpisode
-              return (
-                <div className="flex items-center gap-3">
-                  {episode.imageUrl ? (
-                    <img
-                      src={episode.imageUrl}
-                      alt={episode.title}
-                      className="w-12 h-12 rounded object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                      <Music className="h-6 w-6 text-white" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    {/* Podcast title eyebrow */}
-                    <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5">
-                      {episode.podcastTitle}
-                    </p>
-                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">
-                      {episode.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {formatDuration(episode.duration)}
-                    </p>
-                  </div>
-                </div>
-              )
-            }
-            if (selectedItem?.type === 'clip') {
-              const clip = selectedItem as CanvasClip
-              return (
-                <div className="flex items-center gap-3">
-                  {clip.imageUrl ? (
-                    <img
-                      src={clip.imageUrl}
-                      alt={clip.title}
-                      className="w-10 h-10 rounded object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center flex-shrink-0">
-                      <Scissors className="h-5 w-5 text-white" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-1 leading-tight">
-                      {clip.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Clip · {formatDuration(clip.duration)}
-                    </p>
-                  </div>
-                </div>
-              )
-            }
-            if (selectedItem?.type === 'reel') {
-              const reel = selectedItem as CanvasReel
-              return (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center flex-shrink-0">
-                    <Film className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-1 leading-tight">
-                      {reel.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Reel · {reel.clipIds.length} clips · {formatDuration(reel.totalDuration)}
-                    </p>
-                  </div>
-                </div>
-              )
-            }
-            return <h3 className="text-sm font-semibold text-gray-900">Selection</h3>
-          })()}
-          {selectedItemIds.length > 1 && (
-            <h3 className="text-sm font-semibold text-gray-900">{selectedItemIds.length} Items Selected</h3>
-          )}
-        </div>
 
         {/* Panel Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto h-full">
           {selectedItemIds.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full p-8 space-y-6">
               <div className="text-center space-y-2">
