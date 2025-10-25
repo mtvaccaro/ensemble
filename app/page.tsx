@@ -1791,8 +1791,8 @@ function CanvasPageContent() {
                             if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
                               setSelectedItemIds([item.id])
                             }
-                            // Play the audio
-                            audioPlayer.play()
+                            // Play the audio - pass the episode so play() knows what to expect
+                            audioPlayer.play(episode)
                           }
                         }}
                       />
@@ -1895,8 +1895,8 @@ function CanvasPageContent() {
                             if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
                               setSelectedItemIds([item.id])
                             }
-                            // Play the audio
-                            audioPlayer.play()
+                            // Play the audio - pass the clip so play() knows what to expect
+                            audioPlayer.play(clip)
                           }
                         }}
                       />

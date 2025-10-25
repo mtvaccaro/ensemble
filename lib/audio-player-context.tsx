@@ -13,7 +13,7 @@ interface AudioPlayerContextType {
   currentItem: CanvasItem | null
   
   // Controls
-  play: () => void
+  play: (targetItem?: CanvasItem) => void
   pause: () => void
   togglePlay: () => void
   seek: (time: number) => void
@@ -151,30 +151,48 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     }
   }, [currentItem])
 
-  const play = () => {
+  const play = (targetItem?: CanvasItem) => {
     const audio = audioRef.current
-    if (!audio || !currentItem) return
+    // Use targetItem if provided, otherwise use currentItem
+    const itemToPlay = targetItem || currentItem
+    if (!audio || !itemToPlay) return
     
-    // Get the expected audio URL for the current item
+    console.log('[AudioPlayer] play() called', {
+      targetItem: targetItem?.id,
+      currentItem: currentItem?.id,
+      itemToPlay: itemToPlay.id,
+      audioSrc: audio.src
+    })
+    
+    // Get the expected audio URL for the item we want to play
     let expectedAudioUrl = ''
-    if (currentItem.type === 'episode') {
-      expectedAudioUrl = (currentItem as CanvasEpisode).audioUrl
-    } else if (currentItem.type === 'clip') {
-      expectedAudioUrl = (currentItem as CanvasClip).audioUrl
+    if (itemToPlay.type === 'episode') {
+      expectedAudioUrl = (itemToPlay as CanvasEpisode).audioUrl
+    } else if (itemToPlay.type === 'clip') {
+      expectedAudioUrl = (itemToPlay as CanvasClip).audioUrl
     }
+    
+    console.log('[AudioPlayer] URL check', {
+      expectedAudioUrl,
+      audioSrc: audio.src,
+      match: audio.src.endsWith(expectedAudioUrl)
+    })
     
     // If the audio source doesn't match, we need to wait for it to load
     // The useEffect will handle loading and auto-playing
     if (expectedAudioUrl && audio.src !== expectedAudioUrl && !audio.src.endsWith(expectedAudioUrl)) {
+      console.log('[AudioPlayer] Audio source mismatch - waiting for load')
       // Audio is being loaded, the useEffect will handle playing it
       // Just set isPlaying to true so the UI updates
       setIsPlaying(true)
       return
     }
     
+    console.log('[AudioPlayer] Playing audio now')
+    
     // For clips, ensure we're at the right position before playing
-    if (currentItem.type === 'clip') {
-      const clip = currentItem as CanvasClip
+    if (itemToPlay.type === 'clip') {
+      const clip = itemToPlay as CanvasClip
       // If we're before the start or after the end, reset to start
       if (audio.currentTime < clip.startTime || audio.currentTime >= clip.startTime + clip.duration) {
         audio.currentTime = clip.startTime
