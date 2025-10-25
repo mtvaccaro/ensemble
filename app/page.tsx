@@ -194,14 +194,38 @@ function CanvasPageContent() {
         const selectedItem = selectedItems[0]
         
         // Check if it's currently playing
-        const isSelectedItemPlaying = audioPlayer.isPlaying && audioPlayer.currentItem?.id === selectedItem.id
+        let isSelectedItemPlaying = false
+        
+        if (audioPlayer.isPlaying && audioPlayer.currentItem) {
+          if (selectedItem.type === 'reel') {
+            // For reels, check if the current item is one of the clips in this reel
+            const reel = selectedItem as CanvasReel
+            isSelectedItemPlaying = reel.clipIds.includes(audioPlayer.currentItem.id)
+          } else {
+            // For episodes and clips, check if the current item matches directly
+            isSelectedItemPlaying = audioPlayer.currentItem.id === selectedItem.id
+          }
+        }
         
         if (isSelectedItemPlaying) {
           audioPlayer.pause()
         } else {
-          // Set as playable and play it
-          audioPlayer.setPlayableItems(selectedItems, canvasItems)
-          audioPlayer.play(selectedItem) // Pass the target item!
+          // For reels, set up the clips and play the first one
+          if (selectedItem.type === 'reel') {
+            const reel = selectedItem as CanvasReel
+            const reelClips = reel.clipIds
+              .map(clipId => canvasItems.find(item => item.id === clipId && item.type === 'clip'))
+              .filter((c): c is CanvasClip => c !== undefined)
+            
+            if (reelClips.length > 0) {
+              audioPlayer.setPlayableItems(reelClips, reelClips)
+              audioPlayer.play(reelClips[0])
+            }
+          } else {
+            // For episodes and clips, play directly
+            audioPlayer.setPlayableItems(selectedItems, canvasItems)
+            audioPlayer.play(selectedItem)
+          }
         }
       }
     }
