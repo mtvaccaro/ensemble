@@ -68,18 +68,31 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
       audio.src = audioUrl
       audio.load()
       
-      // For clips, set the start time
+      // For clips, set the start time after metadata is loaded
       if (currentItem.type === 'clip') {
         const clip = currentItem as CanvasClip
-        audio.currentTime = clip.startTime
-      }
-      
-      // Resume playing if it was playing before
-      if (wasPlaying) {
-        audio.play().catch(err => console.error('Auto-play failed:', err))
+        const setInitialTime = () => {
+          audio.currentTime = clip.startTime
+          audio.removeEventListener('loadedmetadata', setInitialTime)
+          
+          // Resume playing if it was playing before
+          if (wasPlaying) {
+            audio.play().catch(err => console.error('Auto-play failed:', err))
+          }
+        }
+        audio.addEventListener('loadedmetadata', setInitialTime)
+      } else {
+        // For episodes, resume playing if it was playing before
+        if (wasPlaying) {
+          const playWhenReady = () => {
+            audio.play().catch(err => console.error('Auto-play failed:', err))
+            audio.removeEventListener('canplay', playWhenReady)
+          }
+          audio.addEventListener('canplay', playWhenReady)
+        }
       }
     }
-  }, [currentItem, isPlaying])
+  }, [currentItem])
 
   // Handle audio metadata loaded
   useEffect(() => {
@@ -140,7 +153,17 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
 
   const play = () => {
     const audio = audioRef.current
-    if (!audio) return
+    if (!audio || !currentItem) return
+    
+    // For clips, ensure we're at the right position before playing
+    if (currentItem.type === 'clip') {
+      const clip = currentItem as CanvasClip
+      // If we're before the start or after the end, reset to start
+      if (audio.currentTime < clip.startTime || audio.currentTime >= clip.startTime + clip.duration) {
+        audio.currentTime = clip.startTime
+      }
+    }
+    
     audio.play().catch(err => console.error('Play failed:', err))
   }
 
