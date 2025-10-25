@@ -8,6 +8,7 @@ import { SearchableTranscript } from '@/components/episodes/searchable-transcrip
 import { WordLevelTranscript } from '@/components/episodes/word-level-transcript'
 import { UniversalPanel } from './universal-panel'
 import { SourcePanelFooter } from './source-panel-footer'
+import { useAudioPlayer } from '@/lib/audio-player-context'
 
 interface EpisodePanelContentProps {
   episode: CanvasEpisode
@@ -21,6 +22,14 @@ export function EpisodePanelContent({
   onCreateClip,
   isTranscribing = false
 }: EpisodePanelContentProps) {
+  // Get audio player from context
+  const audioPlayer = useAudioPlayer()
+  
+  // Set this episode as the playable item when component mounts or episode changes
+  useEffect(() => {
+    audioPlayer.setPlayableItems([episode], [episode])
+  }, [episode.id]) // Only update when episode ID changes
+  
   const [startSegment, setStartSegment] = useState<TranscriptSegment | null>(null)
   const [endSegment, setEndSegment] = useState<TranscriptSegment | null>(null)
   const [hoveredSegment, setHoveredSegment] = useState<TranscriptSegment | null>(null)
@@ -316,16 +325,10 @@ export function EpisodePanelContent({
       title={episode.title}
       showName={episode.podcastTitle}
       duration={formatTime(episode.duration)}
-      isPlaying={false}
-      currentTime={0}
-      onPlayPause={() => {
-        // TODO: Wire up to audio player
-        console.log('Play/Pause clicked')
-      }}
-      onSeek={() => {
-        // TODO: Wire up to audio player
-        console.log('Seek')
-      }}
+      isPlaying={audioPlayer.isPlaying}
+      currentTime={audioPlayer.currentTime}
+      onPlayPause={audioPlayer.togglePlay}
+      onSeek={audioPlayer.seek}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
       transcriptContent={transcriptContent}

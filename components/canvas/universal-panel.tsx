@@ -96,6 +96,27 @@ export function UniversalPanel({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  // Parse duration string like "19:10" to seconds for progress calculation
+  const parseDuration = (durationStr: string): number => {
+    const parts = durationStr.split(':')
+    if (parts.length === 2) {
+      return parseInt(parts[0]) * 60 + parseInt(parts[1])
+    }
+    return 0
+  }
+
+  const totalDurationSeconds = parseDuration(duration)
+  const progress = totalDurationSeconds > 0 ? (currentTime / totalDurationSeconds) * 100 : 0
+
+  // Handle timeline click/drag
+  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const percentage = clickX / rect.width
+    const newTime = percentage * totalDurationSeconds
+    onSeek?.(Math.max(0, Math.min(totalDurationSeconds, newTime)))
+  }
+
   return (
     <div
       className={cn(
@@ -211,13 +232,16 @@ export function UniversalPanel({
             </p>
 
             {/* Timeline - Figma: h-[6px] rounded-[80px] bg-[#e5e5e5] */}
-            <div className="flex-1 min-w-0 h-[6px] bg-[#e5e5e5] rounded-[80px] relative cursor-pointer">
+            <div 
+              className="flex-1 min-w-0 h-[6px] bg-[#e5e5e5] rounded-[80px] relative cursor-pointer"
+              onClick={handleTimelineClick}
+            >
               {/* Scrubber - Figma: 16px size, absolute positioned */}
               <div
                 className="absolute top-1/2 -translate-y-1/2 w-[16px] h-[16px] rounded-[5000px]"
                 style={{
                   backgroundColor: color.timeline,
-                  left: '0px' // TODO: Calculate based on currentTime
+                  left: `calc(${progress}% - 8px)` // Center the scrubber at progress position
                 }}
               />
             </div>

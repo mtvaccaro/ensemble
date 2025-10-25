@@ -24,6 +24,7 @@ import { SourceCard } from '@/components/canvas/source-card'
 import { ClipCard } from '@/components/canvas/clip-card'
 import { PodcastSearchCard } from '@/components/podcasts/podcast-search-card'
 import { EpisodeSearchCard } from '@/components/podcasts/episode-search-card'
+import { AudioPlayerProvider } from '@/lib/audio-player-context'
 import posthog from 'posthog-js'
 
 interface EpisodeResult {
@@ -1336,7 +1337,8 @@ export default function CanvasPage() {
   }, [canvasItems, dragDelta, dragStartPositions])
 
   return (
-    <div className="flex h-screen bg-gray-50" style={{ overscrollBehavior: 'none' }}>
+    <AudioPlayerProvider>
+      <div className="flex h-screen bg-gray-50" style={{ overscrollBehavior: 'none' }}>
       {/* Floating Search Card - Top Left */}
       <div 
         data-search-panel
@@ -2196,5 +2198,6 @@ export default function CanvasPage() {
         </div>
       </div>
     </div>
+    </AudioPlayerProvider>
   )
 }
