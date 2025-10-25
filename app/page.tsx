@@ -1401,8 +1401,8 @@ export default function CanvasPage() {
               {selectedPodcast ? (
                 // Episode list with podcast header - Using Figma structure for state=state3
                 <div className="flex flex-col h-full">
-                  {/* Podcast Header - Figma: px-[4px] py-[8px] gap-[10px] */}
-                  <div className="flex flex-col gap-[10px] px-[4px] py-[8px] shrink-0">
+                  {/* Podcast Header - Figma: px-[16px] py-[8px] gap-[10px] */}
+                  <div className="flex flex-col gap-[10px] px-[16px] py-[8px] shrink-0">
                     <div className="flex gap-[9px] items-center py-[1px]">
                       <img
                         src={selectedPodcast.imageUrl}
@@ -1438,10 +1438,10 @@ export default function CanvasPage() {
                     </div>
                   </div>
 
-                  {/* Episode List - Figma: bg-white gap-[8px] grow with episode search */}
-                  <div className="flex-1 bg-white flex flex-col gap-[8px] overflow-y-auto">
+                  {/* Episode List - Figma: bg-white gap-[8px] grow with episode search and px-[16px] padding */}
+                  <div className="flex-1 bg-white flex flex-col gap-[8px] overflow-y-auto px-[16px]">
                     {/* Episode Search Field */}
-                    <div className="px-0 shrink-0">
+                    <div className="shrink-0">
                       <Input
                         type="text"
                         placeholder="Search episodes..."
@@ -1451,7 +1451,7 @@ export default function CanvasPage() {
                       />
                     </div>
 
-                    {/* Episode Cards with proper padding */}
+                    {/* Episode Cards */}
                     {isLoadingEpisodes ? (
                       <p className="text-sm text-gray-500 text-center py-4">Loading episodes...</p>
                     ) : (
