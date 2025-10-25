@@ -327,7 +327,14 @@ export function EpisodePanelContent({
       duration={formatTime(episode.duration)}
       isPlaying={audioPlayer.isPlaying}
       currentTime={audioPlayer.currentTime}
-      onPlayPause={audioPlayer.togglePlay}
+      onPlayPause={() => {
+        // Always pass the episode when toggling from the panel
+        if (audioPlayer.isPlaying) {
+          audioPlayer.pause()
+        } else {
+          audioPlayer.play(episode)
+        }
+      }}
       onSeek={audioPlayer.seek}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}

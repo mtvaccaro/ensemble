@@ -257,7 +257,14 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
       duration={formatTime(displayClip.duration)}
       isPlaying={audioPlayer.isPlaying}
       currentTime={audioPlayer.currentTime}
-      onPlayPause={audioPlayer.togglePlay}
+      onPlayPause={() => {
+        // Always pass the clip when toggling from the panel
+        if (audioPlayer.isPlaying) {
+          audioPlayer.pause()
+        } else {
+          audioPlayer.play(displayClip)
+        }
+      }}
       onSeek={audioPlayer.seek}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
