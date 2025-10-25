@@ -41,6 +41,7 @@ export default function CanvasPage() {
   const [searchResults, setSearchResults] = useState<PodcastSearchResult[]>([])
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastSearchResult | null>(null)
   const [episodes, setEpisodes] = useState<EpisodeResult[]>([])
+  const [episodeSearchQuery, setEpisodeSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false)
   
@@ -1435,28 +1436,61 @@ export default function CanvasPage() {
                     </div>
                   </div>
 
-                  {/* Episode List - Figma: bg-white gap-[8px] grow */}
+                  {/* Episode List - Figma: bg-white gap-[8px] grow with episode search */}
                   <div className="flex-1 bg-white flex flex-col gap-[8px] overflow-y-auto">
+                    {/* Episode Search Field */}
+                    <div className="px-0 shrink-0">
+                      <Input
+                        type="text"
+                        placeholder="Search episodes..."
+                        value={episodeSearchQuery}
+                        onChange={(e) => setEpisodeSearchQuery(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+
+                    {/* Episode Cards with proper padding */}
                     {isLoadingEpisodes ? (
                       <p className="text-sm text-gray-500 text-center py-4">Loading episodes...</p>
                     ) : (
                       <>
-                        {episodes.map((episode) => (
-                          <div 
-                            key={episode.id}
-                            draggable
-                            onDragStart={() => handleDragEpisodeStart(episode, selectedPodcast)}
-                            className="cursor-move"
-                          >
-                            <EpisodeSearchCard
-                              title={episode.title}
-                              description={episode.description || ''}
-                              date={new Date(episode.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              duration={formatDuration(episode.duration)}
-                              onClick={() => {}}
-                            />
-                          </div>
-                        ))}
+                        {episodes
+                          .filter(episode => {
+                            if (!episodeSearchQuery.trim()) return true
+                            const query = episodeSearchQuery.toLowerCase()
+                            return (
+                              episode.title.toLowerCase().includes(query) ||
+                              (episode.description && episode.description.toLowerCase().includes(query))
+                            )
+                          })
+                          .map((episode) => (
+                            <div 
+                              key={episode.id}
+                              draggable
+                              onDragStart={() => handleDragEpisodeStart(episode, selectedPodcast)}
+                              className="cursor-move"
+                            >
+                              <EpisodeSearchCard
+                                title={episode.title}
+                                description={episode.description || ''}
+                                date={new Date(episode.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                duration={formatDuration(episode.duration)}
+                                onClick={() => {}}
+                              />
+                            </div>
+                          ))}
+                        {episodes.filter(episode => {
+                          if (!episodeSearchQuery.trim()) return false
+                          const query = episodeSearchQuery.toLowerCase()
+                          return !(
+                            episode.title.toLowerCase().includes(query) ||
+                            (episode.description && episode.description.toLowerCase().includes(query))
+                          )
+                        }).length === episodes.length && episodeSearchQuery.trim() && (
+                          <p className="text-sm text-gray-500 text-center py-4">
+                            No episodes found matching "{episodeSearchQuery}"
+                          </p>
+                        )}
                       </>
                     )}
                   </div>
