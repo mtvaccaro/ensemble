@@ -397,12 +397,20 @@ export function ReelPanelContent({
       currentTime={cumulativeTime}
       timelineSegments={timelineSegments}
       onPlayPause={() => {
-        // Always pass the first clip when toggling from the panel
         if (audioPlayer.isPlaying) {
           audioPlayer.pause()
         } else {
           if (reelClips.length > 0) {
-            audioPlayer.play(reelClips[0])
+            // Check if we're resuming from a paused state or starting fresh
+            const currentlyPausedClip = audioPlayer.currentItem && reel.clipIds.includes(audioPlayer.currentItem.id)
+              ? audioPlayer.currentItem
+              : null
+            
+            audioPlayer.setPlayableItems(reelClips, reelClips) // Ensure playable items are set
+            
+            // If resuming, play the currently paused clip (resumes from current position)
+            // If starting fresh, play the first clip
+            audioPlayer.play(currentlyPausedClip || reelClips[0])
           }
         }
       }}
