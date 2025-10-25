@@ -152,7 +152,7 @@ export function ReelPanelContent({
     const segments: Array<{
       clipTitle: string
       clipIndex: number
-      speaker: string
+      speaker: string | null
       text: string
       absoluteTime: number
       originalTime: number
@@ -162,10 +162,12 @@ export function ReelPanelContent({
     reelClips.forEach((clip, clipIndex) => {
       if (clip.segments && clip.segments.length > 0) {
         clip.segments.forEach(segment => {
+          // Get speaker from first word in segment if available
+          const speaker = segment.words?.[0]?.speaker || null
           segments.push({
             clipTitle: clip.title,
             clipIndex: clipIndex + 1,
-            speaker: segment.speaker || 'Speaker',
+            speaker,
             text: segment.text,
             absoluteTime: cumulativeTime + segment.start,
             originalTime: segment.start
@@ -179,7 +181,7 @@ export function ReelPanelContent({
     const filteredSegments = searchQuery
       ? segments.filter(seg => 
           seg.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          seg.speaker.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          seg.speaker?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           seg.clipTitle.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : segments
@@ -187,7 +189,7 @@ export function ReelPanelContent({
     if (filteredSegments.length === 0 && searchQuery) {
       return (
         <div className="text-center py-8">
-          <p className="text-sm text-[#808080]">No matches found for "{searchQuery}"</p>
+          <p className="text-sm text-[#808080]">No matches found for &ldquo;{searchQuery}&rdquo;</p>
         </div>
       )
     }

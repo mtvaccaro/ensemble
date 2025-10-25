@@ -153,18 +153,6 @@ export function ExportPanelContent({ clips, onExportComplete, onUpdateClip }: Ex
             <div key={idx} className="flex flex-col gap-[4px]">
               <div className="flex gap-[8px] items-center">
                 <p
-                  className="text-[#ac00f6]"
-                  style={{
-                    fontFamily: 'Noto Sans, sans-serif',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    lineHeight: '1.2',
-                    letterSpacing: '-0.24px'
-                  }}
-                >
-                  {segment.speaker || 'Speaker'}
-                </p>
-                <p
                   className="text-[#808080]"
                   style={{
                     fontFamily: 'Noto Sans, sans-serif',

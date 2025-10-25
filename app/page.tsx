@@ -1206,7 +1206,7 @@ function CanvasPageContent() {
     setSelectedItemIds([newReel.id]) // Select the new reel
     
     posthog.capture('reel_created_on_canvas', {
-      reel_title: reelTitle,
+      reel_title: newReel.title,
       clip_count: selectedClips.length,
       total_duration: totalDuration
     })
@@ -1539,7 +1539,7 @@ function CanvasPageContent() {
                               <EpisodeSearchCard
                                 title={episode.title}
                                 description={episode.description || ''}
-                                date={new Date(episode.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                date={new Date(episode.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 duration={formatDuration(episode.duration)}
                                 onClick={() => {}}
                               />
@@ -1554,7 +1554,7 @@ function CanvasPageContent() {
                           )
                         }).length === episodes.length && episodeSearchQuery.trim() && (
                           <p className="text-sm text-gray-500 text-center py-4">
-                            No episodes found matching "{episodeSearchQuery}"
+                            No episodes found matching &ldquo;{episodeSearchQuery}&rdquo;
                           </p>
                         )}
                       </>
@@ -1747,11 +1747,11 @@ function CanvasPageContent() {
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
                   const isTranscribing = transcribingEpisodes.has(episode.episodeId)
-                  const hasTranscript = episode.transcript_segments && episode.transcript_segments.length > 0
+                  const hasTranscript = !!(episode.transcript_segments && episode.transcript_segments.length > 0)
                   // Check if this episode is playing (only show as playing if the episode itself is selected and playing)
-                  const isThisPlaying = audioPlayer.isPlaying && 
+                  const isThisPlaying = !!(audioPlayer.isPlaying && 
                                        audioPlayer.currentItem?.id === item.id && 
-                                       isSelected
+                                       isSelected)
                   
                   return (
                     <div
@@ -1858,9 +1858,9 @@ function CanvasPageContent() {
                   const isDragging = dragStartPositions.has(item.id)
                   // Check if this clip is playing (only show as playing if the clip itself is selected and playing)
                   // Don't show as playing if it's part of a reel that's playing
-                  const isThisPlaying = audioPlayer.isPlaying && 
+                  const isThisPlaying = !!(audioPlayer.isPlaying && 
                                        audioPlayer.currentItem?.id === item.id && 
-                                       isSelected
+                                       isSelected)
                   
                   return (
                     <div
@@ -1959,10 +1959,10 @@ function CanvasPageContent() {
                   const allClips = canvasItems.filter(i => i.type === 'clip') as CanvasClip[]
                   
                   // Check if this reel is playing (reel is playing if it's selected and any of its clips is the current item)
-                  const isThisPlaying = audioPlayer.isPlaying && 
+                  const isThisPlaying = !!(audioPlayer.isPlaying && 
                                        isSelected && 
                                        audioPlayer.currentItem && 
-                                       reel.clipIds.includes(audioPlayer.currentItem.id)
+                                       reel.clipIds.includes(audioPlayer.currentItem.id))
                   
                   return (
                     <div
@@ -2159,8 +2159,8 @@ function CanvasPageContent() {
                     setSelectedItemIds([])
                     posthog.capture('canvas_cleared')
                   }}
-                  variant="outline"
-                  size="sm"
+                  variant="secondary"
+                  size="small"
                   className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
                 >
                   Clear Canvas

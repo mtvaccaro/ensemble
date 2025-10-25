@@ -11,7 +11,7 @@ interface ClipCardProps {
   transcriptPreview?: string
   isActive?: boolean
   isPlaying?: boolean
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent) => void
   onPlayClick?: (e: React.MouseEvent) => void
   onTitleChange?: (newTitle: string) => void
 }
