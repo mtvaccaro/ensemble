@@ -48,6 +48,7 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
   
   const audioRef = useRef<HTMLAudioElement>(null)
   const previousItemTypeRef = useRef<'episode' | 'clip' | 'reel' | null>(null)
+  const shouldAutoPlayRef = useRef(false) // Track if we should auto-play after loading
   
   const currentItem = playableItems[currentItemIndex] || null
 
@@ -79,27 +80,43 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
           audio.currentTime = clip.startTime
           audio.removeEventListener('loadedmetadata', setInitialTime)
           
-          if (isPlaying) {
+          // Auto-play if requested (without creating a loop)
+          if (shouldAutoPlayRef.current) {
             console.log('[AudioPlayer] useEffect: Auto-playing clip after metadata load')
+            shouldAutoPlayRef.current = false
             audio.play().catch(err => console.error('Auto-play failed:', err))
           }
         }
         audio.addEventListener('loadedmetadata', setInitialTime)
       } else {
-        if (isPlaying) {
+        // For episodes, auto-play when ready if requested
+        if (shouldAutoPlayRef.current) {
           const playWhenReady = () => {
             console.log('[AudioPlayer] useEffect: Auto-playing episode when ready')
+            shouldAutoPlayRef.current = false
             audio.play().catch(err => console.error('Auto-play failed:', err))
             audio.removeEventListener('canplay', playWhenReady)
           }
           audio.addEventListener('canplay', playWhenReady)
         }
       }
-    } else if (isPlaying) {
-      console.log('[AudioPlayer] useEffect: URL is same, but isPlaying is true. Ensuring playback.')
+    } else if (shouldAutoPlayRef.current) {
+      // Audio is already loaded, but auto-play was requested
+      console.log('[AudioPlayer] useEffect: Audio already loaded, handling auto-play')
+      
+      // Set correct position for clips
+      if (currentItem.type === 'clip') {
+        const clip = currentItem as CanvasClip
+        console.log('[AudioPlayer] useEffect: Setting clip start time:', clip.startTime)
+        audio.currentTime = clip.startTime
+      }
+      
+      // Play immediately
+      console.log('[AudioPlayer] useEffect: Auto-playing now')
+      shouldAutoPlayRef.current = false
       audio.play().catch(err => console.error('Auto-play failed:', err))
     }
-  }, [currentItem, isPlaying])
+  }, [currentItem])
 
   // Handle audio metadata loaded
   useEffect(() => {
@@ -185,13 +202,6 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     
     const isDifferentItem = !latestCurrentItem || itemToPlay.id !== latestCurrentItem.id
     
-    if (isDifferentItem) {
-      console.log('🔄 [AudioPlayer] Different item detected - need to reload audio')
-      console.log('   Reason:', !latestCurrentItem ? 'No current item' : `Different ID: ${itemToPlay.id} vs ${latestCurrentItem.id}`)
-      setIsPlaying(true)
-      return
-    }
-    
     let expectedAudioUrl = ''
     if (itemToPlay.type === 'episode') {
       expectedAudioUrl = (itemToPlay as CanvasEpisode).audioUrl
@@ -203,10 +213,15 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
     console.log('   expectedAudioUrl:', expectedAudioUrl)
     console.log('   audioSrc:', audio.src)
     console.log('   match:', audio.src.endsWith(expectedAudioUrl))
+    console.log('   isDifferentItem:', isDifferentItem)
     
-    if (expectedAudioUrl && audio.src !== expectedAudioUrl && !audio.src.endsWith(expectedAudioUrl)) {
-      console.log('⏳ [AudioPlayer] Audio source mismatch - waiting for load')
-      setIsPlaying(true)
+    // If different item or audio source mismatch, set flag and let useEffect handle loading
+    if (isDifferentItem || (expectedAudioUrl && audio.src !== expectedAudioUrl && !audio.src.endsWith(expectedAudioUrl))) {
+      console.log('⏳ [AudioPlayer] Audio needs loading - setting auto-play flag')
+      console.log('   Reason:', isDifferentItem ? 'Different item' : 'Source mismatch')
+      shouldAutoPlayRef.current = true // Request auto-play after load
+      // Note: useEffect will detect currentItem change and load the audio
+      // When ready, it will check this flag and auto-play
       return
     }
     

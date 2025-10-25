@@ -1,7 +1,7 @@
 /* Google Fonts - Noto Sans (must be first) */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600&display=swap');
 
-/* Import Ensemble Design Tokens */
+/* Import Unspool Design Tokens */
 @import "./design-tokens.css";
 
 /* Base styles */

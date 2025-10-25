@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Fetch audio from podcast host with redirect handling
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'EnsembleApp/1.0',
+        'User-Agent': 'UnspoolApp/1.0',
         'Accept': 'audio/mpeg, audio/mp4, audio/*',
         'Range': 'bytes=0-', // Request full range to avoid partial content issues
       },
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
           
           const retryResponse = await fetch(cleanUrl, {
             headers: {
-              'User-Agent': 'EnsembleApp/1.0',
+              'User-Agent': 'UnspoolApp/1.0',
               'Accept': 'audio/mpeg, audio/mp4, audio/*',
             },
             redirect: 'follow',

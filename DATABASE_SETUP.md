@@ -1,6 +1,6 @@
 # Supabase Database Setup Guide
 
-This guide will walk you through setting up the Supabase database for the Ensemble application.
+This guide will walk you through setting up the Supabase database for the Unspool Studio application.
 
 ## Prerequisites
 

@@ -126,7 +126,7 @@ export function WordLevelTranscript({
     }
 
     return blocks
-  }, [segments])
+  }, [segments, segments.length, segments.reduce((sum, s) => sum + (s.words?.length || 0), 0)])
 
   const handleWordClick = (segmentId: number, wordIndex: number, word: TranscriptWord) => {
     if (!selectionStart) {

@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { Play, Pause } from 'lucide-react'
+import { EditableTitle } from '@/components/ui/editable-title'
 
 interface ClipCardProps {
   id: string
@@ -12,6 +13,7 @@ interface ClipCardProps {
   isPlaying?: boolean
   onClick?: () => void
   onPlayClick?: (e: React.MouseEvent) => void
+  onTitleChange?: (newTitle: string) => void
 }
 
 /**
@@ -36,7 +38,8 @@ export function ClipCard({
   isActive = false,
   isPlaying = false,
   onClick,
-  onPlayClick
+  onPlayClick,
+  onTitleChange
 }: ClipCardProps) {
   
   const formatDuration = (seconds: number): string => {
@@ -135,12 +138,20 @@ export function ClipCard({
 
           {/* Content: Title + Duration - Using exact Figma tokens */}
           <div className="flex-1 min-w-0 flex flex-col gap-[2px] justify-center">
-            {/* Clip Title - Title/sm: 14px SemiBold, line-height: 140% */}
-            <h3 
+            {/* Clip Title - Title/sm: 14px SemiBold, line-height: 140% - Editable */}
+            <EditableTitle
+              value={title}
+              onChange={(newTitle) => {
+                onTitleChange?.(newTitle)
+              }}
+              placeholder="Untitled Clip"
+              maxLength={100}
               className="
                 font-semibold 
                 text-black
                 line-clamp-2
+                -mx-[6px]
+                -my-[2px]
               "
               style={{ 
                 fontFamily: 'Noto Sans, sans-serif',
@@ -149,9 +160,7 @@ export function ClipCard({
                 lineHeight: '1.4',
                 letterSpacing: '-0.28px'
               }}
-            >
-              {title}
-            </h3>
+            />
 
             {/* Duration - Meta/med: 12px Medium, line-height: 120% */}
             <div 

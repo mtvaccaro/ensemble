@@ -117,7 +117,10 @@ export function ClipPanelFooter({
           type="button"
           variant="primary"
           size="large"
-          onClick={onExport}
+          onClick={() => {
+            console.log('Export button clicked in ClipPanelFooter')
+            onExport()
+          }}
           className="w-full"
         >
           Export Clip

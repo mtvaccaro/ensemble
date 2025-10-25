@@ -1,8 +1,8 @@
-# Ensemble Design System Tokens
+# Unspool Design System Tokens
 
 > **Source**: [Figma Design File](https://www.figma.com/design/E40A2wZTYZKswjtNw8a4OV/Ensemble?node-id=22-134)
 
-This document provides a reference for the Ensemble design system tokens extracted from Figma.
+This document provides a reference for the Unspool design system tokens extracted from Figma.
 
 ## 📋 Table of Contents
 
@@ -82,7 +82,7 @@ For convenience, these aliases are available:
 
 ## 📏 Spacing
 
-Ensemble uses a consistent spacing scale for padding, margins, and gaps:
+Unspool uses a consistent spacing scale for padding, margins, and gaps:
 
 | Name | Value | Tailwind | CSS Variable | Common Use |
 |------|-------|----------|--------------|------------|

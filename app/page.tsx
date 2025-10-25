@@ -13,7 +13,7 @@ declare global {
 }
 import { Search, Scissors, FileText, Play, Pause, ZoomIn, ZoomOut, Maximize2, Loader2, Film, X, Plus, Sparkles, Upload, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 import { PodcastSearchResult, CanvasEpisode, CanvasClip, CanvasReel, CanvasItem, ClipSuggestion } from '@/types'
 import { storage } from '@/lib/localStorage'
 import { EpisodePanelContent } from '@/components/canvas/episode-panel-content'
@@ -21,6 +21,7 @@ import { ExportPanelContent } from '@/components/canvas/export-panel-content'
 import { ReelPanelContent } from '@/components/canvas/reel-panel-content'
 import { SourceCard } from '@/components/canvas/source-card'
 import { ClipCard } from '@/components/canvas/clip-card'
+import { ReelCard } from '@/components/canvas/reel-card'
 import { PodcastSearchCard } from '@/components/podcasts/podcast-search-card'
 import { EpisodeSearchCard } from '@/components/podcasts/episode-search-card'
 import { AudioPlayerProvider, useAudioPlayer } from '@/lib/audio-player-context'
@@ -213,12 +214,32 @@ function CanvasPageContent() {
   useEffect(() => {
     // If currently playing item is not in the selected items, stop playback
     if (audioPlayer.isPlaying && audioPlayer.currentItem) {
-      const currentItemStillSelected = selectedItemIds.includes(audioPlayer.currentItem.id)
-      if (!currentItemStillSelected) {
+      const currentItemId = audioPlayer.currentItem.id
+      
+      // Check if current item is directly selected
+      const currentItemDirectlySelected = selectedItemIds.includes(currentItemId)
+      
+      // Check if current item is a clip within a selected reel
+      const currentItemInSelectedReel = selectedItemIds.some(selectedId => {
+        const selectedItem = canvasItems.find(item => item.id === selectedId)
+        if (selectedItem?.type === 'reel') {
+          const reel = selectedItem as CanvasReel
+          return reel.clipIds.includes(currentItemId)
+        }
+        return false
+      })
+      
+      // Only pause if the item is not selected AND not part of a selected reel
+      if (!currentItemDirectlySelected && !currentItemInSelectedReel) {
+        console.log('🛑 [Canvas] Pausing audio - current item not selected', {
+          currentItemId,
+          selectedItemIds,
+          reason: 'Item deselected'
+        })
         audioPlayer.pause()
       }
     }
-  }, [selectedItemIds, audioPlayer.isPlaying, audioPlayer.currentItem, audioPlayer])
+  }, [selectedItemIds, audioPlayer.isPlaying, audioPlayer.currentItem, audioPlayer, canvasItems])
 
   // Handle right panel resizing
   useEffect(() => {
@@ -1166,15 +1187,11 @@ function CanvasPageContent() {
     // Calculate total duration
     const totalDuration = selectedClips.reduce((sum, clip) => sum + clip.duration, 0)
     
-    // Create reel title from clips
-    const reelTitle = selectedClips.length === 2 
-      ? `${selectedClips[0].title} + ${selectedClips[1].title}`
-      : `Reel (${selectedClips.length} clips)`
-    
+    // Default to "Untitled Reel" - user can rename inline
     const newReel: CanvasReel = {
       id: `canvas-reel-${Date.now()}-${Math.random()}`,
       type: 'reel',
-      title: reelTitle,
+      title: 'Untitled Reel',
       clipIds: selectedClips.map(clip => clip.id),
       totalDuration,
       position: {
@@ -1398,9 +1415,9 @@ function CanvasPageContent() {
         <div className="px-[16px] pt-[16px] pb-0">
           <div className="p-[4px]">
             <img 
-              src="/ensemble-studio-logo-v1.svg" 
-              alt="Ensemble" 
-              className="h-[32px] w-auto"
+              src="/Unspool Studio Logo.svg" 
+              alt="Unspool Studio" 
+              className="h-[38px] w-auto"
             />
           </div>
         </div>
@@ -1408,33 +1425,17 @@ function CanvasPageContent() {
         {/* Search Input - Only show when NOT viewing episodes */}
         {!selectedPodcast && (
         <div className="px-[16px] pt-[8px] pb-[16px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Search podcasts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-8 text-sm"
-              onFocus={() => {
-                if (searchResults.length > 0 || selectedPodcast) {
-                  setIsSearchExpanded(true)
-                }
-              }}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery('')
-                  setSearchResults([])
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#808080] hover:text-black transition-colors p-1"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          <SearchInput
+            placeholder="Search podcasts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            showButton={false}
+            onFocus={() => {
+              if (searchResults.length > 0 || selectedPodcast) {
+                setIsSearchExpanded(true)
+              }
+            }}
+          />
         </div>
         )}
 
@@ -1504,24 +1505,14 @@ function CanvasPageContent() {
 
                   {/* Episode List - Figma: bg-white gap-[8px] grow with episode search and px-[16px] padding */}
                   <div className="flex-1 bg-white flex flex-col gap-[8px] overflow-y-auto px-[16px]">
-                    {/* Episode Search Field with Clear Icon */}
-                    <div className="shrink-0 relative">
-                      <Input
-                        type="text"
+                    {/* Episode Search Field */}
+                    <div className="shrink-0">
+                      <SearchInput
                         placeholder="Search episodes..."
                         value={episodeSearchQuery}
                         onChange={(e) => setEpisodeSearchQuery(e.target.value)}
-                        className="text-sm pr-8"
+                        showButton={false}
                       />
-                      {episodeSearchQuery && (
-                        <button
-                          onClick={() => setEpisodeSearchQuery('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#808080] hover:text-black transition-colors p-1"
-                          aria-label="Clear search"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
                     </div>
 
                     {/* Episode Cards */}
@@ -1757,8 +1748,10 @@ function CanvasPageContent() {
                   const isDragging = dragStartPositions.has(item.id)
                   const isTranscribing = transcribingEpisodes.has(episode.episodeId)
                   const hasTranscript = episode.transcript_segments && episode.transcript_segments.length > 0
-                  // Check if this episode is the currently playing item
-                  const isThisPlaying = audioPlayer.isPlaying && audioPlayer.currentItem?.id === item.id
+                  // Check if this episode is playing (only show as playing if the episode itself is selected and playing)
+                  const isThisPlaying = audioPlayer.isPlaying && 
+                                       audioPlayer.currentItem?.id === item.id && 
+                                       isSelected
                   
                   return (
                     <div
@@ -1863,8 +1856,11 @@ function CanvasPageContent() {
                   const clip = item as CanvasClip
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
-                  // Check if this clip is the currently playing item
-                  const isThisPlaying = audioPlayer.isPlaying && audioPlayer.currentItem?.id === item.id
+                  // Check if this clip is playing (only show as playing if the clip itself is selected and playing)
+                  // Don't show as playing if it's part of a reel that's playing
+                  const isThisPlaying = audioPlayer.isPlaying && 
+                                       audioPlayer.currentItem?.id === item.id && 
+                                       isSelected
                   
                   return (
                     <div
@@ -1916,6 +1912,13 @@ function CanvasPageContent() {
                             audioPlayer.play(clip)
                           }
                         }}
+                        onTitleChange={(newTitle) => {
+                          // Update clip title in canvas
+                          const updatedItems = canvasItems.map(i =>
+                            i.id === clip.id ? { ...i, title: newTitle, updatedAt: new Date().toISOString() } : i
+                          )
+                          setCanvasItems(updatedItems)
+                        }}
                       />
                       
                       {/* Floating X delete button */}
@@ -1952,8 +1955,14 @@ function CanvasPageContent() {
                   const reel = item as CanvasReel
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
-                  
                   const isHoveredForConnection = isConnecting && hoveredReelId === item.id
+                  const allClips = canvasItems.filter(i => i.type === 'clip') as CanvasClip[]
+                  
+                  // Check if this reel is playing (reel is playing if it's selected and any of its clips is the current item)
+                  const isThisPlaying = audioPlayer.isPlaying && 
+                                       isSelected && 
+                                       audioPlayer.currentItem && 
+                                       reel.clipIds.includes(audioPlayer.currentItem.id)
                   
                   return (
                     <div
@@ -1969,19 +1978,10 @@ function CanvasPageContent() {
                           setHoveredReelId(null)
                         }
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Select the reel
-                        if (!e.shiftKey) {
-                          setSelectedItemIds([item.id])
-                        }
-                      }}
                       className={`absolute cursor-pointer select-none group ${
                         isDragging ? '' : 'transition-all duration-150'
                       } ${
-                        isSelected ? 'ring-4 ring-orange-500 shadow-xl rounded-lg' : 
-                        isHoveredForConnection ? 'ring-4 ring-green-500 shadow-xl rounded-lg' : 
-                        'ring-0 ring-transparent'
+                        isHoveredForConnection ? 'ring-4 ring-green-500 shadow-xl rounded-lg' : ''
                       }`}
                       style={{
                         left: item.position.x,
@@ -1991,77 +1991,88 @@ function CanvasPageContent() {
                         transform: isDragging ? `translate(${dragDelta.x}px, ${dragDelta.y}px)` : 'none'
                       }}
                     >
-                      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg shadow-lg border-2 border-orange-400 p-4 hover:shadow-xl transition-shadow relative">
-                        {/* Floating X delete button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setCanvasItems(canvasItems.filter(i => i.id !== item.id))
-                            setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-20"
-                          title="Delete Reel"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        
-                        <div className="flex items-start gap-2 mb-3">
-                          <div className="bg-orange-600 text-white p-2 rounded">
-                            <Film className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium text-orange-600 mb-1">🎬 REEL</div>
-                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
-                              {reel.title}
-                            </h3>
-                            <p className="text-xs text-gray-600 mt-1">
-                              {reel.clipIds.length} clips • {formatDuration(reel.totalDuration)}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-white bg-opacity-50 rounded p-2 mb-3">
-                          <div className="flex flex-wrap gap-1">
-                            {reel.clipIds.slice(0, 3).map((clipId, index) => {
-                              const clip = canvasItems.find(i => i.id === clipId) as CanvasClip | undefined
-                              return (
-                                <div key={clipId} className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                                  {clip ? `Clip ${index + 1}` : 'Clip'}
-                                </div>
-                              )
-                            })}
-                            {reel.clipIds.length > 3 && (
-                              <div className="text-xs text-gray-600 px-2 py-1">
-                                +{reel.clipIds.length - 3} more
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="flex gap-2 items-center">
-                          {/* Play/Pause button */}
-                          <button
-                            className="bg-orange-600 hover:bg-orange-700 rounded-full p-2 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const isThisPlaying = selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying
-                              if (isThisPlaying) {
-                                setPauseTrigger(Date.now())
-                              } else {
-                                setSelectedItemIds([item.id])
-                                setPlayTrigger(Date.now())
-                              }
-                            }}
-                            title={selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? "Pause" : "Play"}
-                          >
-                            {selectedItemIds.includes(item.id) && selectedItemIds.length === 1 && isPlaying ? (
-                              <Pause className="h-4 w-4 text-white" />
-                            ) : (
-                              <Play className="h-4 w-4 text-white ml-0.5" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
+                      {/* Figma Reel Card */}
+                      <ReelCard
+                        id={reel.id}
+                        title={reel.title}
+                        clipIds={reel.clipIds}
+                        clips={allClips}
+                        totalDuration={reel.totalDuration}
+                        isActive={isSelected}
+                        isPlaying={isThisPlaying}
+                        onClick={(e) => {
+                          if (!e) return
+                          e.stopPropagation()
+                          if (!(e as React.MouseEvent).shiftKey) {
+                            setSelectedItemIds([item.id])
+                          }
+                        }}
+                        onPlayClick={(e) => {
+                          e.stopPropagation()
+                          
+                          // Check if this is the currently playing item
+                          const isThisCurrentlyPlaying = audioPlayer.currentItem?.id === item.id && audioPlayer.isPlaying
+                          
+                          if (isThisCurrentlyPlaying) {
+                            // If this reel is already playing, just pause it
+                            audioPlayer.pause()
+                          } else {
+                            // Get all clips in the reel
+                            const reelClips = reel.clipIds
+                              .map(clipId => allClips.find(c => c.id === clipId))
+                              .filter((c): c is CanvasClip => c !== undefined)
+                            
+                            // Set reel clips as playable items
+                            audioPlayer.setPlayableItems(reelClips, reelClips)
+                            
+                            // Select this item if not already selected
+                            if (!selectedItemIds.includes(item.id) || selectedItemIds.length > 1) {
+                              setSelectedItemIds([item.id])
+                            }
+                            
+                            // Play the reel (first clip)
+                            if (reelClips.length > 0) {
+                              audioPlayer.play(reelClips[0])
+                            }
+                          }
+                        }}
+                        onTitleChange={(newTitle) => {
+                          // Update reel title in canvas
+                          const updatedItems = canvasItems.map(i =>
+                            i.id === reel.id ? { ...i, title: newTitle, updatedAt: new Date().toISOString() } : i
+                          )
+                          setCanvasItems(updatedItems)
+                        }}
+                        onReorderClips={(newClipIds) => {
+                          // Update clip order in reel
+                          const updatedItems = canvasItems.map(i =>
+                            i.id === reel.id ? { ...i, clipIds: newClipIds, updatedAt: new Date().toISOString() } : i
+                          )
+                          setCanvasItems(updatedItems)
+                        }}
+                        onRemoveClip={(clipId) => {
+                          // Remove clip from reel
+                          const updatedItems = canvasItems.map(i =>
+                            i.id === reel.id 
+                              ? { ...i, clipIds: reel.clipIds.filter(id => id !== clipId), updatedAt: new Date().toISOString() } 
+                              : i
+                          )
+                          setCanvasItems(updatedItems)
+                        }}
+                      />
+                      
+                      {/* Floating X delete button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCanvasItems(canvasItems.filter(i => i.id !== item.id))
+                          setSelectedItemIds(selectedItemIds.filter(id => id !== item.id))
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 z-30"
+                        title="Remove from canvas"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </div>
                   )
                 }
@@ -2179,6 +2190,13 @@ function CanvasPageContent() {
                 <ExportPanelContent
                   clips={[clip]}
                   onExportComplete={() => setSelectedItemIds([])}
+                  onUpdateClip={(clipId, updates) => {
+                    // Update clip in canvas
+                    const updatedItems = canvasItems.map(item =>
+                      item.id === clipId ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item
+                    )
+                    setCanvasItems(updatedItems)
+                  }}
                 />
               )
             }
@@ -2195,34 +2213,6 @@ function CanvasPageContent() {
                     setCanvasItems(canvasItems.map(item => 
                       item.id === updatedReel.id ? updatedReel : item
                     ))
-                  }}
-                  onRemoveClip={(clipId) => {
-                    // Remove clip from reel's clipIds
-                    const updatedReel = {
-                      ...reel,
-                      clipIds: reel.clipIds.filter(id => id !== clipId),
-                      totalDuration: reel.clipIds
-                        .filter(id => id !== clipId)
-                        .reduce((sum, id) => {
-                          const clip = allClips.find(c => c.id === id)
-                          return sum + (clip?.duration || 0)
-                        }, 0),
-                      updatedAt: new Date().toISOString()
-                    }
-                    
-                    // Delete reel if no clips left
-                    if (updatedReel.clipIds.length === 0) {
-                      setCanvasItems(canvasItems.filter(item => item.id !== reel.id))
-                      setSelectedItemIds([])
-                    } else {
-                      setCanvasItems(canvasItems.map(item => 
-                        item.id === reel.id ? updatedReel : item
-                      ))
-                    }
-                  }}
-                  onPlayClip={(clipId) => {
-                    setSelectedItemIds([clipId])
-                    setPlayTrigger(Date.now())
                   }}
                 />
               )

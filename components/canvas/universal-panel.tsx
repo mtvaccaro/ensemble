@@ -4,7 +4,7 @@ import React, { ReactNode } from 'react'
 import { Play, Pause, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 
 /**
  * Universal Panel Component - Built from Figma Design (node 23:440)
@@ -26,7 +26,7 @@ interface UniversalPanelProps {
   variant: PanelVariant
   
   // Header content
-  title: string
+  title: string | ReactNode
   showName?: string // Only for source variant
   duration: string
   
@@ -79,10 +79,10 @@ export function UniversalPanel({
       speaker: '#ac00f6'
     },
     reel: {
-      badge: '#000000', // Placeholder until design exists
-      button: '#000000',
-      timeline: '#000000',
-      speaker: '#000000'
+      badge: '#ff6932',
+      button: '#ff6932',
+      timeline: '#ff6932',
+      speaker: '#ff6932'
     }
   }
 
@@ -264,24 +264,12 @@ export function UniversalPanel({
 
         {/* Search Field - Figma: px-[16px] pb-[16px] pt-0 */}
         <div className="px-[16px] pb-[16px] pt-0">
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Search transcript..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange?.(e.target.value)}
-              className="text-sm pr-8"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange?.('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#808080] hover:text-black transition-colors"
-                aria-label="Clear search"
-              >
-                <X className="w-[14px] h-[14px]" />
-              </button>
-            )}
-          </div>
+          <SearchInput
+            placeholder="Search transcript..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            showButton={false}
+          />
         </div>
       </div>
 

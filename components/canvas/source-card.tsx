@@ -1,6 +1,6 @@
 /**
  * Source Card Component
- * Built from Figma Design: https://www.figma.com/design/E40A2wZTYZKswjtNw8a4OV/Ensemble?node-id=22-2532
+ * Built from Figma Design: https://www.figma.com/design/E40A2wZTYZKswjtNw8a4OV/Unspool?node-id=22-2532
  * Node ID: 22:2531 (Source Card - state=default, transcribed=yes)
  * 
  * Represents a podcast episode OR uploaded audio file as a "Source" for clip creation

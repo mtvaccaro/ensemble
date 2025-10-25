@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ensemble - Transform Podcasts into Viral Clips",
+  title: "Unspool AI Studio - Transform Podcasts into Viral Clips",
   description: "AI-powered podcast clip generation tool",
 };
 

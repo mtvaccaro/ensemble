@@ -1,8 +1,8 @@
 /**
- * Ensemble Design System Tokens
+ * Unspool Design System Tokens
  * Extracted from Figma: https://www.figma.com/design/E40A2wZTYZKswjtNw8a4OV/Ensemble
  * 
- * This file defines the complete design system for Ensemble:
+ * This file defines the complete design system for Unspool:
  * - Color palette (neutrals, brand colors)
  * - Typography scale (Noto Sans)
  * - Spacing scale
@@ -29,6 +29,10 @@
   /* Clip/Secondary Colors (Magenta-Purple) */
   --color-clip-secondary-5: #ac00f6;
   --color-clip-secondary-1: #ebc2fd;
+
+  /* Reel/Tertiary Colors (Orange) */
+  --color-reel-tertiary-5: #ff6932;
+  --color-reel-tertiary-1: #ffdbce;
 
   /* Spacing Scale */
   --spacing-xxxxs: 2px;
@@ -62,6 +66,9 @@
   
   --color-clip-5: #ac00f6;
   --color-clip-1: #ebc2fd;
+  
+  --color-reel-5: #ff6932;
+  --color-reel-1: #ffdbce;
 
   /* Semantic Color Aliases */
   --color-primary: #3d00f6;
@@ -177,6 +184,8 @@
 .bg-source-1 { background-color: var(--color-source-1); }
 .bg-clip-5 { background-color: var(--color-clip-5); }
 .bg-clip-1 { background-color: var(--color-clip-1); }
+.bg-reel-5 { background-color: var(--color-reel-5); }
+.bg-reel-1 { background-color: var(--color-reel-1); }
 
 .text-neutral-0 { color: var(--color-neutral-0); }
 .text-neutral-1 { color: var(--color-neutral-1); }
@@ -188,8 +197,12 @@
 .text-source-1 { color: var(--color-source-1); }
 .text-clip-5 { color: var(--color-clip-5); }
 .text-clip-1 { color: var(--color-clip-1); }
+.text-reel-5 { color: var(--color-reel-5); }
+.text-reel-1 { color: var(--color-reel-1); }
 
 .border-neutral-2 { border-color: var(--color-neutral-2); }
 .border-source-5 { border-color: var(--color-source-5); }
 .border-clip-5 { border-color: var(--color-clip-5); }
+.border-reel-5 { border-color: var(--color-reel-5); }
+.border-reel-1 { border-color: var(--color-reel-1); }
 

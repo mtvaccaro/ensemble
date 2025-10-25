@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 import { CanvasClip } from '@/types'
 import { UniversalPanel } from './universal-panel'
 import { ClipPanelFooter, ExportPlatform } from './clip-panel-footer'
+import { EditableTitle } from '@/components/ui/editable-title'
 import { 
   exportClipToVideo,
   exportReelToVideo, 
@@ -17,9 +18,10 @@ import { useAudioPlayer } from '@/lib/audio-player-context'
 interface ExportPanelContentProps {
   clips: CanvasClip[]
   onExportComplete?: () => void
+  onUpdateClip?: (clipId: string, updates: Partial<CanvasClip>) => void
 }
 
-export function ExportPanelContent({ clips, onExportComplete }: ExportPanelContentProps) {
+export function ExportPanelContent({ clips, onExportComplete, onUpdateClip }: ExportPanelContentProps) {
   // Get audio player from context
   const audioPlayer = useAudioPlayer()
   
@@ -38,12 +40,9 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
   // Use the first clip for display (or first clip if it's a reel)
   const displayClip = clips[0]
 
-  // Set clips as playable items when component mounts or clips change
-  useEffect(() => {
-    if (clips.length > 0) {
-      audioPlayer.setPlayableItems(clips, clips)
-    }
-  }, [clips.map(c => c.id).join(',')]) // Only update when clip IDs change
+  // NOTE: Do NOT set playable items here in useEffect!
+  // This causes the audio to restart on every render, creating choppy playback.
+  // Playable items are set when the user clicks play in page.tsx
 
   // Get dimensions based on platform and format
   const getDimensions = () => {
@@ -71,6 +70,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
   const dimensions = getDimensions()
 
   const handleExport = async () => {
+    console.log('🎬 Export started - clips:', clips.length, clips)
     setIsExporting(true)
     setProgress(0)
     setIsComplete(false)
@@ -86,6 +86,7 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
         duration: clip.duration,
         segments: clip.segments
       }))
+      console.log('📊 Clip data prepared:', clipData)
 
       let videoBlob: Blob
       let filename: string
@@ -196,10 +197,15 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
           <p className="text-sm text-[#808080]">No transcript available</p>
         </div>
       )}
+    </div>
+  )
 
+  // Footer content with export controls
+  const footerContent = (
+    <div className="flex flex-col gap-[16px]">
       {/* Export Progress */}
       {isExporting && (
-        <div className="space-y-2 pt-4">
+        <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-[#ac00f6] font-medium">{statusMessage}</span>
             <span className="text-[#808080]">{Math.round(progress)}%</span>
@@ -237,23 +243,37 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
           </div>
         </div>
       )}
-    </div>
-  )
 
-  // Footer content with export controls
-  const footerContent = (
-    <ClipPanelFooter
-      selectedPlatform={selectedPlatform}
-      onPlatformChange={setSelectedPlatform}
-      onExport={handleExport}
-      previewUrl={undefined} // TODO: Generate preview video blob
-    />
+      <ClipPanelFooter
+        selectedPlatform={selectedPlatform}
+        onPlatformChange={setSelectedPlatform}
+        onExport={handleExport}
+        previewUrl={undefined} // TODO: Generate preview video blob
+      />
+    </div>
   )
 
   return (
     <UniversalPanel
       variant="clip"
-      title={displayClip.title}
+      title={
+        <EditableTitle
+          value={displayClip.title}
+          onChange={(newTitle) => {
+            onUpdateClip?.(displayClip.id, { title: newTitle })
+          }}
+          placeholder="Untitled Clip"
+          maxLength={100}
+          className="text-black -mx-[6px] -my-[2px]"
+          style={{
+            fontFamily: 'Noto Sans, sans-serif',
+            fontSize: '18px',
+            fontWeight: 600,
+            lineHeight: '1.4',
+            letterSpacing: '-0.36px'
+          }}
+        />
+      }
       duration={formatTime(displayClip.duration)}
       isPlaying={audioPlayer.isPlaying}
       currentTime={audioPlayer.currentTime}
