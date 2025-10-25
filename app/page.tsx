@@ -1729,6 +1729,8 @@ function CanvasPageContent() {
                   const isDragging = dragStartPositions.has(item.id)
                   const isTranscribing = transcribingEpisodes.has(episode.episodeId)
                   const hasTranscript = episode.transcript_segments && episode.transcript_segments.length > 0
+                  // Check if this episode is the currently playing item
+                  const isThisPlaying = audioPlayer.isPlaying && audioPlayer.currentItem?.id === item.id
                   
                   return (
                     <div
@@ -1754,6 +1756,7 @@ function CanvasPageContent() {
                         imageUrl={episode.imageUrl}
                         isTranscribed={hasTranscript}
                         isActive={isSelected}
+                        isPlaying={isThisPlaying}
                         onClick={(e) => {
                           if (!e) return
                           e.stopPropagation()
@@ -1822,6 +1825,8 @@ function CanvasPageContent() {
                   const clip = item as CanvasClip
                   const isSelected = selectedItemIds.includes(item.id)
                   const isDragging = dragStartPositions.has(item.id)
+                  // Check if this clip is the currently playing item
+                  const isThisPlaying = audioPlayer.isPlaying && audioPlayer.currentItem?.id === item.id
                   
                   return (
                     <div
@@ -1845,6 +1850,7 @@ function CanvasPageContent() {
                         duration={clip.duration}
                         transcriptPreview={clip.transcript}
                         isActive={isSelected}
+                        isPlaying={isThisPlaying}
                         onClick={(e) => {
                           if (!e) return
                           e.stopPropagation()

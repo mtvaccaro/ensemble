@@ -17,7 +17,7 @@
  */
 
 import React from 'react'
-import { Play } from 'lucide-react'
+import { Play, Pause } from 'lucide-react'
 
 interface SourceCardProps {
   id: string
@@ -27,6 +27,7 @@ interface SourceCardProps {
   imageUrl?: string
   isTranscribed: boolean
   isActive?: boolean
+  isPlaying?: boolean
   onClick?: () => void
   onPlayClick?: (e: React.MouseEvent) => void
 }
@@ -38,6 +39,7 @@ export function SourceCard({
   imageUrl,
   isTranscribed,
   isActive = false,
+  isPlaying = false,
   onClick,
   onPlayClick
 }: SourceCardProps) {
@@ -116,7 +118,7 @@ export function SourceCard({
               <div className="w-[57px] h-[57px] rounded-[4px] bg-black" />
             )}
             
-            {/* Purple Play Button Overlay - Using exact Figma tokens */}
+            {/* Play/Pause Button Overlay - Using exact Figma tokens */}
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -140,9 +142,13 @@ export function SourceCard({
                 opacity-0
                 group-hover:opacity-100
               "
-              aria-label="Play"
+              aria-label={isPlaying ? "Pause" : "Play"}
             >
-              <Play className="w-[24px] h-[24px] text-white fill-white ml-0.5" />
+              {isPlaying ? (
+                <Pause className="w-[24px] h-[24px] text-white fill-white" />
+              ) : (
+                <Play className="w-[24px] h-[24px] text-white fill-white ml-0.5" />
+              )}
             </button>
           </div>
 

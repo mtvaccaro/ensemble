@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Play } from 'lucide-react'
+import { Play, Pause } from 'lucide-react'
 
 interface ClipCardProps {
   id: string
@@ -9,6 +9,7 @@ interface ClipCardProps {
   duration: number
   transcriptPreview?: string
   isActive?: boolean
+  isPlaying?: boolean
   onClick?: () => void
   onPlayClick?: (e: React.MouseEvent) => void
 }
@@ -33,6 +34,7 @@ export function ClipCard({
   duration,
   transcriptPreview,
   isActive = false,
+  isPlaying = false,
   onClick,
   onPlayClick
 }: ClipCardProps) {
@@ -103,7 +105,7 @@ export function ClipCard({
           <div className="flex flex-col items-start w-full">
             <div className="flex gap-[8px] items-start w-full py-[1px]">
               
-              {/* Purple Play Button - Using exact Figma tokens */}
+              {/* Play/Pause Button - Using exact Figma tokens */}
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -116,15 +118,19 @@ export function ClipCard({
                   h-[32px]
                   rounded-[80px]
                   bg-[#ac00f6]
-                  flex 
-                  items-center 
+                  flex
+                  items-center
                   justify-center
                   hover:scale-110
                   transition-transform
                 "
-                aria-label="Play clip"
+                aria-label={isPlaying ? "Pause clip" : "Play clip"}
               >
-                <Play className="w-[24px] h-[24px] text-white fill-white ml-0.5" />
+                {isPlaying ? (
+                  <Pause className="w-[24px] h-[24px] text-white fill-white" />
+                ) : (
+                  <Play className="w-[24px] h-[24px] text-white fill-white ml-0.5" />
+                )}
               </button>
 
           {/* Content: Title + Duration - Using exact Figma tokens */}
