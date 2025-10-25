@@ -2045,7 +2045,12 @@ export default function CanvasPage() {
       {/* Always-Visible Right Panel (Resizable) */}
       <div 
         className="bg-white flex flex-col overflow-hidden z-40 relative group"
-        style={{ width: `${rightPanelWidth}px`, minWidth: `${MIN_PANEL_WIDTH}px`, maxWidth: `${MAX_PANEL_WIDTH}px` }}
+        style={{ 
+          width: `${rightPanelWidth}px`, 
+          minWidth: `${MIN_PANEL_WIDTH}px`, 
+          maxWidth: `${MAX_PANEL_WIDTH}px`,
+          boxShadow: '-4px 0px 8px 3px rgba(0,0,0,0.15), -1px 0px 3px 0px rgba(0,0,0,0.3)'
+        }}
       >
         {/* Resize Handle - Invisible but functional */}
         <div
