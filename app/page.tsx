@@ -1351,107 +1351,120 @@ export default function CanvasPage() {
           </div>
         </div>
 
-        {/* Search Input (Always Visible) - Using Figma tokens: gap-[8px] between sections */}
-        <div className="px-[16px] pt-[8px] pb-[16px] space-y-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Search podcasts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 text-sm"
-              onFocus={() => {
-                if (searchResults.length > 0 || selectedPodcast) {
-                  setIsSearchExpanded(true)
-                }
-              }}
-            />
+        {/* Search Input - Only show when NOT viewing episodes */}
+        {!selectedPodcast && (
+          <div className="px-[16px] pt-[8px] pb-[16px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search podcasts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 text-sm"
+                onFocus={() => {
+                  if (searchResults.length > 0 || selectedPodcast) {
+                    setIsSearchExpanded(true)
+                  }
+                }}
+              />
+            </div>
           </div>
+        )}
 
-          {/* File Upload Button - Using small tertiary variant with no icon per Figma */}
-          <div className="relative">
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="audio-upload"
-            />
-            <label htmlFor="audio-upload">
-              <Button
-                type="button"
-                variant="tertiary"
-                size="small"
-                className="w-full"
-                onClick={() => document.getElementById('audio-upload')?.click()}
-              >
-                Upload Audio File
-              </Button>
-            </label>
+        {/* "Back to search" button - Only show when viewing episodes */}
+        {selectedPodcast && (
+          <div className="px-[16px] pt-[8px]">
+            <Button
+              type="button"
+              variant="tertiary"
+              size="med"
+              onClick={() => {
+                setSelectedPodcast(null)
+                setEpisodes([])
+              }}
+              className="w-full justify-start"
+            >
+              ← Return to Search
+            </Button>
           </div>
-        </div>
+        )}
 
         {/* Expanded Results (Collapsible) */}
         {isSearchExpanded && (searchResults.length > 0 || selectedPodcast) && (
           <>
-            <div className="border-t border-gray-200" />
-            <div className="overflow-y-auto" style={{ maxHeight: '60vh' }}>
+            {/* Results Container - Scrollable */}
+            <div className="flex-1 overflow-y-auto" style={{ maxHeight: '60vh' }}>
               {selectedPodcast ? (
-                // Episode list
-                <div className="p-3">
-                  <button
-                    onClick={() => {
-                      setSelectedPodcast(null)
-                      setEpisodes([])
-                    }}
-                    className="flex items-center text-sm text-gray-600 hover:text-gray-900 mb-3"
-                  >
-                    ← Back to search
-                  </button>
-                  
-                  <div className="flex items-start gap-3 mb-3 pb-3 border-b">
-                    <img
-                      src={selectedPodcast.imageUrl}
-                      alt={selectedPodcast.title}
-                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">
-                        {selectedPodcast.title}
-                      </h3>
-                      <p className="text-xs text-gray-600">{selectedPodcast.author}</p>
+                // Episode list with podcast header
+                <div className="flex flex-col h-full">
+                  {/* Podcast Header - Using Figma tokens: px-[4px] py-[8px] gap-[9px] */}
+                  <div className="px-[4px] py-[8px]">
+                    <div className="flex gap-[9px] items-center py-[1px]">
+                      <img
+                        src={selectedPodcast.imageUrl}
+                        alt={selectedPodcast.title}
+                        className="w-[57px] h-[57px] rounded-[4px] object-cover shrink-0"
+                      />
+                      <div className="flex-1 min-w-0 flex flex-col gap-[4px]">
+                        <h3 
+                          className="text-black line-clamp-2"
+                          style={{
+                            fontFamily: 'Noto Sans, sans-serif',
+                            fontSize: '16px',
+                            fontWeight: 600,
+                            lineHeight: '1.4',
+                            letterSpacing: '-0.32px'
+                          }}
+                        >
+                          {selectedPodcast.title}
+                        </h3>
+                        <p 
+                          className="text-[#808080]"
+                          style={{
+                            fontFamily: 'Noto Sans, sans-serif',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            lineHeight: '1.2',
+                            letterSpacing: '-0.24px'
+                          }}
+                        >
+                          {selectedPodcast.author}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  {isLoadingEpisodes ? (
-                    <p className="text-sm text-gray-500 text-center py-4">Loading episodes...</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {episodes.map((episode) => (
-                        <div 
-                          key={episode.id}
-                          draggable
-                          onDragStart={() => handleDragEpisodeStart(episode, selectedPodcast)}
-                          className="cursor-move"
-                        >
-                          <EpisodeSearchCard
-                            title={episode.title}
-                            description={episode.description || ''}
-                            date={new Date(episode.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            duration={formatDuration(episode.duration)}
-                            onClick={() => {}}
-                          />
-                          <div className="absolute top-2 right-2 text-gray-400 text-xs">⋮⋮</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {/* Episode List - Using Figma gap-[8px] between episodes */}
+                  <div className="flex-1 bg-white">
+                    {isLoadingEpisodes ? (
+                      <p className="text-sm text-gray-500 text-center py-4">Loading episodes...</p>
+                    ) : (
+                      <div className="flex flex-col gap-[8px]">
+                        {episodes.map((episode) => (
+                          <div 
+                            key={episode.id}
+                            draggable
+                            onDragStart={() => handleDragEpisodeStart(episode, selectedPodcast)}
+                            className="cursor-move"
+                          >
+                            <EpisodeSearchCard
+                              title={episode.title}
+                              description={episode.description || ''}
+                              date={new Date(episode.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              duration={formatDuration(episode.duration)}
+                              onClick={() => {}}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
-                // Podcast search results - Using Figma PodcastSearchCard
-                <div className="p-3">
-                  <div className="space-y-2">
+                // Podcast search results - Using Figma px-[16px] padding
+                <div className="px-[16px]">
+                  <div className="flex flex-col gap-[10px]">
                     {searchResults.map((podcast) => (
                       <PodcastSearchCard
                         key={podcast.id}
@@ -1465,6 +1478,28 @@ export default function CanvasPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Footer with Upload Button - Using Figma tokens: border-t-[1px] border-[#f3f3f3] pt-[8px] pb-0 px-[4px] */}
+            <div className="border-t border-[#f3f3f3] pt-[8px] pb-0 px-[4px] bg-white">
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="audio-upload"
+              />
+              <label htmlFor="audio-upload">
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  size="med"
+                  className="w-full"
+                  onClick={() => document.getElementById('audio-upload')?.click()}
+                >
+                  Upload File
+                </Button>
+              </label>
             </div>
           </>
         )}
