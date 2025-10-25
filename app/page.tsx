@@ -87,12 +87,6 @@ export default function CanvasPage() {
   // Search panel state
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   
-  // Right panel resize state
-  const [rightPanelWidth, setRightPanelWidth] = useState(360)
-  const [isResizingRight, setIsResizingRight] = useState(false)
-  const MIN_PANEL_WIDTH = 260
-  const MAX_PANEL_WIDTH = 600
-  
   // Play trigger (to differentiate selection from explicit play action)
   const [playTrigger, setPlayTrigger] = useState<number>(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -127,10 +121,6 @@ export default function CanvasPage() {
     
     setCanvasItems(migratedItems)
     setSelectedItemIds(state.selectedItemIds)
-    
-    // Load right panel width from localStorage
-    const savedRightWidth = localStorage.getItem('rightPanelWidth')
-    if (savedRightWidth) setRightPanelWidth(parseInt(savedRightWidth))
     
     // Auto fit-to-view when returning to canvas with items
     if (migratedItems.length > 0) {
@@ -168,36 +158,6 @@ export default function CanvasPage() {
     return () => window.removeEventListener('keydown', handleDelete)
   }, [selectedItemIds])
 
-  // Handle right panel resizing
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isResizingRight) {
-        const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, window.innerWidth - e.clientX))
-        setRightPanelWidth(newWidth)
-        localStorage.setItem('rightPanelWidth', newWidth.toString())
-      }
-    }
-
-    const handleMouseUp = () => {
-      setIsResizingRight(false)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-
-    if (isResizingRight) {
-      document.body.style.cursor = 'ew-resize'
-      document.body.style.userSelect = 'none'
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove)
-        window.removeEventListener('mouseup', handleMouseUp)
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
-      }
-    }
-  }, [isResizingRight, MIN_PANEL_WIDTH, MAX_PANEL_WIDTH])
-  
   // Auto-expand search panel when results are loaded
   useEffect(() => {
     if (searchResults.length > 0 || selectedPodcast) {
@@ -2042,17 +2002,10 @@ export default function CanvasPage() {
         </div>
       </div>
 
-      {/* Always-Visible Right Panel (Figma-style) */}
+      {/* Always-Visible Right Panel (Figma-style - Fixed 420px width) */}
       <div 
-        className="bg-white border-l border-gray-200 flex flex-col overflow-hidden z-40 relative group"
-        style={{ width: `${rightPanelWidth}px`, minWidth: `${MIN_PANEL_WIDTH}px`, maxWidth: `${MAX_PANEL_WIDTH}px` }}
+        className="bg-white flex flex-col overflow-hidden z-40 relative"
       >
-        {/* Resize Handle */}
-        <div
-          className="absolute top-0 left-0 w-1 h-full cursor-ew-resize hover:bg-blue-500 group-hover:bg-blue-300 transition-colors z-50"
-          onMouseDown={() => setIsResizingRight(true)}
-          title="Drag to resize"
-        />
         {/* Panel Header */}
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
           {selectedItemIds.length === 1 && (() => {
