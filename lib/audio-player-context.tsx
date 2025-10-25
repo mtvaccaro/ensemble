@@ -140,8 +140,17 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
         
         // Stop at end of clip
         if (relativeTime >= clip.duration) {
-          audio.pause()
-          setIsPlaying(false)
+          // Check if there's a next item to play (for reels/playlists)
+          const nextIndex = currentItemIndex + 1
+          if (nextIndex < playableItems.length) {
+            // Auto-advance to next clip in the reel
+            setCurrentItemIndex(nextIndex)
+            shouldAutoPlayRef.current = true
+          } else {
+            // No more clips, stop playing
+            audio.pause()
+            setIsPlaying(false)
+          }
         }
       } else {
         setCurrentTime(audio.currentTime)
@@ -182,7 +191,7 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
       audio.removeEventListener('play', handlePlay)
       audio.removeEventListener('pause', handlePause)
     }
-  }, [currentItem])
+  }, [currentItem, currentItemIndex, playableItems.length])
 
   const play = useCallback((targetItem?: CanvasItem) => {
     const audio = audioRef.current
