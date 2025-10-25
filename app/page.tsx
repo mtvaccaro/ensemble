@@ -1340,7 +1340,7 @@ export default function CanvasPage() {
       {/* Floating Search Card - Top Left */}
       <div 
         data-search-panel
-        className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-xl"
+        className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-[8px] shadow-xl overflow-hidden"
       >
         {/* Header - Always Visible - Using Figma tokens: p-[16px] outer card + p-[4px] logo container */}
         <div className="px-[16px] pt-[16px] pb-0">
@@ -1535,8 +1535,8 @@ export default function CanvasPage() {
               )}
             </div>
 
-            {/* Footer with Upload Button - Figma: border-t-[1px] border-[#f3f3f3] gap-[8px] pt-[8px] pb-0 px-[4px] */}
-            <div className="border-t border-[#f3f3f3] flex gap-[8px] items-center justify-end pt-[8px] pb-0 px-[4px] bg-white shrink-0">
+            {/* Footer with Upload Button - Figma: border-t-[1px] border-[#f3f3f3] gap-[8px] pt-[8px] pb-[8px] px-[4px] */}
+            <div className="border-t border-[#f3f3f3] flex gap-[8px] items-center justify-end pt-[8px] pb-[8px] px-[4px] bg-white shrink-0">
               <input
                 type="file"
                 accept="audio/*"
