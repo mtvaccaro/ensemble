@@ -36,6 +36,13 @@ interface UniversalPanelProps {
   onPlayPause?: () => void
   onSeek?: (time: number) => void
   
+  // Timeline segments (for reels - shows clip boundaries)
+  timelineSegments?: Array<{
+    startTime: number
+    endTime: number
+    duration: number
+  }>
+  
   // Search
   searchQuery?: string
   onSearchChange?: (query: string) => void
@@ -58,6 +65,7 @@ export function UniversalPanel({
   currentTime = 0,
   onPlayPause,
   onSeek,
+  timelineSegments,
   searchQuery = '',
   onSearchChange,
   transcriptContent,
@@ -233,15 +241,46 @@ export function UniversalPanel({
 
             {/* Timeline - Figma: h-[6px] rounded-[80px] bg-[#e5e5e5] */}
             <div 
-              className="flex-1 min-w-0 h-[6px] bg-[#e5e5e5] rounded-[80px] relative cursor-pointer"
+              className="flex-1 min-w-0 h-[6px] bg-[#e5e5e5] rounded-[80px] relative cursor-pointer overflow-visible"
               onClick={handleTimelineClick}
             >
+              {/* Segment markers for reels - show clip boundaries */}
+              {timelineSegments && timelineSegments.map((segment, index) => {
+                // Don't show marker for the first segment (start of timeline)
+                if (index === 0) return null
+                
+                const segmentStartPercent = (segment.startTime / totalDurationSeconds) * 100
+                
+                return (
+                  <div
+                    key={index}
+                    className="absolute top-0 bottom-0 w-[2px] bg-white"
+                    style={{
+                      left: `${segmentStartPercent}%`,
+                      zIndex: 1
+                    }}
+                    title={`Clip ${index + 1} starts here`}
+                  />
+                )
+              })}
+              
+              {/* Progress fill - shows how much has played */}
+              <div
+                className="absolute top-0 left-0 h-full rounded-[80px]"
+                style={{
+                  backgroundColor: color.timeline,
+                  width: `${progress}%`,
+                  zIndex: 2
+                }}
+              />
+              
               {/* Scrubber - Figma: 16px size, absolute positioned */}
               <div
                 className="absolute top-1/2 -translate-y-1/2 w-[16px] h-[16px] rounded-[5000px]"
                 style={{
                   backgroundColor: color.timeline,
-                  left: `calc(${progress}% - 8px)` // Center the scrubber at progress position
+                  left: `calc(${progress}% - 8px)`, // Center the scrubber at progress position
+                  zIndex: 3
                 }}
               />
             </div>

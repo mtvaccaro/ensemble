@@ -333,6 +333,44 @@ export function ReelPanelContent({
     </div>
   )
 
+  // Calculate cumulative time across all clips in the reel
+  const cumulativeTime = useMemo(() => {
+    if (!audioPlayer.currentItem) return 0
+    
+    // Find the index of the currently playing clip
+    const currentClipIndex = reelClips.findIndex(clip => clip.id === audioPlayer.currentItem?.id)
+    
+    if (currentClipIndex === -1) return 0
+    
+    // Sum durations of all clips before the current one
+    let cumulative = 0
+    for (let i = 0; i < currentClipIndex; i++) {
+      cumulative += reelClips[i].duration
+    }
+    
+    // Add the current time within the current clip
+    cumulative += audioPlayer.currentTime
+    
+    return cumulative
+  }, [audioPlayer.currentItem, audioPlayer.currentTime, reelClips])
+  
+  // Create segment markers for visual timeline
+  const timelineSegments = useMemo(() => {
+    const segments = []
+    let cumulative = 0
+    
+    for (const clip of reelClips) {
+      segments.push({
+        startTime: cumulative,
+        endTime: cumulative + clip.duration,
+        duration: clip.duration
+      })
+      cumulative += clip.duration
+    }
+    
+    return segments
+  }, [reelClips])
+
   return (
     <UniversalPanel
       variant="reel"
@@ -356,7 +394,8 @@ export function ReelPanelContent({
       }
       duration={formatTime(reel.totalDuration)}
       isPlaying={audioPlayer.isPlaying}
-      currentTime={audioPlayer.currentTime}
+      currentTime={cumulativeTime}
+      timelineSegments={timelineSegments}
       onPlayPause={() => {
         // Always pass the first clip when toggling from the panel
         if (audioPlayer.isPlaying) {
