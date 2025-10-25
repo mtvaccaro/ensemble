@@ -168,7 +168,7 @@ export function SourceCard({
 
             {/* Show Title + Duration Row - Meta/med: 12px Medium, line-height: 120% */}
             <div 
-              className="flex items-center gap-[8px]"
+              className="flex items-center gap-[8px] w-full"
               style={{ 
                 fontFamily: 'Noto Sans, sans-serif',
                 fontSize: '12px',
@@ -178,7 +178,7 @@ export function SourceCard({
               }}
             >
               {podcastTitle && (
-                <span className="text-black truncate overflow-ellipsis overflow-hidden">
+                <span className="text-black overflow-ellipsis overflow-hidden whitespace-nowrap flex-1 min-w-0">
                   {podcastTitle}
                 </span>
               )}
