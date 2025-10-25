@@ -99,13 +99,11 @@ export function UniversalPanel({
   return (
     <div
       className={cn(
-        'fixed top-0 right-0 h-screen bg-white flex flex-col z-40',
+        'h-full w-full bg-white flex flex-col',
         className
       )}
       style={{
-        boxShadow: '0px 4px 8px 3px rgba(0,0,0,0.15), 0px 1px 3px 0px rgba(0,0,0,0.3)',
-        outline: 'none',
-        width: '100%' // Fill parent container width
+        outline: 'none'
       }}
       tabIndex={-1}
     >
