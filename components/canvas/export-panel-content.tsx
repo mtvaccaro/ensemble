@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Download, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 import { CanvasClip } from '@/types'
 import { UniversalPanel } from './universal-panel'
@@ -12,6 +12,7 @@ import {
   sanitizeFilename,
   type ClipExportData 
 } from '@/lib/video-export'
+import { useAudioPlayer } from '@/lib/audio-player-context'
 
 interface ExportPanelContentProps {
   clips: CanvasClip[]
@@ -19,6 +20,9 @@ interface ExportPanelContentProps {
 }
 
 export function ExportPanelContent({ clips, onExportComplete }: ExportPanelContentProps) {
+  // Get audio player from context
+  const audioPlayer = useAudioPlayer()
+  
   const [isExporting, setIsExporting] = useState(false)
   const [progress, setProgress] = useState<number>(0)
   const [statusMessage, setStatusMessage] = useState<string>('')
@@ -33,6 +37,13 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
 
   // Use the first clip for display (or first clip if it's a reel)
   const displayClip = clips[0]
+
+  // Set clips as playable items when component mounts or clips change
+  useEffect(() => {
+    if (clips.length > 0) {
+      audioPlayer.setPlayableItems(clips, clips)
+    }
+  }, [clips.map(c => c.id).join(',')]) // Only update when clip IDs change
 
   // Get dimensions based on platform and format
   const getDimensions = () => {
@@ -244,16 +255,10 @@ export function ExportPanelContent({ clips, onExportComplete }: ExportPanelConte
       variant="clip"
       title={displayClip.title}
       duration={formatTime(displayClip.duration)}
-      isPlaying={false}
-      currentTime={0}
-      onPlayPause={() => {
-        // TODO: Wire up to audio player
-        console.log('Play/Pause clicked')
-      }}
-      onSeek={() => {
-        // TODO: Wire up to audio player
-        console.log('Seek')
-      }}
+      isPlaying={audioPlayer.isPlaying}
+      currentTime={audioPlayer.currentTime}
+      onPlayPause={audioPlayer.togglePlay}
+      onSeek={audioPlayer.seek}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
       transcriptContent={transcriptContent}
