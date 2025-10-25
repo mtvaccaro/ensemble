@@ -1,0 +1,208 @@
+/**
+ * Unspool Design System Tokens
+ * Extracted from Figma: https://www.figma.com/design/E40A2wZTYZKswjtNw8a4OV/Ensemble
+ * 
+ * This file defines the complete design system for Unspool:
+ * - Color palette (neutrals, brand colors)
+ * - Typography scale (Noto Sans)
+ * - Spacing scale
+ */
+
+@import "tailwindcss";
+
+/* ============================================
+   DESIGN TOKENS - CSS Variables
+   ============================================ */
+
+:root {
+  /* Neutral Colors */
+  --color-neutral-0: #ffffff;
+  --color-neutral-1: #f3f3f3;
+  --color-neutral-2: #e5e5e5;
+  --color-neutral-3: #808080;
+  --color-neutral-5: #000000;
+
+  /* Source/Primary Colors (Purple) */
+  --color-source-primary-5: #3d00f6;
+  --color-source-primary-1: #d0c2fd;
+
+  /* Clip/Secondary Colors (Magenta-Purple) */
+  --color-clip-secondary-5: #ac00f6;
+  --color-clip-secondary-1: #ebc2fd;
+
+  /* Reel/Tertiary Colors (Orange) */
+  --color-reel-tertiary-5: #ff6932;
+  --color-reel-tertiary-1: #ffdbce;
+
+  /* Spacing Scale */
+  --spacing-xxxxs: 2px;
+  --spacing-xxxs: 4px;
+  --spacing-xxs: 6px;
+  --spacing-xs: 8px;
+  --spacing-small: 12px;
+  --spacing-med: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxxxl: 80px;
+
+  /* Typography */
+  --font-family-base: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* ============================================
+   TAILWIND V4 THEME CONFIGURATION
+   ============================================ */
+
+@theme {
+  /* Color System - Properly extend Tailwind's color palette */
+  --color-neutral-0: #ffffff;
+  --color-neutral-1: #f3f3f3;
+  --color-neutral-2: #e5e5e5;
+  --color-neutral-3: #808080;
+  --color-neutral-5: #000000;
+  
+  --color-source-5: #3d00f6;
+  --color-source-1: #d0c2fd;
+  
+  --color-clip-5: #ac00f6;
+  --color-clip-1: #ebc2fd;
+  
+  --color-reel-5: #ff6932;
+  --color-reel-1: #ffdbce;
+
+  /* Semantic Color Aliases */
+  --color-primary: #3d00f6;
+  --color-primary-light: #d0c2fd;
+  --color-secondary: #ac00f6;
+  --color-secondary-light: #ebc2fd;
+
+  /* Spacing Scale */
+  --spacing-0: 0px;
+  --spacing-1: var(--spacing-xxxxs);  /* 2px */
+  --spacing-2: var(--spacing-xxxs);   /* 4px */
+  --spacing-3: var(--spacing-xxs);    /* 6px */
+  --spacing-4: var(--spacing-xs);     /* 8px */
+  --spacing-6: var(--spacing-small);  /* 12px */
+  --spacing-8: var(--spacing-med);    /* 16px */
+  --spacing-12: var(--spacing-lg);    /* 24px */
+  --spacing-16: var(--spacing-xl);    /* 32px */
+  --spacing-40: var(--spacing-xxxxl); /* 80px */
+
+  /* Font Family */
+  --font-sans: var(--font-family-base);
+
+  /* Font Sizes - Based on Figma Typography */
+  --font-size-xs: 12px;    /* Meta text */
+  --font-size-sm: 14px;    /* Body & Title small */
+  --font-size-base: 16px;  /* Title medium */
+  --font-size-lg: 18px;    /* Title large */
+
+  /* Font Weights */
+  --font-weight-normal: 400;  /* Regular */
+  --font-weight-medium: 500;  /* Medium */
+  --font-weight-semibold: 600; /* SemiBold */
+
+  /* Line Heights */
+  --line-height-tight: 1;     /* 100% from Figma */
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows (for elevated cards/buttons) */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Typography Classes - Matching Figma Specs */
+.text-title-lg {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+.text-title-med {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+.text-title-sm {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+.text-body-med {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+}
+
+.text-body-sm {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-tight);
+}
+
+.text-meta-med {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+}
+
+.text-meta-sm {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-tight);
+}
+
+/* Color Utility Classes */
+.bg-neutral-0 { background-color: var(--color-neutral-0); }
+.bg-neutral-1 { background-color: var(--color-neutral-1); }
+.bg-neutral-2 { background-color: var(--color-neutral-2); }
+.bg-neutral-3 { background-color: var(--color-neutral-3); }
+.bg-neutral-5 { background-color: var(--color-neutral-5); }
+
+.bg-source-5 { background-color: var(--color-source-5); }
+.bg-source-1 { background-color: var(--color-source-1); }
+.bg-clip-5 { background-color: var(--color-clip-5); }
+.bg-clip-1 { background-color: var(--color-clip-1); }
+.bg-reel-5 { background-color: var(--color-reel-5); }
+.bg-reel-1 { background-color: var(--color-reel-1); }
+
+.text-neutral-0 { color: var(--color-neutral-0); }
+.text-neutral-1 { color: var(--color-neutral-1); }
+.text-neutral-2 { color: var(--color-neutral-2); }
+.text-neutral-3 { color: var(--color-neutral-3); }
+.text-neutral-5 { color: var(--color-neutral-5); }
+
+.text-source-5 { color: var(--color-source-5); }
+.text-source-1 { color: var(--color-source-1); }
+.text-clip-5 { color: var(--color-clip-5); }
+.text-clip-1 { color: var(--color-clip-1); }
+.text-reel-5 { color: var(--color-reel-5); }
+.text-reel-1 { color: var(--color-reel-1); }
+
+.border-neutral-2 { border-color: var(--color-neutral-2); }
+.border-source-5 { border-color: var(--color-source-5); }
+.border-clip-5 { border-color: var(--color-clip-5); }
+.border-reel-5 { border-color: var(--color-reel-5); }
+.border-reel-1 { border-color: var(--color-reel-1); }
+

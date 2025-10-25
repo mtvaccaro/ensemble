@@ -1,65 +1,90 @@
-import React from 'react'
-import { cn } from '@/lib/utils'
+'use client'
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive'
-  size?: 'sm' | 'md' | 'lg'
+import React from 'react'
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'tertiary'
+  size?: 'small' | 'med' | 'large'
   loading?: boolean
+  children: React.ReactNode
 }
 
+/**
+ * Button Component - Built from Figma Design (node 22-2159)
+ * 
+ * Uses ALL exact Figma design tokens for each variant and size:
+ * 
+ * Sizes:
+ * - small: p-[2px], gap-[2px], rounded-[4px], 12px Medium (lineHeight: 1.2)
+ * - med: p-[4px], gap-[2px], rounded-[8px], 14px Medium (lineHeight: 1.2)
+ * - large: p-[8px], gap-[4px], rounded-[8px], 16px SemiBold (lineHeight: 1.4)
+ * 
+ * Variants:
+ * - primary: bg-black (#000000), white text
+ * - secondary: bg-white, border (#e5e5e5), black text
+ * - tertiary: no bg/border, black text
+ * 
+ * States (auto-handled by CSS):
+ * - default: base styles
+ * - hover: primary/tertiary get #f3f3f3 bg, secondary gets #f3f3f3 bg
+ * - active: primary/tertiary get #e5e5e5 bg, secondary gets #e5e5e5 bg + #808080 border
+ */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', loading = false, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none'
+  ({ className = '', variant = 'primary', size = 'large', loading = false, children, disabled, ...props }, ref) => {
     
-    const variants = {
-      primary: 'bg-blue-600 text-white hover:bg-blue-700',
-      secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
-      outline: 'border border-gray-300 bg-white text-gray-900 hover:bg-gray-50',
-      ghost: 'text-gray-900 hover:bg-gray-100',
-      destructive: 'bg-red-600 text-white hover:bg-red-700'
+    // Base styles - always applied
+    const baseStyles = 'inline-flex items-center justify-center transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+    
+    // Size styles - using exact Figma tokens
+    const sizeStyles = {
+      small: 'p-[2px] gap-[2px] rounded-[4px]',
+      med: 'p-[4px] gap-[2px] rounded-[8px]',
+      large: 'p-[8px] gap-[4px] rounded-[8px]'
     }
     
-    const sizes = {
-      sm: 'h-8 px-3 text-sm',
-      md: 'h-10 px-4 py-2',
-      lg: 'h-12 px-6 text-lg'
+    // Typography styles - exact Figma specs
+    const typographyStyles = {
+      small: { 
+        fontFamily: 'Noto Sans, sans-serif',
+        fontSize: '12px',
+        fontWeight: 500,
+        lineHeight: '1.2',
+        letterSpacing: '-0.24px'
+      },
+      med: {
+        fontFamily: 'Noto Sans, sans-serif',
+        fontSize: '14px',
+        fontWeight: 500,
+        lineHeight: '1.2',
+        letterSpacing: '-0.28px'
+      },
+      large: {
+        fontFamily: 'Noto Sans, sans-serif',
+        fontSize: '16px',
+        fontWeight: 600,
+        lineHeight: '1.4',
+        letterSpacing: '-0.32px'
+      }
     }
+    
+    // Variant styles - using exact Figma tokens
+    const variantStyles = {
+      primary: 'bg-[#000000] text-white hover:opacity-90 active:opacity-80',
+      secondary: 'bg-white border border-[#e5e5e5] text-black hover:bg-[#f3f3f3] active:bg-[#e5e5e5] active:border-[#808080]',
+      tertiary: 'bg-transparent text-black hover:bg-[#f3f3f3] active:bg-[#e5e5e5]'
+    }
+    
+    const combinedClassName = `${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${className}`.trim()
     
     return (
       <button
-        className={cn(
-          baseStyles,
-          variants[variant],
-          sizes[size],
-          className
-        )}
         ref={ref}
+        className={combinedClassName}
+        style={typographyStyles[size]}
         disabled={disabled || loading}
         {...props}
       >
-        {loading && (
-          <svg
-            className="mr-2 h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-        )}
-        {children}
+        {loading ? 'Loading...' : children}
       </button>
     )
   }
@@ -67,4 +92,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
 Button.displayName = 'Button'
 
-export { Button } 
+export { Button }

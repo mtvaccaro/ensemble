@@ -1,4 +1,4 @@
-# Ensemble Setup Instructions
+# Unspool Studio Setup Instructions
 
 ## Quick Start
 

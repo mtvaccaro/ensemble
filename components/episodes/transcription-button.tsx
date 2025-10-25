@@ -5,7 +5,7 @@ import { useTranscription } from '@/lib/use-transcription'
 import { TranscriptionStatus, TranscriptSegment } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Loader2, FileText, AlertCircle, CheckCircle } from 'lucide-react'
-import { SearchableTranscript } from './searchable-transcript'
+import { WordLevelTranscript } from './word-level-transcript'
 
 interface TranscriptionButtonProps {
   episodeId: string
@@ -59,8 +59,8 @@ export function TranscriptionButton({
           <Button
             onClick={handleTranscribe}
             disabled={isLoading}
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="small"
           >
             {isLoading ? (
               <>
@@ -99,8 +99,8 @@ export function TranscriptionButton({
             <Button
               onClick={handleTranscribe}
               disabled={isLoading}
-              variant="outline"
-              size="sm"
+              variant="secondary"
+              size="small"
             >
               Retry
             </Button>
@@ -120,15 +120,18 @@ export function TranscriptionButton({
             View & Search Transcript
           </summary>
           {displaySegments.length > 0 ? (
-            <SearchableTranscript
+            <WordLevelTranscript
               segments={displaySegments}
-              onSegmentClick={(segment) => {
-                console.log('Clicked segment:', {
-                  timestamp: segment.start,
-                  text: segment.text.substring(0, 50)
-                })
-                // TODO: Integrate with audio player to seek to segment.start
-                // TODO: Optionally open clip creation modal with this segment pre-selected
+              onSelectionChange={(selection) => {
+                if (selection) {
+                  console.log('Selected word range:', {
+                    startTime: selection.startTime,
+                    endTime: selection.endTime,
+                    text: selection.text.substring(0, 50)
+                  })
+                  // TODO: Integrate with audio player to seek to selection.startTime
+                  // TODO: Optionally open clip creation modal with this selection pre-selected
+                }
               }}
             />
           ) : (

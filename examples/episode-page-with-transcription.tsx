@@ -145,7 +145,7 @@ export default function PodcastEpisodesPageWithTranscription() {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button variant="secondary" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
@@ -168,7 +168,7 @@ export default function PodcastEpisodesPageWithTranscription() {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button variant="secondary" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
@@ -193,7 +193,7 @@ export default function PodcastEpisodesPageWithTranscription() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center space-x-4">
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="secondary" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
@@ -285,8 +285,8 @@ export default function PodcastEpisodesPageWithTranscription() {
                   <div className="flex items-center space-x-3 mb-4">
                     <Button
                       onClick={() => handlePlayPause(episode.id, episode.audio_url)}
-                      variant={playingEpisode === episode.id ? "outline" : "primary"}
-                      size="sm"
+                      variant={playingEpisode === episode.id ? "secondary" : "primary"}
+                      size="small"
                     >
                       {playingEpisode === episode.id ? (
                         <Pause className="h-4 w-4 mr-2" />
@@ -295,7 +295,7 @@ export default function PodcastEpisodesPageWithTranscription() {
                       )}
                       {playingEpisode === episode.id ? 'Pause' : 'Play'}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => {
+                    <Button variant="secondary" size="small" onClick={() => {
                       posthog.capture('create_clip_button_clicked', {
                         podcast_id: podcastId,
                         episode_id: episode.id,
@@ -305,7 +305,7 @@ export default function PodcastEpisodesPageWithTranscription() {
                       <Scissors className="h-4 w-4 mr-2" />
                       Create Clip
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="secondary" size="small">
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </Button>

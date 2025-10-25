@@ -1,4 +1,4 @@
-# Ensemble Development Progress
+# Unspool Studio Development Progress
 
 ## Project Overview
 Podcast clip generation web tool - Transform podcasts into viral clips with AI transcription.
@@ -65,7 +65,7 @@ Implement episode listing, audio playback, OpenAI Whisper transcription, and epi
 ⚠️ **PRODUCTION APP WITH ACTIVE USERS** - Follow these workflows strictly!
 
 ### Branch Structure
-- **`main`** → Production (ensemblestud.io) - STABLE ONLY
+- **`main`** → Production (unspoolstud.io) - STABLE ONLY
 - **`staging`** → Staging environment for final testing before production
 - **`feature/*`** → Feature branches with Vercel preview deployments
 
@@ -97,7 +97,7 @@ git commit -m "feat: add new feature"
 # 3. Push to GitHub
 git push origin feature/new-feature
 
-# 4. Vercel auto-creates preview: ensemble-abc123-feature-new-feature.vercel.app
+# 4. Vercel auto-creates preview: unspool-abc123-feature-new-feature.vercel.app
 # 5. Test thoroughly on preview URL
 # 6. Open PR using the template (checks all boxes)
 # 7. Review PR, verify tests pass
@@ -137,7 +137,7 @@ git commit -m "hotfix: fix critical bug"
 git push origin hotfix/critical-bug
 
 # 4. ⚠️ TEST ON PREVIEW URL FIRST - DO NOT SKIP THIS!
-#    Wait for preview deployment: ensemble-git-hotfix-critical-bug-...vercel.app
+#    Wait for preview deployment: unspool-git-hotfix-critical-bug-...vercel.app
 #    Verify the fix works and doesn't break anything
 
 # 5. ONLY AFTER TESTING: Merge to main
@@ -175,4 +175,4 @@ git push origin main
 - **Local**: `localhost:3000` - Initial development
 - **Preview**: Vercel auto-preview - Feature testing
 - **Staging**: `staging` branch - Final QA (optional)
-- **Production**: `main` branch → ensemblestud.io - Live users
+- **Production**: `main` branch → unspoolstud.io - Live users

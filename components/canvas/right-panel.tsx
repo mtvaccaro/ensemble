@@ -29,8 +29,8 @@ export function RightPanel({ isOpen, onClose, title, children, width = '360px' }
           <h2 className="text-lg font-bold text-gray-900">{title}</h2>
           <Button
             onClick={onClose}
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="small"
             className="hover:bg-gray-100"
           >
             <X className="h-4 w-4" />

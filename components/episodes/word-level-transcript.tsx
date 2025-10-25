@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { TranscriptSegment, TranscriptWord } from '@/types'
 
 interface WordSelection {
@@ -126,7 +126,7 @@ export function WordLevelTranscript({
     }
 
     return blocks
-  }, [segments])
+  }, [segments, segments.length, segments.reduce((sum, s) => sum + (s.words?.length || 0), 0)])
 
   const handleWordClick = (segmentId: number, wordIndex: number, word: TranscriptWord) => {
     if (!selectionStart) {
@@ -333,17 +333,17 @@ export function WordLevelTranscript({
   }, [searchQuery])
   
   // Navigate to next/previous match (navigate by phrase, not by word)
-  const goToNextMatch = () => {
+  const goToNextMatch = useCallback(() => {
     if (phraseMatches.length > 0) {
       setCurrentMatchIndex((prev) => (prev + 1) % phraseMatches.length)
     }
-  }
+  }, [phraseMatches.length])
   
-  const goToPrevMatch = () => {
+  const goToPrevMatch = useCallback(() => {
     if (phraseMatches.length > 0) {
       setCurrentMatchIndex((prev) => (prev - 1 + phraseMatches.length) % phraseMatches.length)
     }
-  }
+  }, [phraseMatches.length])
   
   // Check if a word is a search match
   const isSearchMatch = (blockIdx: number, wordIdx: number): 'current' | 'other' | null => {
