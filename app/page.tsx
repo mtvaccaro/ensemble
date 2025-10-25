@@ -210,7 +210,7 @@ function CanvasPageContent() {
         if (isSelectedItemPlaying) {
           audioPlayer.pause()
         } else {
-          // For reels, set up the clips and play the first one
+          // For reels, set up the clips and play
           if (selectedItem.type === 'reel') {
             const reel = selectedItem as CanvasReel
             const reelClips = reel.clipIds
@@ -219,7 +219,15 @@ function CanvasPageContent() {
             
             if (reelClips.length > 0) {
               audioPlayer.setPlayableItems(reelClips, reelClips)
-              audioPlayer.play(reelClips[0])
+              
+              // Check if we're resuming from a paused state or starting fresh
+              const currentlyPausedClip = audioPlayer.currentItem && reel.clipIds.includes(audioPlayer.currentItem.id)
+                ? audioPlayer.currentItem
+                : null
+              
+              // If resuming, don't pass a target (resumes from current position)
+              // If starting fresh, play the first clip
+              audioPlayer.play(currentlyPausedClip || reelClips[0])
             }
           } else {
             // For episodes and clips, play directly
@@ -2034,8 +2042,10 @@ function CanvasPageContent() {
                         onPlayClick={(e) => {
                           e.stopPropagation()
                           
-                          // Check if this is the currently playing item
-                          const isThisCurrentlyPlaying = audioPlayer.currentItem?.id === item.id && audioPlayer.isPlaying
+                          // Check if this reel is currently playing (any of its clips is the current item)
+                          const isThisCurrentlyPlaying = audioPlayer.isPlaying && 
+                                                         audioPlayer.currentItem && 
+                                                         reel.clipIds.includes(audioPlayer.currentItem.id)
                           
                           if (isThisCurrentlyPlaying) {
                             // If this reel is already playing, just pause it
@@ -2054,9 +2064,15 @@ function CanvasPageContent() {
                               setSelectedItemIds([item.id])
                             }
                             
-                            // Play the reel (first clip)
+                            // Check if we're resuming from a paused state or starting fresh
+                            const currentlyPausedClip = audioPlayer.currentItem && reel.clipIds.includes(audioPlayer.currentItem.id)
+                              ? audioPlayer.currentItem
+                              : null
+                            
+                            // If resuming, play the currently paused clip (resumes from current position)
+                            // If starting fresh, play the first clip
                             if (reelClips.length > 0) {
-                              audioPlayer.play(reelClips[0])
+                              audioPlayer.play(currentlyPausedClip || reelClips[0])
                             }
                           }
                         }}
