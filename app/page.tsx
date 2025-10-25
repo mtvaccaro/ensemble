@@ -1340,17 +1340,19 @@ export default function CanvasPage() {
         data-search-panel
         className="fixed top-4 left-4 z-30 w-80 bg-white/95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-xl"
       >
-        {/* Header - Always Visible */}
-        <div className="px-3 pt-3 pb-2 border-b border-gray-200">
-          <img 
-            src="/ensemble-studio-logo-v1.svg" 
-            alt="Ensemble" 
-            className="h-7 w-auto"
-          />
+        {/* Header - Always Visible - Using Figma tokens: p-[16px] outer card + p-[4px] logo container */}
+        <div className="px-[16px] pt-[16px] pb-0">
+          <div className="p-[4px]">
+            <img 
+              src="/ensemble-studio-logo-v1.svg" 
+              alt="Ensemble" 
+              className="h-[32px] w-auto"
+            />
+          </div>
         </div>
 
-        {/* Search Input (Always Visible) */}
-        <div className="p-3 space-y-2">
+        {/* Search Input (Always Visible) - Using Figma tokens: gap-[8px] between sections */}
+        <div className="px-[16px] pt-[8px] pb-[16px] space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
             <Input
