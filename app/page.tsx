@@ -106,7 +106,23 @@ export default function CanvasPage() {
   // Load canvas state and panel widths on mount
   useEffect(() => {
     const state = storage.getCanvasState()
-    setCanvasItems(state.items)
+    
+    // Migrate old episodes: add podcastTitle if missing
+    const migratedItems = state.items.map(item => {
+      if (item.type === 'episode') {
+        const episode = item as CanvasEpisode
+        // If podcastTitle is missing, use a fallback
+        if (!episode.podcastTitle) {
+          return {
+            ...episode,
+            podcastTitle: 'Podcast' // Generic fallback - user can re-add for correct name
+          } as CanvasEpisode
+        }
+      }
+      return item
+    })
+    
+    setCanvasItems(migratedItems)
     setSelectedItemIds(state.selectedItemIds)
     
     // Load right panel width from localStorage
@@ -114,7 +130,7 @@ export default function CanvasPage() {
     if (savedRightWidth) setRightPanelWidth(parseInt(savedRightWidth))
     
     // Auto fit-to-view when returning to canvas with items
-    if (state.items.length > 0) {
+    if (migratedItems.length > 0) {
       setTimeout(() => {
         handleFitToView()
       }, 100)
