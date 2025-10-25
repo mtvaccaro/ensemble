@@ -1393,13 +1393,13 @@ export default function CanvasPage() {
         {/* Expanded Results (Collapsible) */}
         {isSearchExpanded && (searchResults.length > 0 || selectedPodcast) && (
           <>
-            {/* Results Container - Scrollable */}
+            {/* Results Container - Scrollable with proper structure */}
             <div className="flex-1 overflow-y-auto" style={{ maxHeight: '60vh' }}>
               {selectedPodcast ? (
-                // Episode list with podcast header
+                // Episode list with podcast header - Using Figma structure for state=state3
                 <div className="flex flex-col h-full">
-                  {/* Podcast Header - Using Figma tokens: px-[4px] py-[8px] gap-[9px] */}
-                  <div className="px-[4px] py-[8px]">
+                  {/* Podcast Header - Figma: px-[4px] py-[8px] gap-[10px] */}
+                  <div className="flex flex-col gap-[10px] px-[4px] py-[8px] shrink-0">
                     <div className="flex gap-[9px] items-center py-[1px]">
                       <img
                         src={selectedPodcast.imageUrl}
@@ -1435,12 +1435,12 @@ export default function CanvasPage() {
                     </div>
                   </div>
 
-                  {/* Episode List - Using Figma gap-[8px] between episodes */}
-                  <div className="flex-1 bg-white">
+                  {/* Episode List - Figma: bg-white gap-[8px] grow */}
+                  <div className="flex-1 bg-white flex flex-col gap-[8px] overflow-y-auto">
                     {isLoadingEpisodes ? (
                       <p className="text-sm text-gray-500 text-center py-4">Loading episodes...</p>
                     ) : (
-                      <div className="flex flex-col gap-[8px]">
+                      <>
                         {episodes.map((episode) => (
                           <div 
                             key={episode.id}
@@ -1457,31 +1457,29 @@ export default function CanvasPage() {
                             />
                           </div>
                         ))}
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
               ) : (
-                // Podcast search results - Using Figma px-[16px] padding
-                <div className="px-[16px]">
-                  <div className="flex flex-col gap-[10px]">
-                    {searchResults.map((podcast) => (
-                      <PodcastSearchCard
-                        key={podcast.id}
-                        title={podcast.title}
-                        author={podcast.author}
-                        episodeCount={podcast.episodeCount}
-                        imageUrl={podcast.imageUrl}
-                        onClick={() => loadEpisodes(podcast)}
-                      />
-                    ))}
-                  </div>
+                // Podcast search results - Figma: content inside basis-0 grow container with gap-[10px]
+                <div className="px-[16px] flex flex-col gap-[10px] h-full">
+                  {searchResults.map((podcast) => (
+                    <PodcastSearchCard
+                      key={podcast.id}
+                      title={podcast.title}
+                      author={podcast.author}
+                      episodeCount={podcast.episodeCount}
+                      imageUrl={podcast.imageUrl}
+                      onClick={() => loadEpisodes(podcast)}
+                    />
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Footer with Upload Button - Using Figma tokens: border-t-[1px] border-[#f3f3f3] pt-[8px] pb-0 px-[4px] */}
-            <div className="border-t border-[#f3f3f3] pt-[8px] pb-0 px-[4px] bg-white">
+            {/* Footer with Upload Button - Figma: border-t-[1px] border-[#f3f3f3] gap-[8px] pt-[8px] pb-0 px-[4px] */}
+            <div className="border-t border-[#f3f3f3] flex gap-[8px] items-center justify-end pt-[8px] pb-0 px-[4px] bg-white shrink-0">
               <input
                 type="file"
                 accept="audio/*"
@@ -1489,17 +1487,14 @@ export default function CanvasPage() {
                 className="hidden"
                 id="audio-upload"
               />
-              <label htmlFor="audio-upload">
-                <Button
-                  type="button"
-                  variant="tertiary"
-                  size="med"
-                  className="w-full"
-                  onClick={() => document.getElementById('audio-upload')?.click()}
-                >
-                  Upload File
-                </Button>
-              </label>
+              <Button
+                type="button"
+                variant="tertiary"
+                size="med"
+                onClick={() => document.getElementById('audio-upload')?.click()}
+              >
+                Upload File
+              </Button>
             </div>
           </>
         )}
