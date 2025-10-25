@@ -127,42 +127,42 @@ export function ClipCard({
                 <Play className="w-[24px] h-[24px] text-white fill-white ml-0.5" />
               </button>
 
-              {/* Content: Title + Duration - Using exact Figma tokens */}
-              <div className="flex-1 min-w-0 flex flex-col gap-[2px] justify-center">
-                {/* Clip Title - Title/sm: 14px SemiBold, line-height: 100% */}
-                <h3 
-                  className="
-                    font-semibold 
-                    text-black
-                    line-clamp-2
-                  "
-                  style={{ 
-                    fontFamily: 'Noto Sans, sans-serif',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    lineHeight: '100%',
-                    letterSpacing: '-0.28px'
-                  }}
-                >
-                  {title}
-                </h3>
+          {/* Content: Title + Duration - Using exact Figma tokens */}
+          <div className="flex-1 min-w-0 flex flex-col gap-[2px] justify-center">
+            {/* Clip Title - Title/sm: 14px SemiBold, line-height: 140% */}
+            <h3 
+              className="
+                font-semibold 
+                text-black
+                line-clamp-2
+              "
+              style={{ 
+                fontFamily: 'Noto Sans, sans-serif',
+                fontSize: '14px',
+                fontWeight: 600,
+                lineHeight: '1.4',
+                letterSpacing: '-0.28px'
+              }}
+            >
+              {title}
+            </h3>
 
-                {/* Duration - Meta/med: 12px Medium, line-height: 100% */}
-                <div 
-                  className="flex items-center gap-[8px]"
-                  style={{ 
-                    fontFamily: 'Noto Sans, sans-serif',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    lineHeight: '100%',
-                    letterSpacing: '-0.24px'
-                  }}
-                >
-                  <span className="text-[#808080] shrink-0 whitespace-nowrap">
-                    {formatDuration(duration)}
-                  </span>
-                </div>
-              </div>
+            {/* Duration - Meta/med: 12px Medium, line-height: 120% */}
+            <div 
+              className="flex items-center gap-[8px]"
+              style={{ 
+                fontFamily: 'Noto Sans, sans-serif',
+                fontSize: '12px',
+                fontWeight: 500,
+                lineHeight: '1.2',
+                letterSpacing: '-0.24px'
+              }}
+            >
+              <span className="text-[#808080] shrink-0 whitespace-nowrap">
+                {formatDuration(duration)}
+              </span>
+            </div>
+          </div>
             </div>
           </div>
 
@@ -180,7 +180,7 @@ export function ClipCard({
                 fontFamily: 'Noto Sans, sans-serif',
                 fontSize: '12px',
                 fontWeight: 500,
-                lineHeight: '100%',
+                lineHeight: '1.2',
                 letterSpacing: '-0.24px',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,

@@ -148,7 +148,7 @@ export function SourceCard({
 
           {/* Content - Using exact Figma tokens */}
           <div className="flex-1 min-w-0 flex flex-col gap-[2px] justify-center">
-            {/* Episode Title - Title/sm: 14px SemiBold, line-height: 100% */}
+            {/* Episode Title - Title/sm: 14px SemiBold, line-height: 140% */}
             <h3 
               className="
                 font-semibold 
@@ -159,26 +159,26 @@ export function SourceCard({
                 fontFamily: 'Noto Sans, sans-serif',
                 fontSize: '14px',
                 fontWeight: 600,
-                lineHeight: '100%',
+                lineHeight: '1.4',
                 letterSpacing: '-0.28px'
               }}
             >
               {title}
             </h3>
 
-            {/* Metadata Row - Meta/med: 12px Medium, line-height: 100% */}
+            {/* Show Title + Duration Row - Meta/med: 12px Medium, line-height: 120% */}
             <div 
               className="flex items-center gap-[8px]"
               style={{ 
                 fontFamily: 'Noto Sans, sans-serif',
                 fontSize: '12px',
                 fontWeight: 500,
-                lineHeight: '100%',
+                lineHeight: '1.2',
                 letterSpacing: '-0.24px'
               }}
             >
               {podcastTitle && (
-                <span className="text-black truncate">
+                <span className="text-black truncate overflow-ellipsis overflow-hidden">
                   {podcastTitle}
                 </span>
               )}
