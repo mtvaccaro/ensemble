@@ -51,13 +51,6 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
   
   const currentItem = playableItems[currentItemIndex] || null
 
-  // Track previous item type when currentItem changes
-  useEffect(() => {
-    if (currentItem) {
-      previousItemTypeRef.current = currentItem.type
-    }
-  }, [currentItem])
-
   // Update audio source when current item changes
   useEffect(() => {
     const audio = audioRef.current
@@ -238,6 +231,9 @@ export function AudioPlayerProvider({ children }: AudioPlayerProviderProps) {
       }
       // Otherwise continue from current position (user paused and resumed same episode)
     }
+    
+    // NOW update the ref for next time (do this AFTER checking it)
+    previousItemTypeRef.current = itemToPlay.type
     
     audio.play().catch(err => console.error('Play failed:', err))
   }, [playableItems, currentItemIndex]) // Dependencies: playableItems and currentItemIndex
