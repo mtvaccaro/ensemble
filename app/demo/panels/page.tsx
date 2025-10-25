@@ -446,7 +446,7 @@ export default function PanelDemoPage() {
               <li>• Shorter transcript preview</li>
               <li>• Platform selector (YouTube, Instagram, X, LinkedIn)</li>
               <li>• Video preview area (216px)</li>
-              <li>• Export Clip button</li>
+              <li>• Export button</li>
             </ul>
           </div>
         </div>
