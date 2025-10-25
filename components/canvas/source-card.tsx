@@ -177,11 +177,9 @@ export function SourceCard({
                 letterSpacing: '-0.24px'
               }}
             >
-              {podcastTitle && (
-                <span className="text-black overflow-ellipsis overflow-hidden whitespace-nowrap flex-1 min-w-0">
-                  {podcastTitle}
-                </span>
-              )}
+              <span className="text-black overflow-ellipsis overflow-hidden whitespace-nowrap flex-1 min-w-0">
+                {podcastTitle || 'Unknown Show'}
+              </span>
               <span className="text-[#808080] shrink-0 whitespace-nowrap">
                 {formatDuration(duration)}
               </span>
